@@ -30,6 +30,13 @@
 
 .sticky-note-label {
   @apply font-code-md text-xs opacity-50 mb-xs;
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: inherit;
 }
 
 .sticky-note-content {

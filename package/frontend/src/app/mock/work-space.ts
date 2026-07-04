@@ -8,7 +8,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
     items: [
       {
         id: 'note-1',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 400,
         y: 200,
         zIndex: 1,
@@ -21,7 +21,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'note-2',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 650,
         y: 150,
         zIndex: 2,
@@ -34,7 +34,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'note-3',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 520,
         y: 420,
         zIndex: 3,
@@ -47,7 +47,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'note-4',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 800,
         y: 450,
         zIndex: 4,
@@ -60,7 +60,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'image-1',
-        type: EnumWorkspaceItemType.Image,
+        type: EnumWorkspaceItemType.IMAGE,
         x: 1000,
         y: 180,
         zIndex: 5,
@@ -76,7 +76,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'image-2',
-        type: EnumWorkspaceItemType.Image,
+        type: EnumWorkspaceItemType.IMAGE,
         x: 1100,
         y: 480,
         zIndex: 6,
@@ -92,7 +92,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'code-1',
-        type: EnumWorkspaceItemType.CodeSnippet,
+        type: EnumWorkspaceItemType.CODE_SNIPPET,
         x: 100,
         y: 400,
         zIndex: 7,
@@ -101,7 +101,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'text-1',
-        type: EnumWorkspaceItemType.Text,
+        type: EnumWorkspaceItemType.TEXT,
         x: 550,
         y: 700,
         zIndex: 8,
@@ -113,7 +113,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'link-1',
-        type: EnumWorkspaceItemType.Link,
+        type: EnumWorkspaceItemType.LINK,
         x: 850,
         y: 820,
         zIndex: 9,
@@ -128,7 +128,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
     items: [
       {
         id: 'retro-note-1',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 300,
         y: 200,
         zIndex: 1,
@@ -141,7 +141,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'retro-note-2',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 560,
         y: 220,
         zIndex: 2,
@@ -154,7 +154,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'retro-note-3',
-        type: EnumWorkspaceItemType.StickyNote,
+        type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 430,
         y: 420,
         zIndex: 3,

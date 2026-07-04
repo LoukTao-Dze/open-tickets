@@ -20,21 +20,19 @@
     >
       <span class="material-symbols-outlined" [ngClass]="tool.iconClass">{{ tool.icon }}</span>
     </button>
-
-    <div
-      *ngIf="tool.id === EnumWorkspaceItemType.StickyNote && isStickyNoteColorPickerOpen"
-      class="sticky-note-color-picker"
-    >
-      <button
-        *ngFor="let color of stickyNoteColorOptions"
-        type="button"
-        class="sticky-note-color-option"
-        [style.background]="color.bgColor"
-        [attr.aria-label]="color.label"
-        [title]="color.label"
-        (click)="chooseStickyNoteColor(color)"
-      ></button>
-    </div>
+    @if (tool.id === EnumWorkspaceItemType.STICKY_NOTE && isStickyNoteColorPickerOpen) {
+      <div class="sticky-note-color-picker">
+        <button
+          *ngFor="let color of stickyNoteColorOptions"
+          type="button"
+          class="sticky-note-color-option"
+          [style.background]="color.bgColor"
+          [attr.aria-label]="color.label"
+          [title]="color.label"
+          (click)="chooseStickyNoteColor(color)"
+        ></button>
+      </div>
+    }
   </div>
 
   <div class="tool-divider"></div>

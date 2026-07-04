@@ -29,20 +29,30 @@
           [style.zIndex]="item.zIndex"
           (mousedown)="onItemMouseDown($event, item)"
         >
+          <button
+            type="button"
+            class="item-delete-btn"
+            aria-label="Delete item"
+            (mousedown)="$event.stopPropagation()"
+            (click)="deleteItem($event, item)"
+          >
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+
           @switch (item.type) {
-            @case (EnumWorkspaceItemType.StickyNote) {
+            @case (EnumWorkspaceItemType.STICKY_NOTE) {
               <app-sticky-note [note]="item" [isDragging]="isDragging(item)"></app-sticky-note>
             }
-            @case (EnumWorkspaceItemType.Image) {
+            @case (EnumWorkspaceItemType.IMAGE) {
               <app-uploaded-image [image]="item"></app-uploaded-image>
             }
-            @case (EnumWorkspaceItemType.CodeSnippet) {
+            @case (EnumWorkspaceItemType.CODE_SNIPPET) {
               <app-code-snippet [item]="item"></app-code-snippet>
             }
-            @case (EnumWorkspaceItemType.Text) {
+            @case (EnumWorkspaceItemType.TEXT) {
               <app-text [item]="item" [zoom]="zoom"></app-text>
             }
-            @case (EnumWorkspaceItemType.Link) {
+            @case (EnumWorkspaceItemType.LINK) {
               <app-link [item]="item"></app-link>
             }
             @default {}

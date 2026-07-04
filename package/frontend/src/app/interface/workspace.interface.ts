@@ -11,7 +11,7 @@ export interface CanvasItemBase {
 }
 
 export interface StickyNoteItem extends CanvasItemBase {
-  type: EnumWorkspaceItemType.StickyNote;
+  type: EnumWorkspaceItemType.STICKY_NOTE;
   label: string;
   content: string;
   bgColor: string;
@@ -21,7 +21,7 @@ export interface StickyNoteItem extends CanvasItemBase {
 }
 
 export interface UploadedImageItem extends CanvasItemBase {
-  type: EnumWorkspaceItemType.Image;
+  type: EnumWorkspaceItemType.IMAGE;
   fileName: string;
   imageUrl: string;
   imageAlt: string;
@@ -33,13 +33,13 @@ export interface UploadedImageItem extends CanvasItemBase {
 }
 
 export interface CodeSnippetItem extends CanvasItemBase {
-  type: EnumWorkspaceItemType.CodeSnippet;
+  type: EnumWorkspaceItemType.CODE_SNIPPET;
   fileName: string;
   code: string;
 }
 
 export interface TextItem extends CanvasItemBase {
-  type: EnumWorkspaceItemType.Text;
+  type: EnumWorkspaceItemType.TEXT;
   content: string;
   fontSize: number;
   color: string;
@@ -48,7 +48,7 @@ export interface TextItem extends CanvasItemBase {
 }
 
 export interface LinkItem extends CanvasItemBase {
-  type: EnumWorkspaceItemType.Link;
+  type: EnumWorkspaceItemType.LINK;
   url: string;
   title: string;
 }

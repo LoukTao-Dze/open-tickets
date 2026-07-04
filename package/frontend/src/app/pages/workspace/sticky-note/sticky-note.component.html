@@ -6,7 +6,18 @@
   [style.color]="note.textColor"
   [style.transform]="noteTransform"
 >
-  <div class="sticky-note-label">{{ note.label }}</div>
+  <input
+    #labelInput
+    class="sticky-note-label"
+    type="text"
+    spellcheck="false"
+    [value]="note.label"
+    [readOnly]="!isLabelEditing"
+    (input)="onLabelInput(labelInput.value)"
+    (mousedown)="onLabelMouseDown($event)"
+    (dblclick)="startEditingLabel(labelInput)"
+    (blur)="stopEditingLabel()"
+  />
   <textarea
     #contentInput
     class="sticky-note-content"

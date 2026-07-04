@@ -129,6 +129,17 @@ export class WorkspaceComponent {
     this.activeWhiteboard.items.push(newItem);
   }
 
+  deleteItem(event: MouseEvent, item: WorkspaceCanvasItem) {
+    event.stopPropagation();
+
+    const board = this.activeWhiteboard;
+    board.items = board.items.filter((candidate) => candidate.id !== item.id);
+
+    if (this.activeItem === item) {
+      this.activeItem = null;
+    }
+  }
+
   minimapItemStyle(item: WorkspaceCanvasItem) {
     return {
       left: `${item.x * this.minimapScaleX}px`,
@@ -260,13 +271,13 @@ export class WorkspaceComponent {
     const id = crypto.randomUUID();
 
     switch (event.type) {
-      case EnumWorkspaceItemType.StickyNote: {
+      case EnumWorkspaceItemType.STICKY_NOTE: {
         if (!event.color) {
           return null;
         }
         return {
           id,
-          type: EnumWorkspaceItemType.StickyNote,
+          type: EnumWorkspaceItemType.STICKY_NOTE,
           x: center.x - STICKY_NOTE_SIZE / 2,
           y: center.y - STICKY_NOTE_SIZE / 2,
           zIndex: 0,
@@ -278,10 +289,10 @@ export class WorkspaceComponent {
           icon: '',
         };
       }
-      case EnumWorkspaceItemType.Text:
+      case EnumWorkspaceItemType.TEXT:
         return {
           id,
-          type: EnumWorkspaceItemType.Text,
+          type: EnumWorkspaceItemType.TEXT,
           x: center.x - DEFAULT_TEXT_WIDTH / 2,
           y: center.y - DEFAULT_TEXT_HEIGHT / 2,
           zIndex: 0,
@@ -291,25 +302,41 @@ export class WorkspaceComponent {
           width: DEFAULT_TEXT_WIDTH,
           height: DEFAULT_TEXT_HEIGHT,
         };
-      case EnumWorkspaceItemType.Link:
+      case EnumWorkspaceItemType.LINK:
         return {
           id,
-          type: EnumWorkspaceItemType.Link,
+          type: EnumWorkspaceItemType.LINK,
           x: center.x - DEFAULT_LINK_WIDTH / 2,
           y: center.y - DEFAULT_LINK_HEIGHT / 2,
           zIndex: 0,
           title: '',
           url: '',
         };
-      case EnumWorkspaceItemType.CodeSnippet:
+      case EnumWorkspaceItemType.CODE_SNIPPET:
         return {
           id,
-          type: EnumWorkspaceItemType.CodeSnippet,
+          type: EnumWorkspaceItemType.CODE_SNIPPET,
           x: center.x - DEFAULT_CODE_SNIPPET_WIDTH / 2,
           y: center.y - DEFAULT_CODE_SNIPPET_HEIGHT / 2,
           zIndex: 0,
           fileName: DEFAULT_CODE_SNIPPET_FILE_NAME,
           code: '',
+        };
+      case EnumWorkspaceItemType.IMAGE:
+        return {
+          id,
+          type: EnumWorkspaceItemType.IMAGE,
+          x: center.x - 100,
+          y: center.y - 100,
+          zIndex: 0,
+          fileName: '',
+          imageUrl: '',
+          imageAlt: '',
+          width: 200,
+          height: 200,
+          statusIcon: 'warning',
+          statusIconClass: 'text-error',
+          grayscaleHover: false,
         };
       default:
         return null;

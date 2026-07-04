@@ -17,7 +17,12 @@ export class StickyNoteComponent {
   @Input({ required: true }) note!: StickyNoteItem;
   @Input() isDragging = false;
 
-  isEditing = false;
+  isLabelEditing = false;
+  isContentEditing = false;
+
+  get isEditing(): boolean {
+    return this.isLabelEditing || this.isContentEditing;
+  }
 
   get noteTransform(): string {
     return this.isDragging ? 'scale(1.05) rotate(0deg)' : `rotate(${this.note.rotation}deg)`;
@@ -38,22 +43,41 @@ export class StickyNoteComponent {
     return MAX_CONTENT_FONT_SIZE - ratio * (MAX_CONTENT_FONT_SIZE - MIN_CONTENT_FONT_SIZE);
   }
 
+  onLabelInput(value: string) {
+    this.note.label = value;
+  }
+
+  onLabelMouseDown(event: MouseEvent) {
+    if (this.isLabelEditing) {
+      event.stopPropagation();
+    }
+  }
+
+  startEditingLabel(labelInput: HTMLInputElement) {
+    this.isLabelEditing = true;
+    queueMicrotask(() => labelInput.focus());
+  }
+
+  stopEditingLabel() {
+    this.isLabelEditing = false;
+  }
+
   onContentInput(value: string) {
     this.note.content = value;
   }
 
   onContentMouseDown(event: MouseEvent) {
-    if (this.isEditing) {
+    if (this.isContentEditing) {
       event.stopPropagation();
     }
   }
 
   startEditing(textarea: HTMLTextAreaElement) {
-    this.isEditing = true;
+    this.isContentEditing = true;
     queueMicrotask(() => textarea.focus());
   }
 
   stopEditing() {
-    this.isEditing = false;
+    this.isContentEditing = false;
   }
 }

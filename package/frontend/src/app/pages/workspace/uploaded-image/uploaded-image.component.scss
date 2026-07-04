@@ -24,6 +24,15 @@
   @apply grayscale-0;
 }
 
+.image-upload-placeholder {
+  @apply w-full h-full flex flex-col items-center justify-center gap-xs text-on-surface-variant border border-dashed border-outline-variant rounded bg-surface-container-low hover:bg-surface-variant hover:text-on-surface transition-colors cursor-pointer;
+  pointer-events: auto;
+}
+
+.image-upload-label {
+  @apply font-body-sm text-xs;
+}
+
 .image-footer {
   @apply p-sm flex justify-between items-center pointer-events-none;
 }

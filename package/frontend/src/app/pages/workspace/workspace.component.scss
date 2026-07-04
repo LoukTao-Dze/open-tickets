@@ -34,6 +34,23 @@
   &.is-dragging {
     cursor: grabbing;
   }
+
+  &:hover .item-delete-btn {
+    @apply opacity-100 pointer-events-auto;
+  }
+}
+
+.item-delete-btn {
+  @apply absolute top-0 right-0 w-6 h-6 flex items-center justify-center rounded-full bg-error text-on-error opacity-0 pointer-events-none shadow-lg transition-opacity z-10;
+  transform: translate(50%, -50%);
+
+  .material-symbols-outlined {
+    @apply text-[14px];
+  }
+
+  &:hover {
+    @apply bg-on-error-container;
+  }
 }
 
 /* Whiteboard switcher */

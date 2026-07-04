@@ -16,10 +16,11 @@ export interface StickyNoteColorOption {
 }
 
 export type InsertableWorkspaceItemType =
-  | EnumWorkspaceItemType.StickyNote
-  | EnumWorkspaceItemType.Text
-  | EnumWorkspaceItemType.Link
-  | EnumWorkspaceItemType.CodeSnippet;
+  | EnumWorkspaceItemType.STICKY_NOTE
+  | EnumWorkspaceItemType.TEXT
+  | EnumWorkspaceItemType.LINK
+  | EnumWorkspaceItemType.CODE_SNIPPET
+  | EnumWorkspaceItemType.IMAGE;
 
 export interface InsertToolEvent {
   type: InsertableWorkspaceItemType;
@@ -36,9 +37,11 @@ const STICKY_NOTE_COLOR_OPTIONS: StickyNoteColorOption[] = [
 ];
 
 const INSERTABLE_TOOL_TYPES: ReadonlySet<string> = new Set([
-  EnumWorkspaceItemType.Text,
-  EnumWorkspaceItemType.Link,
-  EnumWorkspaceItemType.CodeSnippet,
+  EnumWorkspaceItemType.TEXT,
+  EnumWorkspaceItemType.LINK,
+  EnumWorkspaceItemType.CODE_SNIPPET,
+  EnumWorkspaceItemType.IMAGE,
+  EnumWorkspaceItemType.STICKY_NOTE,
 ]);
 
 @Component({
@@ -60,12 +63,12 @@ export class ToolHubsComponent {
   ];
 
   readonly insertTools: ToolHubsButton[] = [
-    { id: EnumWorkspaceItemType.StickyNote, icon: 'sticky_note_2', iconClass: 'text-[#fde68a]' },
-    { id: 'shapes', icon: 'category' },
-    { id: EnumWorkspaceItemType.Text, icon: 'text_fields' },
-    { id: EnumWorkspaceItemType.Link, icon: 'link' },
-    { id: EnumWorkspaceItemType.Image, icon: 'image' },
-    { id: EnumWorkspaceItemType.CodeSnippet, icon: 'code' },
+    { id: EnumWorkspaceItemType.STICKY_NOTE, icon: 'sticky_note_2', iconClass: 'text-[#fde68a]' },
+    { id: EnumWorkspaceItemType.SHAPES, icon: 'category' },
+    { id: EnumWorkspaceItemType.TEXT, icon: 'text_fields' },
+    { id: EnumWorkspaceItemType.LINK, icon: 'link' },
+    { id: EnumWorkspaceItemType.IMAGE, icon: 'image' },
+    { id: EnumWorkspaceItemType.CODE_SNIPPET, icon: 'code' },
   ];
 
   readonly historyTools: ToolHubsButton[] = [
@@ -81,7 +84,7 @@ export class ToolHubsComponent {
   }
 
   onInsertToolClick(tool: ToolHubsButton) {
-    if (tool.id === EnumWorkspaceItemType.StickyNote) {
+    if (tool.id === EnumWorkspaceItemType.STICKY_NOTE) {
       this.activeToolId = tool.id;
       this.isStickyNoteColorPickerOpen = !this.isStickyNoteColorPickerOpen;
       return;
@@ -98,7 +101,7 @@ export class ToolHubsComponent {
   chooseStickyNoteColor(color: StickyNoteColorOption) {
     this.isStickyNoteColorPickerOpen = false;
     this.activeToolId = 'select';
-    this.insertItem.emit({ type: EnumWorkspaceItemType.StickyNote, color });
+    this.insertItem.emit({ type: EnumWorkspaceItemType.STICKY_NOTE, color });
   }
 
   @HostListener('document:click', ['$event'])

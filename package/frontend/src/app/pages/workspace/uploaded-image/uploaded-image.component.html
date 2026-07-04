@@ -1,14 +1,36 @@
 <div class="image-card">
   <div class="image-thumb" [style.width.px]="image.width" [style.height.px]="image.height">
     <img
+      *ngIf="image.imageUrl"
       class="image-thumb-img"
       [class.image-thumb-img--grayscale]="image.grayscaleHover"
       [src]="image.imageUrl"
       [alt]="image.imageAlt"
     />
+
+    <button
+      *ngIf="!image.imageUrl"
+      type="button"
+      class="image-upload-placeholder"
+      aria-label="Upload image"
+      (mousedown)="onUploadMouseDown($event)"
+      (dblclick)="triggerUpload(fileInput)"
+    >
+      <span class="material-symbols-outlined">upload</span>
+      <span class="image-upload-label">Upload image</span>
+    </button>
+
+    <input
+      #fileInput
+      type="file"
+      accept="image/*"
+      hidden
+      (mousedown)="$event.stopPropagation()"
+      (change)="onFileSelected($event)"
+    />
   </div>
   <div class="image-footer">
-    <span class="image-filename">{{ image.fileName }}</span>
+    <span class="image-filename">{{ image.fileName || 'Untitled' }}</span>
     <span class="material-symbols-outlined image-status" [ngClass]="image.statusIconClass">{{
       image.statusIcon
     }}</span>
