@@ -13,7 +13,7 @@ export interface DiscordMessage {
 
 @Injectable()
 export class DiscordService implements OnModuleInit {
-  private client: Client;
+  client: Client = null as any;
 
   constructor(
     private gateway: AppGateway,
