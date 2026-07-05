@@ -4,6 +4,23 @@
   display: contents;
 }
 
+.kanban-toolbar {
+  @apply flex items-center gap-xs px-xl pt-md pb-sm;
+}
+
+.kanban-toolbar-icon {
+  @apply text-on-surface-variant text-[18px];
+}
+
+.kanban-project-select {
+  @apply bg-surface-container-high border border-outline-variant rounded-full pl-md pr-lg py-xs text-body-sm text-on-surface font-bold cursor-pointer outline-none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0c7d4' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+
 .kanban-board {
   @apply flex-1 overflow-x-auto px-xl pb-xl flex gap-gutter;
 }
@@ -61,11 +78,19 @@
 }
 
 .ticket-card-top {
-  @apply flex justify-between items-start;
+  @apply flex justify-between items-start gap-sm;
 }
 
 .ticket-id {
   @apply font-code-md text-code-md text-primary;
+}
+
+.ticket-tags {
+  @apply flex items-center gap-xs shrink-0;
+}
+
+.ticket-project {
+  @apply text-[10px] font-bold px-sm py-[2px] rounded border text-on-surface-variant bg-surface-container-highest border-outline-variant whitespace-nowrap;
 }
 
 .ticket-priority {

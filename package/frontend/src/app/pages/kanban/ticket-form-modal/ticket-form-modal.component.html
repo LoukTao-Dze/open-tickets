@@ -1,6 +1,6 @@
 <div class="modal-panel">
   <div class="modal-header">
-    <h2 class="modal-title">New Ticket</h2>
+    <h2 class="modal-title">{{ isEditMode ? 'Edit Ticket' : 'New Ticket' }}</h2>
     <button type="button" class="modal-close" aria-label="Close" (click)="onCancel()">
       <span class="material-symbols-outlined">close</span>
     </button>
@@ -31,6 +31,17 @@
           </select>
         </label>
 
+        <label class="form-field">
+          <span class="form-label">Project</span>
+          <select class="form-input" formControlName="projectId">
+            <option *ngFor="let project of projects" [value]="project.id">
+              {{ project.project_name }}
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <div class="form-row">
         <label class="form-field">
           <span class="form-label">Assignee</span>
           <input
@@ -73,7 +84,9 @@
 
     <div class="modal-actions">
       <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
-      <button type="submit" class="btn btn-primary">Create Ticket</button>
+      <button type="submit" class="btn btn-primary">
+        {{ isEditMode ? 'Save Changes' : 'Create Ticket' }}
+      </button>
     </div>
   </form>
 </div>

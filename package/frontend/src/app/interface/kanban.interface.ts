@@ -13,10 +13,16 @@ export interface KanbanMeta {
   label: string;
 }
 
+export interface KanbanProject {
+  id: string;
+  project_name: string;
+}
+
 export interface KanbanTicket {
   id: string;
   title: string;
   priority: KanbanPriority;
+  project: KanbanProject;
   meta: KanbanMeta[];
   assigneeAvatarUrl: string;
   assigneeAlt: string;

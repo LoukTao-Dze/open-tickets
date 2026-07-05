@@ -8,10 +8,7 @@
           class="code-snippet-filename-input"
           type="text"
           spellcheck="false"
-          [value]="
-            item.fileName +
-            (listShotLanguages[item.language] ? '.' + listShotLanguages[item.language] : '')
-          "
+          [value]="item.fileName"
           [readOnly]="!isFileNameEditing"
           (input)="onFileNameInput(fileNameInput.value)"
           (mousedown)="onFileNameMouseDown($event)"

@@ -1,3 +1,18 @@
+<div class="kanban-toolbar">
+  <span class="material-symbols-outlined kanban-toolbar-icon">filter_list</span>
+  <select
+    #projectSelect
+    class="kanban-project-select"
+    [value]="selectedProject"
+    (change)="onProjectChange(projectSelect.value)"
+  >
+    <option value="all">All projects</option>
+    <option *ngFor="let project of projects" [value]="project.id">
+      {{ project.project_name }}
+    </option>
+  </select>
+</div>
+
 <div class="kanban-board" cdkDropListGroup>
   <div
     class="kanban-column"
@@ -8,7 +23,7 @@
       <div class="column-header-left">
         <span class="column-dot"></span>
         <span class="column-name">{{ column.name }}</span>
-        <span class="column-count">{{ column.count }}</span>
+        <span class="column-count">{{ visibleTickets(column).length }}</span>
       </div>
       <span class="material-symbols-outlined column-menu">more_horiz</span>
     </div>
@@ -19,37 +34,44 @@
       [cdkDropListData]="column.tickets"
       (cdkDropListDropped)="onTicketDropped($event)"
     >
-      <div class="ticket-card" *ngFor="let ticket of column.tickets" cdkDrag>
-        <div class="ticket-card-top">
-          <span class="ticket-id">{{ ticket.id }}</span>
-          <span
-            class="ticket-priority"
-            [ngClass]="'ticket-priority--' + ticket.priority.toLowerCase()"
-            >{{ ticket.priority }}</span
-          >
-        </div>
-
-        <h4 class="ticket-title">{{ ticket.title }}</h4>
-
-        <div class="ticket-alert" *ngIf="ticket.alert">
-          <span class="material-symbols-outlined">error</span>
-          <p>{{ ticket.alert }}</p>
-        </div>
-
-        <div class="ticket-footer">
-          <div class="ticket-meta">
-            <ng-container *ngFor="let item of ticket.meta">
-              <span class="material-symbols-outlined">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
-            </ng-container>
+      @for (ticket of visibleTickets(column); track ticket.id) {
+        <div class="ticket-card" cdkDrag (dblclick)="openEditTicketModal(ticket)">
+          <div class="ticket-card-top">
+            <span class="ticket-id">{{ ticket.id }}</span>
+            <div class="ticket-tags">
+              <span class="ticket-project" [title]="ticket.project.project_name">{{
+                truncateProjectName(ticket.project)
+              }}</span>
+              <span
+                class="ticket-priority"
+                [ngClass]="'ticket-priority--' + ticket.priority.toLowerCase()"
+                >{{ ticket.priority }}</span
+              >
+            </div>
           </div>
-          <img
-            class="ticket-assignee"
-            [src]="ticket.assigneeAvatarUrl"
-            [alt]="ticket.assigneeAlt"
-          />
+
+          <h4 class="ticket-title">{{ ticket.title }}</h4>
+
+          <div class="ticket-alert" *ngIf="ticket.alert">
+            <span class="material-symbols-outlined">error</span>
+            <p>{{ ticket.alert }}</p>
+          </div>
+
+          <div class="ticket-footer">
+            <div class="ticket-meta">
+              <ng-container *ngFor="let item of ticket.meta">
+                <span class="material-symbols-outlined">{{ item.icon }}</span>
+                <span>{{ item.label }}</span>
+              </ng-container>
+            </div>
+            <img
+              class="ticket-assignee"
+              [src]="ticket.assigneeAvatarUrl"
+              [alt]="ticket.assigneeAlt"
+            />
+          </div>
         </div>
-      </div>
+      }
     </div>
   </div>
 </div>
