@@ -2,9 +2,15 @@ import { Component, Inject, Optional } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { KanbanPriority, KanbanProject, KanbanTicket } from '../../../interface/kanban.interface';
+import {
+  KanbanColumnId,
+  KanbanPriority,
+  KanbanProject,
+  KanbanTicket,
+} from '../../../interface/kanban.interface';
 
 export interface TicketFormValue {
+  columnId: KanbanColumnId;
   title: string;
   detail: string;
   priority: KanbanPriority;

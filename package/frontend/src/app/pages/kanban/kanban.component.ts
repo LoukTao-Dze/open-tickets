@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   CdkDrag,
@@ -28,7 +28,7 @@ const PROJECT_NAME_MAX_LENGTH = 12;
   templateUrl: './kanban.component.html',
   styleUrls: ['./kanban.component.scss'],
 })
-export class KanbanComponent {
+export class KanbanComponent implements OnInit {
   constructor(
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
@@ -46,6 +46,10 @@ export class KanbanComponent {
     return Array.from(uniqueProjectsById.values()).sort((a, b) =>
       a.project_name.localeCompare(b.project_name),
     );
+  }
+
+  ngOnInit() {
+    console.info('\x1b[7;31;40m[DEBUGGER] ->> columns\x1b[0m', this.columns);
   }
 
   visibleTickets(column: KanbanColumn): KanbanTicket[] {
@@ -88,6 +92,11 @@ export class KanbanComponent {
     }
     if (targetColumn) {
       targetColumn.count = targetColumn.tickets.length;
+    }
+    if (targetColumn) {
+      targetColumn.count = targetColumn.tickets.length;
+      const movedTicket = targetColumn.tickets[event.currentIndex];
+      movedTicket.columnId = targetColumn.id;
     }
   }
 
@@ -132,13 +141,14 @@ export class KanbanComponent {
   }
 
   addTicket(value: TicketFormValue) {
-    const todoColumn = this.columns.find((column) => column.id === 'todo');
+    const todoColumn = this.columns.find((column) => column.id === value.columnId);
     if (!todoColumn) {
       return;
     }
 
     const ticket: KanbanTicket = {
       id: this.generateTicketId(),
+      columnId: value.columnId,
       title: value.title,
       detail: value.detail,
       priority: value.priority,
@@ -152,7 +162,7 @@ export class KanbanComponent {
       assigneeAvatarUrl: this.defaultAvatarUrl,
     };
 
-    todoColumn.tickets.unshift(ticket);
+    todoColumn.tickets.push(ticket);
     todoColumn.count = todoColumn.tickets.length;
     this.cdr.detectChanges();
   }

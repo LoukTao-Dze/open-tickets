@@ -20,6 +20,7 @@ export interface KanbanProject {
 
 export interface KanbanTicket {
   id: string;
+  columnId: KanbanColumnId;
   title: string;
   priority: KanbanPriority;
   project: KanbanProject;
@@ -38,5 +39,6 @@ export interface KanbanColumn {
   id: KanbanColumnId;
   name: string;
   count: number;
+  status: string;
   tickets: KanbanTicket[];
 }

@@ -3,6 +3,7 @@ import { EnumWorkspaceItemType } from '../enum/workspace.enum';
 export type CanvasItemType = EnumWorkspaceItemType;
 
 export interface CanvasItemBase {
+  projectId: string;
   id: string;
   type: CanvasItemType;
   x: number;

@@ -81,6 +81,13 @@
   @apply flex justify-between items-start gap-sm;
 }
 
+.ticket-tags {
+  @apply flex gap-1 flex-wrap;
+  .ticket-project {
+    @apply text-[10px] uppercase font-bold px-sm py-[2px] rounded border border-outline-variant text-on-surface-variant;
+  }
+}
+
 .ticket-id {
   @apply font-code-md text-code-md text-primary;
 }

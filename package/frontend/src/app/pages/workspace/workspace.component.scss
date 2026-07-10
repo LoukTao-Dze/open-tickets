@@ -19,6 +19,10 @@
   background-size: 32px 32px;
 }
 
+.workspace-loading-overlay {
+  @apply absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-surface-container-lowest/80;
+}
+
 .workspace-viewport {
   @apply relative w-full h-full;
 }
@@ -149,5 +153,69 @@
 
   &.mini-map-block--tall {
     @apply w-2 h-4;
+  }
+}
+
+/* HTML: <div class="loader"></div> */
+.loader {
+  width: 40px;
+  height: 26px;
+  --c: no-repeat linear-gradient(#ffffff 0 0);
+  background:
+    var(--c) 0 100%,
+    var(--c) 50% 100%,
+    var(--c) 100% 100%;
+  background-size: 8px calc(100% - 4px);
+  position: relative;
+}
+.loader:before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  left: 0;
+  top: 0;
+  animation:
+    l3-1 1.5s linear infinite alternate,
+    l3-2 0.75s cubic-bezier(0, 200, 0.8, 200) infinite;
+}
+@keyframes l3-1 {
+  100% {
+    left: calc(100% - 8px);
+  }
+}
+@keyframes l3-2 {
+  100% {
+    top: -0.1px;
+  }
+}
+
+.canvas-loading-overlay {
+  background: rgba(255, 0, 0, 0.5);
+  min-height: 28px;
+  min-width: 28px;
+  @apply absolute top-md right-md z-50 flex items-center gap-2 bg-surface-container-high/80 backdrop-blur-md border border-outline-variant rounded-full px-3 py-2 shadow-2xl;
+}
+
+.canvas-loader {
+  height: 24px;
+  aspect-ratio: 2;
+  border: 5px solid #000;
+  box-sizing: border-box;
+  background:
+    radial-gradient(farthest-side, #fff 98%, #0000) left/10px 10px,
+    radial-gradient(farthest-side, #fff 98%, #0000) left/10px 10px,
+    radial-gradient(farthest-side, #fff 98%, #0000) center/10px 10px,
+    radial-gradient(farthest-side, #fff 98%, #0000) right/10px 10px,
+    #000;
+  background-repeat: no-repeat;
+  filter: blur(2px) contrast(10);
+  animation: l14 1s infinite;
+}
+@keyframes l14 {
+  100% {
+    background-position: right, left, center, right;
   }
 }
