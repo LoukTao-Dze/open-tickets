@@ -1,9 +1,9 @@
-// supabase.module.ts
-import { Global, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SupabaseService } from './supabase.service';
+import { HttpModule } from '@nestjs/axios';
 
-@Global()
 @Module({
+  imports: [HttpModule],
   providers: [SupabaseService],
   exports: [SupabaseService],
 })

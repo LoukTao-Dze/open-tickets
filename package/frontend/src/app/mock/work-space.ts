@@ -1,13 +1,15 @@
+import { HttpClient } from '@angular/common/http';
 import { EnumWorkspaceItemType } from '../enum/workspace.enum';
 import { Whiteboard } from '../interface/workspace.interface';
 
 export const MOCK_WORKSPACES: Whiteboard[] = [
   {
     id: 'sprint-12',
-    name: 'Sprint 12 Board',
+    name: 'Sprint 12',
     items: [
       {
         id: 'note-1',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 400,
         y: 200,
@@ -23,6 +25,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'note-2',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 650,
         y: 150,
@@ -38,6 +41,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'note-3',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 520,
         y: 420,
@@ -53,6 +57,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'note-4',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 800,
         y: 450,
@@ -68,6 +73,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'image-1',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.IMAGE,
         x: 1000,
         y: 180,
@@ -84,6 +90,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'image-2',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.IMAGE,
         x: 1100,
         y: 480,
@@ -100,6 +107,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'code-1',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.CODE_SNIPPET,
         x: 100,
         y: 400,
@@ -112,6 +120,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'text-1',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.TEXT,
         x: 550,
         y: 700,
@@ -124,6 +133,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'link-1',
+        projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.LINK,
         x: 850,
         y: 820,
@@ -137,10 +147,11 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
   },
   {
     id: 'retro',
-    name: 'Retro Board',
+    name: 'Retro',
     items: [
       {
         id: 'retro-note-1',
+        projectId: 'retro',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 300,
         y: 200,
@@ -156,6 +167,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'retro-note-2',
+        projectId: 'retro',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 560,
         y: 220,
@@ -171,6 +183,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
       },
       {
         id: 'retro-note-3',
+        projectId: 'retro',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 430,
         y: 420,
@@ -187,3 +200,20 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
     ],
   },
 ];
+
+export const migrationCanvasItems = (
+  inx: number,
+  http: HttpClient,
+  SAVE_CANVAS_ITEM_ENDPOINT: string,
+) => {
+  MOCK_WORKSPACES[inx].items.forEach((item) => {
+    http.post(SAVE_CANVAS_ITEM_ENDPOINT, item).subscribe({
+      next: (res) => {
+        console.log('Canvas item saved successfully', res);
+      },
+      error: (err) => {
+        console.error('Failed to save canvas item', err);
+      },
+    });
+  });
+};

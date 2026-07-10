@@ -1,5 +1,15 @@
-import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { StickyNoteComponent } from './sticky-note/sticky-note.component';
 import { UploadedImageComponent } from './uploaded-image/uploaded-image.component';
 import { CodeSnippetComponent } from './code-snippet/code-snippet.component';
@@ -9,6 +19,7 @@ import { ToolHubsComponent, InsertToolEvent } from './tool-hubs/tool-hubs.compon
 import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
 import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.interface';
 import { MOCK_WORKSPACES } from '../../mock/work-space';
+import { finalize, switchMap } from 'rxjs';
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
@@ -27,6 +38,10 @@ const DEFAULT_CODE_SNIPPET_WIDTH = 320;
 const DEFAULT_CODE_SNIPPET_HEIGHT = 200;
 const DEFAULT_CODE_SNIPPET_FILE_NAME = 'untitled';
 const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
+const SAVE_WHITEBOARD_DELAY_MS = 0;
+const SAVE_CANVAS_ITEM_ENDPOINT = '/api/save-canvas-item';
+const GET_CANVAS_ITEM_ENDPOINT = '/api/get-canvas-item';
+const GET_ALL_PROJECTS_ENDPOINT = '/api/projects';
 
 @Component({
   selector: 'app-workspace',
@@ -43,18 +58,23 @@ const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
   templateUrl: './workspace.component.html',
   styleUrls: ['./workspace.component.scss'],
 })
-export class WorkspaceComponent {
+export class WorkspaceComponent implements OnDestroy, OnInit {
   @ViewChild('viewport', { static: true }) viewportRef!: ElementRef<HTMLDivElement>;
   @ViewChild('miniMap', { static: true }) miniMapRef!: ElementRef<HTMLDivElement>;
+
+  private readonly http = inject(HttpClient);
 
   zoom = 0.5;
   panX = 0;
   panY = 0;
   EnumWorkspaceItemType = EnumWorkspaceItemType;
 
-  whiteboards: Whiteboard[] = MOCK_WORKSPACES;
+  whiteboards: Whiteboard[] = []; //MOCK_WORKSPACES;
 
-  selectedWhiteboardId = this.whiteboards[0].id;
+  selectedWhiteboardId = '';
+  isLoading = false;
+  isCanvasLoading = false;
+  canvasItemResponse: WorkspaceCanvasItem[] = [];
 
   private isPanning = false;
   private panStartScreen = { x: 0, y: 0 };
@@ -65,11 +85,13 @@ export class WorkspaceComponent {
   private zIndexCounter = 100;
 
   private focusedItem: WorkspaceCanvasItem | null = null;
+  private saveWhiteboardTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  constructor(private cdr: ChangeDetectorRef) {}
 
   get activeWhiteboard(): Whiteboard {
     return (
       this.whiteboards.find((board) => board.id === this.selectedWhiteboardId) ??
-      this.whiteboards[0]
+      this.whiteboards[0] ?? { id: '', name: '', items: [] }
     );
   }
 
@@ -107,6 +129,55 @@ export class WorkspaceComponent {
     return Math.round(this.zoom * 100);
   }
 
+  ngOnInit() {
+    this.getCanvasItem();
+  }
+
+  getCanvasItem() {
+    this.isLoading = true;
+
+    this.http
+      .get(GET_ALL_PROJECTS_ENDPOINT)
+      .pipe(
+        switchMap((res) => {
+          const projects = (res as any)?.data as { id: string; name: string }[];
+          this.whiteboards = projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            items: [],
+          }));
+          this.selectedWhiteboardId = this.whiteboards[0]?.id ?? '';
+          return this.http.get(GET_CANVAS_ITEM_ENDPOINT, {
+            params: { projectId: this.activeWhiteboard.id },
+          });
+        }),
+        finalize(() => {
+          this.isLoading = false;
+        }),
+      )
+      .subscribe({
+        next: (res) => {
+          const items = (res as any)?.data as WorkspaceCanvasItem[];
+          this.canvasItemResponse = items;
+          const itemsByProject = new Map<string, typeof items>();
+
+          items.forEach((item) => {
+            const list = itemsByProject.get(item.projectId) ?? [];
+            list.push(item);
+            itemsByProject.set(item.projectId, list);
+          });
+
+          this.whiteboards.forEach((board) => {
+            board.items = itemsByProject.get(board.id) ?? [];
+          });
+          console.info('\x1b[7;31;40m[DEBUGGER] ->> this.whiteboards\x1b[0m', this.whiteboards);
+        },
+        error: (err) => {
+          console.error('Failed to retrieve canvas items', err);
+        },
+      });
+  }
+
   isDragging(item: WorkspaceCanvasItem): boolean {
     return this.activeItem === item;
   }
@@ -140,16 +211,23 @@ export class WorkspaceComponent {
 
   deleteItem(event: Event, item: WorkspaceCanvasItem) {
     event.stopPropagation();
+    this.http.post('/api/delete-canvas-item', { id: item.id, type: item.type }).subscribe({
+      next: (res) => {
+        console.log('Canvas item deleted successfully', res);
+        const board = this.activeWhiteboard;
+        board.items = board.items.filter((candidate) => candidate.id !== item.id);
 
-    const board = this.activeWhiteboard;
-    board.items = board.items.filter((candidate) => candidate.id !== item.id);
-
-    if (this.activeItem === item) {
-      this.activeItem = null;
-    }
-    if (this.focusedItem === item) {
-      this.focusedItem = null;
-    }
+        if (this.activeItem === item) {
+          this.activeItem = null;
+        }
+        if (this.focusedItem === item) {
+          this.focusedItem = null;
+        }
+      },
+      error: (err) => {
+        console.error('Failed to delete canvas item', err);
+      },
+    });
   }
 
   minimapItemStyle(item: WorkspaceCanvasItem) {
@@ -200,6 +278,8 @@ export class WorkspaceComponent {
       return;
     }
 
+    // this.cancelPendingWhiteboardSave();
+
     this.activeItem = item;
     this.focusedItem = item;
     item.zIndex = ++this.zIndexCounter;
@@ -226,6 +306,13 @@ export class WorkspaceComponent {
   @HostListener('document:mouseup')
   onDocumentMouseUp() {
     this.isPanning = false;
+
+    if (this.activeItem) {
+      this.activeItem = null;
+      this.scheduleWhiteboardSave();
+      return;
+    }
+
     this.activeItem = null;
   }
 
@@ -307,17 +394,27 @@ export class WorkspaceComponent {
     return this.screenToCanvasPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
   }
 
+  getItemId(type: EnumWorkspaceItemType): string {
+    const itemType = this.canvasItemResponse.filter((item) => item.type === type);
+    return `${type}-${itemType.length + 1}`;
+  }
+
   private createItemForInsert(event: InsertToolEvent): WorkspaceCanvasItem | null {
     const center = this.viewportCenterCanvasPoint();
-    const id = crypto.randomUUID();
+    const projectId = this.activeWhiteboard.id;
 
     switch (event.type) {
       case EnumWorkspaceItemType.STICKY_NOTE: {
         if (!event.color) {
           return null;
         }
+
+        const randomNumber1To3 = (): number => {
+          return Math.floor(Math.random() * 7) - 3;
+        };
         return {
-          id,
+          id: this.getItemId(EnumWorkspaceItemType.STICKY_NOTE),
+          projectId,
           type: EnumWorkspaceItemType.STICKY_NOTE,
           x: center.x - STICKY_NOTE_SIZE / 2,
           y: center.y - STICKY_NOTE_SIZE / 2,
@@ -326,7 +423,7 @@ export class WorkspaceComponent {
           content: '',
           bgColor: event.color.bgColor,
           textColor: event.color.textColor,
-          rotation: 0,
+          rotation: randomNumber1To3(),
           icon: '',
           width: STICKY_NOTE_SIZE,
           height: STICKY_NOTE_SIZE,
@@ -334,12 +431,13 @@ export class WorkspaceComponent {
       }
       case EnumWorkspaceItemType.TEXT:
         return {
-          id,
+          id: this.getItemId(EnumWorkspaceItemType.TEXT),
+          projectId,
           type: EnumWorkspaceItemType.TEXT,
           x: center.x - DEFAULT_TEXT_WIDTH / 2,
           y: center.y - DEFAULT_TEXT_HEIGHT / 2,
           zIndex: 0,
-          content: '',
+          content: 'Text goes here...',
           fontSize: DEFAULT_TEXT_FONT_SIZE,
           color: DEFAULT_TEXT_COLOR,
           width: DEFAULT_TEXT_WIDTH,
@@ -347,19 +445,21 @@ export class WorkspaceComponent {
         };
       case EnumWorkspaceItemType.LINK:
         return {
-          id,
+          id: this.getItemId(EnumWorkspaceItemType.LINK),
+          projectId,
           type: EnumWorkspaceItemType.LINK,
           x: center.x - DEFAULT_LINK_WIDTH / 2,
           y: center.y - DEFAULT_LINK_HEIGHT / 2,
           zIndex: 0,
-          title: '',
-          url: '',
+          title: 'Link title',
+          url: 'https://example.com',
           width: DEFAULT_LINK_WIDTH,
           height: DEFAULT_LINK_HEIGHT,
         };
       case EnumWorkspaceItemType.CODE_SNIPPET:
         return {
-          id,
+          id: this.getItemId(EnumWorkspaceItemType.CODE_SNIPPET),
+          projectId,
           type: EnumWorkspaceItemType.CODE_SNIPPET,
           x: center.x - DEFAULT_CODE_SNIPPET_WIDTH / 2,
           y: center.y - DEFAULT_CODE_SNIPPET_HEIGHT / 2,
@@ -372,7 +472,8 @@ export class WorkspaceComponent {
         };
       case EnumWorkspaceItemType.IMAGE:
         return {
-          id,
+          id: this.getItemId(EnumWorkspaceItemType.IMAGE),
+          projectId,
           type: EnumWorkspaceItemType.IMAGE,
           x: center.x - 100,
           y: center.y - 100,
@@ -388,6 +489,47 @@ export class WorkspaceComponent {
         };
       default:
         return null;
+    }
+  }
+  ngOnDestroy() {
+    this.cancelPendingWhiteboardSave();
+  }
+
+  onSaveWhiteboard() {
+    if (!this.focusedItem) {
+      return;
+    }
+    this.isCanvasLoading = true;
+
+    this.http.post(SAVE_CANVAS_ITEM_ENDPOINT, this.focusedItem).subscribe({
+      next: (res) => {
+        console.log('Canvas item saved successfully', res);
+        setTimeout(() => {
+          this.isCanvasLoading = false;
+          this.cdr.detectChanges();
+        }, 1000);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to save canvas item', err);
+        this.isCanvasLoading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private scheduleWhiteboardSave() {
+    this.cancelPendingWhiteboardSave();
+    this.saveWhiteboardTimeoutId = setTimeout(() => {
+      this.saveWhiteboardTimeoutId = null;
+      this.onSaveWhiteboard();
+    }, SAVE_WHITEBOARD_DELAY_MS);
+  }
+
+  private cancelPendingWhiteboardSave() {
+    if (this.saveWhiteboardTimeoutId !== null) {
+      clearTimeout(this.saveWhiteboardTimeoutId);
+      this.saveWhiteboardTimeoutId = null;
     }
   }
 }

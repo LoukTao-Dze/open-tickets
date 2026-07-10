@@ -6,6 +6,18 @@
 >
   <div class="canvas-grid"></div>
 
+  @if (isLoading) {
+    <div class="workspace-loading-overlay">
+      <div class="loader"></div>
+    </div>
+  }
+
+  @if (isCanvasLoading) {
+    <div class="canvas-loading-overlay">
+      <div class="canvas-loader"></div>
+    </div>
+  }
+
   <div class="whiteboard-switcher" (mousedown)="$event.stopPropagation()">
     <span class="material-symbols-outlined whiteboard-switcher-icon">dashboard</span>
     <select

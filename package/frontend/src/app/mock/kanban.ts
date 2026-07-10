@@ -20,9 +20,11 @@ export const MOCK_KAN_BAN: KanbanColumn[] = [
     id: 'todo',
     name: 'To Do',
     count: 4,
+    status: 'active',
     tickets: [
       {
         id: 'DS-1024',
+        columnId: 'todo',
         title: 'Implement OAuth2 middleware for API gateway',
         priority: 'Low',
         project: PROJECT_PLATFORM_CORE,
@@ -40,9 +42,11 @@ export const MOCK_KAN_BAN: KanbanColumn[] = [
     id: 'in-progress',
     name: 'In Progress',
     count: 2,
+    status: 'active',
     tickets: [
       {
         id: 'DS-988',
+        columnId: 'in-progress',
         title: 'Database migration for multi-tenant shard support',
         priority: 'High',
         project: PROJECT_PLATFORM_CORE,
@@ -57,9 +61,11 @@ export const MOCK_KAN_BAN: KanbanColumn[] = [
     id: 'ready-to-test',
     name: 'Ready to Test',
     count: 1,
+    status: 'active',
     tickets: [
       {
         id: 'DS-1045',
+        columnId: 'ready-to-test',
         title: 'Refactor frontend component library to Tailwind v4',
         priority: 'Medium',
         project: PROJECT_WEB_FRONTEND,
@@ -74,9 +80,11 @@ export const MOCK_KAN_BAN: KanbanColumn[] = [
     id: 'test-in-progress',
     name: 'Test In Progress',
     count: 3,
+    status: 'hide',
     tickets: [
       {
         id: 'DS-882',
+        columnId: 'test-in-progress',
         title: 'Performance audit on Kubernetes ingress controller',
         priority: 'High',
         project: PROJECT_PLATFORM_CORE,
@@ -91,9 +99,11 @@ export const MOCK_KAN_BAN: KanbanColumn[] = [
     id: 'test-fail',
     name: 'Test Fail',
     count: 1,
+    status: 'active',
     tickets: [
       {
         id: 'DS-1102',
+        columnId: 'test-fail',
         title: 'Memory leak in logging microservice under load',
         priority: 'Urgent',
         project: PROJECT_WEB_FRONTEND,
@@ -109,9 +119,11 @@ export const MOCK_KAN_BAN: KanbanColumn[] = [
     id: 'done',
     name: 'Done',
     count: 142,
+    status: 'active',
     tickets: [
       {
         id: 'DS-761',
+        columnId: 'done',
         title: 'Update documentation for v2.4 Release',
         priority: 'Medium',
         project: PROJECT_DOCUMENTATION_PORTAL,
