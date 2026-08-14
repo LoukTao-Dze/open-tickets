@@ -15,7 +15,7 @@ import {
   TicketFormModalData,
   TicketFormValue,
 } from './ticket-form-modal/ticket-form-modal.component';
-import { MOCK_KAN_BAN } from '../../mock/kanban';
+import { MOCK_KANBAN_COLUMNS, MOCK_TICKETS } from '../../mock/kanban';
 import { KanbanColumn, KanbanProject, KanbanTicket } from '../../interface/kanban.interface';
 
 const ALL_PROJECTS = 'all';
@@ -34,7 +34,7 @@ export class KanbanComponent implements OnInit {
     private cdr: ChangeDetectorRef,
   ) {}
 
-  columns: KanbanColumn[] = MOCK_KAN_BAN;
+  columns: KanbanColumn[] = MOCK_KANBAN_COLUMNS;
 
   selectedProject = ALL_PROJECTS;
 
@@ -49,7 +49,10 @@ export class KanbanComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.info('\x1b[7;31;40m[DEBUGGER] ->> columns\x1b[0m', this.columns);
+    this.columns = MOCK_KANBAN_COLUMNS.map((column) => ({
+      ...column,
+      tickets: MOCK_TICKETS.filter((ticket) => ticket.columnId === column.id),
+    }));
   }
 
   visibleTickets(column: KanbanColumn): KanbanTicket[] {

@@ -37,17 +37,10 @@
       @for (ticket of visibleTickets(column); track ticket.id) {
         <div class="ticket-card" cdkDrag (dblclick)="openEditTicketModal(ticket)">
           <div class="ticket-card-top">
-            <span class="ticket-id">{{ ticket.id }}</span>
-            <div class="ticket-tags">
-              <span class="ticket-project" [title]="ticket.project.project_name">{{
-                truncateProjectName(ticket.project)
-              }}</span>
-              <span
-                class="ticket-priority"
-                [ngClass]="'ticket-priority--' + ticket.priority.toLowerCase()"
-                >{{ ticket.priority }}</span
-              >
-            </div>
+            <span class="ticket-id">{{ ticket.id }}: {{ ticket.columnId }}</span>
+            <span class="material-symbols-outlined" (click)="openEditTicketModal(ticket)">
+              Edit
+            </span>
           </div>
 
           <h4 class="ticket-title">{{ ticket.title }}</h4>
@@ -55,6 +48,16 @@
           <div class="ticket-alert" *ngIf="ticket.alert">
             <span class="material-symbols-outlined">error</span>
             <p>{{ ticket.alert }}</p>
+          </div>
+          <div class="ticket-tags">
+            <span class="ticket-project" [title]="ticket.project.project_name">{{
+              truncateProjectName(ticket.project)
+            }}</span>
+            <span
+              class="ticket-priority"
+              [ngClass]="'ticket-priority--' + ticket.priority.toLowerCase()"
+              >{{ ticket.priority }}</span
+            >
           </div>
 
           <div class="ticket-footer">
@@ -66,8 +69,12 @@
             </div>
             <img
               class="ticket-assignee"
-              [src]="ticket.assigneeAvatarUrl"
-              [alt]="ticket.assigneeAlt"
+              [src]="
+                ticket?.assigneeAvatarUrl
+                  ? ticket.assigneeAvatarUrl
+                  : 'assets/images/default-avatar.png'
+              "
+              [alt]="ticket?.assigneeAlt"
             />
           </div>
         </div>

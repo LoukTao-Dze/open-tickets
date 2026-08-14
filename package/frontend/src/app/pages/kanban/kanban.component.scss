@@ -79,6 +79,10 @@
 
 .ticket-card-top {
   @apply flex justify-between items-start gap-sm;
+  .material-symbols-outlined {
+    @apply text-[10px] uppercase font-bold px-sm py-[2px] rounded border border-outline-variant text-on-surface-variant;
+    @apply text-[16px] text-on-surface-variant cursor-pointer hover:text-on-surface transition-colors;
+  }
 }
 
 .ticket-tags {
