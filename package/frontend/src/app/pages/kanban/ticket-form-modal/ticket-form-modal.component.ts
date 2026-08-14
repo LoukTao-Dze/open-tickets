@@ -60,6 +60,7 @@ export class TicketFormModalComponent {
     const ticket = data?.ticket;
     this.isEditMode = data?.action === TicketFormModalAction.EDIT;
     this.form = this.fb.group({
+      columnId: this.fb.control<KanbanColumnId>(ticket?.columnId ?? 'todo', [Validators.required]),
       title: this.fb.control(ticket?.title ?? '', [Validators.required, Validators.maxLength(120)]),
       detail: this.fb.control(ticket?.detail ?? '', [Validators.maxLength(2000)]),
       priority: this.fb.control<KanbanPriority>(ticket?.priority ?? 'Low', [Validators.required]),
