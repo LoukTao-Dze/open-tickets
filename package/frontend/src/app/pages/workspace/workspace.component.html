@@ -32,7 +32,7 @@
 
   <div class="workspace-viewport">
     <div class="canvas-items" [style.transform]="canvasTransform">
-      <ng-container *ngFor="let item of items; trackBy: trackByItemId">
+      <ng-container *ngFor="let item of canvasList; trackBy: trackByItemId">
         <div
           class="canvas-item"
           [class.is-dragging]="isDragging(item)"
@@ -112,7 +112,7 @@
   <div class="mini-map" #miniMap (mousedown)="onMinimapMouseDown($event)">
     <div class="mini-map-items">
       <div
-        *ngFor="let item of items; trackBy: trackByItemId"
+        *ngFor="let item of canvasList; trackBy: trackByItemId"
         class="mini-map-block"
         [ngClass]="minimapBlockClass(item)"
         [ngStyle]="minimapItemStyle(item)"
