@@ -3,35 +3,13 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import FormData from 'form-data';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { SupabaseService } from './supabase/supabase.service';
-
-export interface CanvasItemPayload {
-  id: string;
-  projectId: string;
-  type: string;
-  x: number;
-  y: number;
-  zIndex: number;
-  [key: string]: unknown;
-}
-
-const CANVAS_ITEM_TABLE_BY_TYPE: Record<string, string> = {
-  'sticky-note': 'sticky_notes',
-  image: 'images',
-  'code-snippet': 'code_snippets',
-  text: 'texts',
-  link: 'links',
-};
-
-const CANVAS_ITEM_TYPE_BY_TABLE: Record<string, string> = Object.fromEntries(
-  Object.entries(CANVAS_ITEM_TABLE_BY_TYPE).map(([type, table]) => [
-    table,
-    type,
-  ]),
-);
+import axios from 'axios';
+import * as fs from 'fs';
 
 @Injectable()
 export class AppService {
@@ -131,153 +109,59 @@ export class AppService {
       });
     }
   }
+  async uploadImageToDiscord(
+    imageBuffer: Buffer,
+    filename: string,
+  ): Promise<string> {
+    const discordWebhookUrl =
+      'https://discord.com/api/webhooks/1529309193478082580/OvGXkFXXhzupxO76RDDLMaiB3xX0_YS2CvvMkxya0SJ0fT1rn7UrOdBoN9HAROiCSrkV';
+    // this.configService.get<string>('DISCORD_WEBHOOK_URL',);
+    if (!discordWebhookUrl) {
+      throw new InternalServerErrorException(
+        'Discord webhook URL is not configured.',
+      );
+    }
 
-  async getCanvasItem(projectId?: string) {
+    const formData = new FormData();
+    formData.append(
+      'payload_json',
+      JSON.stringify({
+        content: `
+          📷 New Image Upload
+          Image ID: ${Date.now()}
+          File Name: ${filename}
+        `.trim(),
+      }),
+    );
+
+    formData.append('file', imageBuffer, filename);
+
     try {
-      const tables = Object.entries(CANVAS_ITEM_TYPE_BY_TABLE);
-
-      const resultsByTable = await Promise.all(
-        tables.map(async ([table, type]) => {
-          let query = this.supabaseService.getClient().from(table).select('*');
-
-          if (projectId) {
-            query = query.eq('project_id', projectId);
-          }
-
-          const { data, error } = await query;
-
-          if (error) {
-            throw error;
-          }
-
-          return (data ?? []).map((row) => ({
-            ...this.toCamelCaseRecord(row as Record<string, unknown>),
-            type,
-          }));
+      const response = await firstValueFrom(
+        this.httpService.post(discordWebhookUrl, formData, {
+          headers: {
+            ...formData.getHeaders(),
+          },
         }),
       );
 
-      return { data: resultsByTable.flat() };
-    } catch (err: any) {
-      console.error('Failed to retrieve canvas items:', err?.message || err);
-      throw new InternalServerErrorException({
-        message: 'Failed to retrieve canvas items',
-        detail: err?.message || 'Unknown error',
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
+      if (response.status !== 200) {
+        throw new BadRequestException(
+          `Failed to upload image to Discord. Status code: ${response.status}`,
+        );
+      }
 
-  async saveCanvasItem(body: CanvasItemPayload) {
-    if (!body || typeof body !== 'object') {
-      throw new BadRequestException('Canvas item payload is required');
-    }
-
-    const { type, id, projectId } = body;
-    const table = CANVAS_ITEM_TABLE_BY_TYPE[type];
-
-    if (!table) {
-      throw new BadRequestException(`Unsupported canvas item type: ${type}`);
-    }
-
-    if (!id || !projectId) {
-      throw new BadRequestException(
-        'Canvas item must include an id and projectId',
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        'Failed to upload image to Discord:',
+        error.response?.data || error.message,
       );
-    }
-
-    const { type: _type, ...record } = body;
-    const snakeCaseRecord = this.toSnakeCaseRecord(record);
-
-    try {
-      const { data, error } = await this.supabaseService
-        .getClient()
-        .from(table)
-        .upsert(snakeCaseRecord, { onConflict: 'id' })
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      return { message: 'Canvas item saved', data };
-    } catch (err: any) {
-      console.error('Failed to save canvas item:', err?.message || err);
       throw new InternalServerErrorException({
-        message: 'Failed to save canvas item',
-        detail: err?.message || 'Unknown error',
+        message: 'Failed to upload image to Discord',
+        detail: error?.message || 'Unknown error',
         timestamp: new Date().toISOString(),
       });
     }
-  }
-
-  async deleteCanvasItem(id: string, type: string) {
-    if (!id || !type) {
-      throw new BadRequestException('Canvas item id and type are required');
-    }
-
-    const table = CANVAS_ITEM_TABLE_BY_TYPE[type];
-
-    if (!table) {
-      throw new BadRequestException(`Unsupported canvas item type: ${type}`);
-    }
-
-    try {
-      const { data, error } = await this.supabaseService
-        .getClient()
-        .from(table)
-        .delete()
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      return { message: 'Canvas item deleted', data };
-    } catch (err: any) {
-      console.error('Failed to delete canvas item:', err?.message || err);
-      throw new InternalServerErrorException({
-        message: 'Failed to delete canvas item',
-        detail: err?.message || 'Unknown error',
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-
-  private toSnakeCaseRecord(
-    input: Record<string, unknown>,
-  ): Record<string, unknown> {
-    return Object.entries(input).reduce(
-      (acc, [key, value]) => {
-        acc[this.toSnakeCase(key)] = value;
-        return acc;
-      },
-      {} as Record<string, unknown>,
-    );
-  }
-
-  private toSnakeCase(key: string): string {
-    return key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-  }
-
-  private toCamelCaseRecord(
-    input: Record<string, unknown>,
-  ): Record<string, unknown> {
-    return Object.entries(input).reduce(
-      (acc, [key, value]) => {
-        acc[this.toCamelCase(key)] = value;
-        return acc;
-      },
-      {} as Record<string, unknown>,
-    );
-  }
-
-  private toCamelCase(key: string): string {
-    return key.replace(/_([a-z0-9])/g, (_match, letter: string) =>
-      letter.toUpperCase(),
-    );
   }
 }
