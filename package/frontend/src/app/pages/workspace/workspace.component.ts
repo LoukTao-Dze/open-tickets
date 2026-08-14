@@ -39,8 +39,9 @@ const DEFAULT_CODE_SNIPPET_HEIGHT = 200;
 const DEFAULT_CODE_SNIPPET_FILE_NAME = 'untitled';
 const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
 const SAVE_WHITEBOARD_DELAY_MS = 0;
-const SAVE_CANVAS_ITEM_ENDPOINT = '/api/save-canvas-item';
-const GET_CANVAS_ITEM_ENDPOINT = '/api/get-canvas-item';
+const SAVE_CANVAS_ITEM_ENDPOINT = '/api/canvas/save-canvas-item';
+const GET_CANVAS_ITEM_ENDPOINT = '/api/canvas/get-canvas-item';
+const DELETE_CANVAS_ITEM_ENDPOINT = '/api/canvas/delete-canvas-item';
 const GET_ALL_PROJECTS_ENDPOINT = '/api/projects';
 
 @Component({
@@ -95,7 +96,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     );
   }
 
-  get items(): WorkspaceCanvasItem[] {
+  get canvasList(): WorkspaceCanvasItem[] {
     return this.activeWhiteboard.items;
   }
   get minimapScaleX(): number {
@@ -140,12 +141,15 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       .get(GET_ALL_PROJECTS_ENDPOINT)
       .pipe(
         switchMap((res) => {
-          const projects = (res as any)?.data as { id: string; name: string }[];
-          this.whiteboards = projects.map((project) => ({
-            id: project.id,
-            name: project.name,
-            items: [],
-          }));
+          const projects = (res as any)?.data as { id: string; name: string; default: boolean }[];
+          this.whiteboards = projects
+            .map((project) => ({
+              id: project.id,
+              name: project.name,
+              default: project.default,
+              items: [],
+            }))
+            .sort((a, b) => (b.default ? 1 : 0) - (a.default ? 1 : 0));
           this.selectedWhiteboardId = this.whiteboards[0]?.id ?? '';
           return this.http.get(GET_CANVAS_ITEM_ENDPOINT, {
             params: { projectId: this.activeWhiteboard.id },
@@ -170,7 +174,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           this.whiteboards.forEach((board) => {
             board.items = itemsByProject.get(board.id) ?? [];
           });
-          console.info('\x1b[7;31;40m[DEBUGGER] ->> this.whiteboards\x1b[0m', this.whiteboards);
         },
         error: (err) => {
           console.error('Failed to retrieve canvas items', err);
@@ -211,7 +214,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   deleteItem(event: Event, item: WorkspaceCanvasItem) {
     event.stopPropagation();
-    this.http.post('/api/delete-canvas-item', { id: item.id, type: item.type }).subscribe({
+    this.http.post(DELETE_CANVAS_ITEM_ENDPOINT, { id: item.id, type: item.type }).subscribe({
       next: (res) => {
         console.log('Canvas item deleted successfully', res);
         const board = this.activeWhiteboard;
@@ -280,10 +283,15 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
     // this.cancelPendingWhiteboardSave();
 
+    this.canvasList.map((canvasItem) => {
+      if (canvasItem !== item && canvasItem.zIndex >= item.zIndex) {
+        canvasItem.zIndex--;
+      } else if (canvasItem === item) {
+        canvasItem.zIndex = this.canvasList.length + 1;
+      }
+    });
     this.activeItem = item;
     this.focusedItem = item;
-    item.zIndex = ++this.zIndexCounter;
-
     const canvasPoint = this.screenToCanvasPoint(event.clientX, event.clientY);
     this.dragOffset = { x: canvasPoint.x - item.x, y: canvasPoint.y - item.y };
   }
@@ -413,7 +421,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           return Math.floor(Math.random() * 7) - 3;
         };
         return {
-          id: this.getItemId(EnumWorkspaceItemType.STICKY_NOTE),
+          id: crypto.randomUUID(),
           projectId,
           type: EnumWorkspaceItemType.STICKY_NOTE,
           x: center.x - STICKY_NOTE_SIZE / 2,
@@ -431,7 +439,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       }
       case EnumWorkspaceItemType.TEXT:
         return {
-          id: this.getItemId(EnumWorkspaceItemType.TEXT),
+          id: crypto.randomUUID(),
           projectId,
           type: EnumWorkspaceItemType.TEXT,
           x: center.x - DEFAULT_TEXT_WIDTH / 2,
@@ -445,7 +453,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         };
       case EnumWorkspaceItemType.LINK:
         return {
-          id: this.getItemId(EnumWorkspaceItemType.LINK),
+          id: crypto.randomUUID(),
           projectId,
           type: EnumWorkspaceItemType.LINK,
           x: center.x - DEFAULT_LINK_WIDTH / 2,
@@ -458,7 +466,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         };
       case EnumWorkspaceItemType.CODE_SNIPPET:
         return {
-          id: this.getItemId(EnumWorkspaceItemType.CODE_SNIPPET),
+          id: crypto.randomUUID(),
           projectId,
           type: EnumWorkspaceItemType.CODE_SNIPPET,
           x: center.x - DEFAULT_CODE_SNIPPET_WIDTH / 2,
@@ -472,7 +480,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         };
       case EnumWorkspaceItemType.IMAGE:
         return {
-          id: this.getItemId(EnumWorkspaceItemType.IMAGE),
+          id: crypto.randomUUID(),
           projectId,
           type: EnumWorkspaceItemType.IMAGE,
           x: center.x - 100,
@@ -500,7 +508,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       return;
     }
     this.isCanvasLoading = true;
-
     this.http.post(SAVE_CANVAS_ITEM_ENDPOINT, this.focusedItem).subscribe({
       next: (res) => {
         console.log('Canvas item saved successfully', res);
