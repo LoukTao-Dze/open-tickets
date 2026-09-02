@@ -60,6 +60,56 @@
   }
 }
 
+.sticky-note-toolbar {
+  position: absolute;
+  top: -2.75rem;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  color: #1f2937;
+  cursor: default;
+  z-index: 20;
+}
+
+.sticky-note-toolbar-size select {
+  height: 1.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 2px;
+  padding: 0 0.25rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.sticky-note-toolbar-button {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &.is-active {
+    border-color: #9ca3af;
+    background: #e5e7eb;
+  }
+}
+
+.sticky-note-toolbar-underline {
+  text-decoration: underline;
+}
+
 .sticky-note-icon {
   @apply absolute bottom-2 right-2 opacity-30;
 }

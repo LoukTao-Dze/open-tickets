@@ -141,19 +141,9 @@
 }
 
 .mini-map-block {
-  @apply absolute bg-on-surface rounded-xs -translate-x-1/2 -translate-y-1/2;
-
-  &.mini-map-block--sm {
-    @apply w-2 h-2;
-  }
-
-  &.mini-map-block--wide {
-    @apply w-4 h-2;
-  }
-
-  &.mini-map-block--tall {
-    @apply w-2 h-4;
-  }
+  @apply absolute bg-on-surface rounded-xs;
+  min-width: 2px;
+  min-height: 2px;
 }
 
 /* HTML: <div class="loader"></div> */

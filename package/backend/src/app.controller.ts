@@ -27,7 +27,7 @@ export class AppController {
   }
 
   @Post('delete-canvas-item')
-  deleteCanvasItem(@Body() body: { id: string; type: string }) {
+  deleteCanvasItem(@Body() body: { id: number; type: string }) {
     return this.appService.deleteCanvasItem(body.id, body.type);
   }
 }

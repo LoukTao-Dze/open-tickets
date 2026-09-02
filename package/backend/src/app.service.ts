@@ -9,7 +9,7 @@ import { HttpService } from '@nestjs/axios';
 import { SupabaseService } from './supabase/supabase.service';
 
 export interface CanvasItemPayload {
-  id: string;
+  id?: number;
   projectId: string;
   type: string;
   x: number;
@@ -120,7 +120,6 @@ export class AppService {
       if (error) {
         throw error;
       }
-
       return { data };
     } catch (err: any) {
       console.error('Failed to retrieve projects:', err?.message || err);
@@ -175,27 +174,32 @@ export class AppService {
 
     const { type, id, projectId } = body;
     const table = CANVAS_ITEM_TABLE_BY_TYPE[type];
-
     if (!table) {
       throw new BadRequestException(`Unsupported canvas item type: ${type}`);
     }
 
-    if (!id || !projectId) {
-      throw new BadRequestException(
-        'Canvas item must include an id and projectId',
-      );
+    if (!projectId) {
+      throw new BadRequestException('Canvas item must include a projectId');
     }
 
-    const { type: _type, ...record } = body;
-    const snakeCaseRecord = this.toSnakeCaseRecord(record);
-
+    const snakeCaseRecord = this.toSnakeCaseRecord(body);
+    delete snakeCaseRecord.type;
+    if (id === undefined) {
+      delete snakeCaseRecord.id;
+    }
+    console.info(
+      '\x1b[7;31;40m[DEBUGGER] ->> snakeCaseRecord\x1b[0m',
+      snakeCaseRecord,
+    );
     try {
-      const { data, error } = await this.supabaseService
-        .getClient()
-        .from(table)
-        .upsert(snakeCaseRecord, { onConflict: 'id' })
-        .select()
-        .single();
+      const query =
+        id === undefined
+          ? this.supabaseService.getClient().from(table).insert(snakeCaseRecord)
+          : this.supabaseService
+              .getClient()
+              .from(table)
+              .upsert(snakeCaseRecord, { onConflict: 'id' });
+      const { data, error } = await query.select().single();
 
       if (error) {
         throw error;
@@ -212,8 +216,8 @@ export class AppService {
     }
   }
 
-  async deleteCanvasItem(id: string, type: string) {
-    if (!id || !type) {
+  async deleteCanvasItem(id: number, type: string) {
+    if (id === undefined || !type) {
       throw new BadRequestException('Canvas item id and type are required');
     }
 

@@ -1,20 +1,41 @@
-version: "3.9"
-
 services:
   backend:
     build: ./package/backend
     container_name: open-ticket-backend
     ports:
-      - "3000:3000"
-    # env_file:
-    #   - ./backend/.env
-    restart: always
+      - "${BACKEND_PORT:-3000}:3000"
+    env_file:
+      - ./package/backend/.env
+    environment:
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - open-ticket
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   frontend:
     build: ./package/frontend
     container_name: open-ticket-frontend
     ports:
-      - "4200:80"
+      - "${FRONTEND_PORT:-4200}:80"
     depends_on:
-      - backend
-    restart: always
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - open-ticket
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  open-ticket:
+    driver: bridge
