@@ -26,7 +26,13 @@
       [value]="selectedWhiteboardId"
       (change)="onWhiteboardChange(boardSelect.value)"
     >
-      <option *ngFor="let board of whiteboards" [value]="board.id">{{ board.name }}</option>
+      <option
+        *ngFor="let board of whiteboards"
+        [value]="board.id"
+        [selected]="board.id === selectedWhiteboardId"
+      >
+        {{ board.name }}
+      </option>
     </select>
   </div>
 
@@ -114,7 +120,6 @@
       <div
         *ngFor="let item of canvasList; trackBy: trackByItemId"
         class="mini-map-block"
-        [ngClass]="minimapBlockClass(item)"
         [ngStyle]="minimapItemStyle(item)"
       ></div>
     </div>

@@ -9,7 +9,7 @@ import {
 import { SupabaseService } from 'src/supabase/supabase.service';
 
 export interface CanvasItemPayload {
-  id: string;
+  id?: string;
   projectId: string;
   type: string;
   x: number;
@@ -48,17 +48,15 @@ export class CanvasService {
       throw new BadRequestException('Canvas item payload is required');
     }
 
-    const { type, id, projectId } = body;
+    const { type, projectId } = body;
     const table = CANVAS_ITEM_TABLE_BY_TYPE[type];
 
     if (!table) {
       throw new BadRequestException(`Unsupported canvas item type: ${type}`);
     }
 
-    if (!id || !projectId) {
-      throw new BadRequestException(
-        'Canvas item must include an id and projectId',
-      );
+    if (!projectId) {
+      throw new BadRequestException('Canvas item must include an projectId');
     }
 
     const { type: _type, ...record } = body;

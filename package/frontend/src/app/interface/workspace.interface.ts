@@ -4,7 +4,7 @@ export type CanvasItemType = EnumWorkspaceItemType;
 
 export interface CanvasItemBase {
   projectId: string;
-  id: string;
+  id?: number;
   type: CanvasItemType;
   x: number;
   y: number;
@@ -21,6 +21,9 @@ export interface StickyNoteItem extends CanvasItemBase {
   icon: string;
   width: number;
   height: number;
+  fontSize?: number;
+  isBold?: boolean;
+  isUnderlined?: boolean;
 }
 
 export interface UploadedImageItem extends CanvasItemBase {

@@ -22,12 +22,56 @@
     (blur)="stopEditingLabel()"
     placeholder="Sticky Note..."
   />
+  @if (isContentEditing) {
+    <div
+      class="sticky-note-toolbar"
+      role="toolbar"
+      aria-label="Text formatting"
+      (mousedown)="onToolbarMouseDown($event)"
+    >
+      <label class="sticky-note-toolbar-size" for="sticky-note-font-size">
+        <span class="sr-only">Font size</span>
+        <select
+          id="sticky-note-font-size"
+          [value]="note.fontSize ?? contentFontSize"
+          (change)="setContentFontSize($any($event.target).value)"
+          aria-label="Font size"
+        >
+          @for (size of fontSizeOptions; track size) {
+            <option [value]="size">{{ size }} px</option>
+          }
+        </select>
+      </label>
+      <button
+        class="sticky-note-toolbar-button"
+        [class.is-active]="note.isBold"
+        type="button"
+        aria-label="Bold"
+        [attr.aria-pressed]="note.isBold"
+        (click)="$event.stopPropagation(); toggleBold()"
+      >
+        <strong>B</strong>
+      </button>
+      <button
+        class="sticky-note-toolbar-button"
+        [class.is-active]="note.isUnderlined"
+        type="button"
+        aria-label="Underline"
+        [attr.aria-pressed]="note.isUnderlined"
+        (click)="$event.stopPropagation(); toggleUnderline()"
+      >
+        <span class="sticky-note-toolbar-underline">U</span>
+      </button>
+    </div>
+  }
   <textarea
     #contentInput
     class="sticky-note-content"
     [class.on-focus]="isContentEditing"
     spellcheck="false"
     [style.fontSize.px]="contentFontSize"
+    [style.fontWeight]="note.isBold ? 700 : 400"
+    [style.textDecoration]="note.isUnderlined ? 'underline' : 'none'"
     [style.color]="note.textColor"
     [value]="note.content"
     [readOnly]="!isEditing"

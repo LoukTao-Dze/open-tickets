@@ -8,8 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { SupabaseService } from './supabase/supabase.service';
-import axios from 'axios';
-import * as fs from 'fs';
+// import axios from 'axios';
+// import * as fs from 'fs';
 
 @Injectable()
 export class AppService {

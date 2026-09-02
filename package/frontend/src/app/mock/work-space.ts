@@ -8,7 +8,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
     name: 'Sprint 12',
     items: [
       {
-        id: 'note-1',
+        id: 1,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 400,
@@ -24,7 +24,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 192,
       },
       {
-        id: 'note-2',
+        id: 2,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 650,
@@ -40,7 +40,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 192,
       },
       {
-        id: 'note-3',
+        id: 3,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 520,
@@ -56,7 +56,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 192,
       },
       {
-        id: 'note-4',
+        id: 4,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 800,
@@ -72,7 +72,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 192,
       },
       {
-        id: 'image-1',
+        id: 1,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.IMAGE,
         x: 1000,
@@ -89,7 +89,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         grayscaleHover: true,
       },
       {
-        id: 'image-2',
+        id: 2,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.IMAGE,
         x: 1100,
@@ -106,7 +106,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         grayscaleHover: false,
       },
       {
-        id: 'code-1',
+        id: 1,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.CODE_SNIPPET,
         x: 100,
@@ -119,7 +119,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 200,
       },
       {
-        id: 'text-1',
+        id: 1,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.TEXT,
         x: 550,
@@ -132,7 +132,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 60,
       },
       {
-        id: 'link-1',
+        id: 1,
         projectId: 'd7ac07e2-42e0-47d8-981b-023b6ac8df92',
         type: EnumWorkspaceItemType.LINK,
         x: 850,
@@ -150,7 +150,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
     name: 'Retro',
     items: [
       {
-        id: 'retro-note-1',
+        id: 1,
         projectId: 'retro',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 300,
@@ -166,7 +166,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 192,
       },
       {
-        id: 'retro-note-2',
+        id: 2,
         projectId: 'retro',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 560,
@@ -182,7 +182,7 @@ export const MOCK_WORKSPACES: Whiteboard[] = [
         height: 192,
       },
       {
-        id: 'retro-note-3',
+        id: 3,
         projectId: 'retro',
         type: EnumWorkspaceItemType.STICKY_NOTE,
         x: 430,

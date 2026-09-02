@@ -21,11 +21,17 @@ import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.inter
 import { MOCK_WORKSPACES } from '../../mock/work-space';
 import { finalize, switchMap } from 'rxjs';
 
-const MIN_ZOOM = 0.25;
+const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
-const MINIMAP_WORLD_WIDTH = 2000;
-const MINIMAP_WORLD_HEIGHT = 1400;
+/**
+ * @const ZOOM_WHEEL_SENSITIVITY
+ * Proportional to wheel/pinch delta so zoom speed matches gesture speed
+ */
+const ZOOM_WHEEL_SENSITIVITY = 0.005;
+const MAX_ZOOM_WHEEL_DELTA = 80;
+// world-space margin kept around board content so items never touch the minimap edge
+const MINIMAP_BOUNDS_PADDING = 200;
 
 const STICKY_NOTE_SIZE = 192;
 const DEFAULT_TEXT_FONT_SIZE = 18;
@@ -43,6 +49,12 @@ const SAVE_CANVAS_ITEM_ENDPOINT = '/api/canvas/save-canvas-item';
 const GET_CANVAS_ITEM_ENDPOINT = '/api/canvas/get-canvas-item';
 const DELETE_CANVAS_ITEM_ENDPOINT = '/api/canvas/delete-canvas-item';
 const GET_ALL_PROJECTS_ENDPOINT = '/api/projects';
+
+interface SaveCanvasItemResponse {
+  data: {
+    id: number;
+  };
+}
 
 @Component({
   selector: 'app-workspace',
@@ -99,15 +111,50 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   get canvasList(): WorkspaceCanvasItem[] {
     return this.activeWhiteboard.items;
   }
-  get minimapScaleX(): number {
-    return this.miniMapRef.nativeElement.clientWidth / MINIMAP_WORLD_WIDTH;
-  }
+  /**
+   * Uniform scale + offset that fits the board's content bounds (all canvas items
+   * plus the current viewport) inside the minimap without distortion or overflow.
+   */
+  private get minimapLayout() {
+    const miniMapEl = this.miniMapRef.nativeElement;
+    const containerWidth = miniMapEl.clientWidth;
+    const containerHeight = miniMapEl.clientHeight;
 
-  get minimapScaleY(): number {
-    return this.miniMapRef.nativeElement.clientHeight / MINIMAP_WORLD_HEIGHT;
+    const viewportEl = this.viewportRef.nativeElement;
+    const visibleLeft = -this.panX / this.zoom;
+    const visibleTop = -this.panY / this.zoom;
+    const visibleRight = visibleLeft + viewportEl.clientWidth / this.zoom;
+    const visibleBottom = visibleTop + viewportEl.clientHeight / this.zoom;
+
+    let minX = visibleLeft;
+    let minY = visibleTop;
+    let maxX = visibleRight;
+    let maxY = visibleBottom;
+
+    this.canvasList.forEach((item) => {
+      minX = Math.min(minX, item.x);
+      minY = Math.min(minY, item.y);
+      maxX = Math.max(maxX, item.x + item.width);
+      maxY = Math.max(maxY, item.y + item.height);
+    });
+
+    minX -= MINIMAP_BOUNDS_PADDING;
+    minY -= MINIMAP_BOUNDS_PADDING;
+    maxX += MINIMAP_BOUNDS_PADDING;
+    maxY += MINIMAP_BOUNDS_PADDING;
+
+    const boundsWidth = Math.max(maxX - minX, 1);
+    const boundsHeight = Math.max(maxY - minY, 1);
+
+    const scale = Math.min(containerWidth / boundsWidth, containerHeight / boundsHeight);
+    const offsetX = (containerWidth - boundsWidth * scale) / 2;
+    const offsetY = (containerHeight - boundsHeight * scale) / 2;
+
+    return { minX, minY, scale, offsetX, offsetY };
   }
 
   get minimapViewportStyle() {
+    const { minX, minY, scale, offsetX, offsetY } = this.minimapLayout;
     const viewportEl = this.viewportRef.nativeElement;
     const visibleWidth = viewportEl.clientWidth / this.zoom;
     const visibleHeight = viewportEl.clientHeight / this.zoom;
@@ -115,10 +162,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     const visibleTop = -this.panY / this.zoom;
 
     return {
-      left: `${visibleLeft * this.minimapScaleX}px`,
-      top: `${visibleTop * this.minimapScaleY}px`,
-      width: `${visibleWidth * this.minimapScaleX}px`,
-      height: `${visibleHeight * this.minimapScaleY}px`,
+      left: `${(visibleLeft - minX) * scale + offsetX}px`,
+      top: `${(visibleTop - minY) * scale + offsetY}px`,
+      width: `${visibleWidth * scale}px`,
+      height: `${visibleHeight * scale}px`,
     };
   }
 
@@ -131,28 +178,50 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   ngOnInit() {
+    this.setValuesFromLocalStorage();
     this.getCanvasItem();
+  }
+
+  setValuesFromLocalStorage() {
+    this.zoom = parseFloat(localStorage.getItem('zoom') ?? '0.5');
+    this.panX = parseFloat(
+      localStorage.getItem('pan')
+        ? JSON.parse(localStorage.getItem('pan') ?? '{"x":0,"y":0}').x
+        : '0',
+    );
+    this.panY = parseFloat(
+      localStorage.getItem('pan')
+        ? JSON.parse(localStorage.getItem('pan') ?? '{"x":0,"y":0}').y
+        : '0',
+    );
   }
 
   getCanvasItem() {
     this.isLoading = true;
-
     this.http
       .get(GET_ALL_PROJECTS_ENDPOINT)
       .pipe(
         switchMap((res) => {
-          const projects = (res as any)?.data as { id: string; name: string; default: boolean }[];
+          const projects = (res as any)?.data as {
+            id: string;
+            name: string;
+            description: string;
+            created_at: string;
+            updated_at: string;
+            default: boolean;
+          }[];
           this.whiteboards = projects
             .map((project) => ({
               id: project.id,
               name: project.name,
-              default: project.default,
               items: [],
+              default: project.default,
             }))
-            .sort((a, b) => (b.default ? 1 : 0) - (a.default ? 1 : 0));
-          this.selectedWhiteboardId = this.whiteboards[0]?.id ?? '';
+            .sort((a, b) => Number(b.default) - Number(a.default));
+          this.selectedWhiteboardId =
+            projects.find((project) => project.default)?.id ?? projects[0]?.id ?? '';
           return this.http.get(GET_CANVAS_ITEM_ENDPOINT, {
-            params: { projectId: this.activeWhiteboard.id },
+            params: { projectId: this.selectedWhiteboardId },
           });
         }),
         finalize(() => {
@@ -189,8 +258,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     return this.focusedItem === item;
   }
 
-  trackByItemId(_index: number, item: WorkspaceCanvasItem): string {
-    return item.id;
+  trackByItemId(index: number, item: WorkspaceCanvasItem): number {
+    return item.id ?? -index - 1;
   }
 
   onWhiteboardChange(id: string) {
@@ -210,6 +279,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
     newItem.zIndex = ++this.zIndexCounter;
     this.activeWhiteboard.items.push(newItem);
+    this.onSaveWhiteboard();
   }
 
   deleteItem(event: Event, item: WorkspaceCanvasItem) {
@@ -234,20 +304,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   minimapItemStyle(item: WorkspaceCanvasItem) {
+    const { minX, minY, scale, offsetX, offsetY } = this.minimapLayout;
     return {
-      left: `${item.x * this.minimapScaleX}px`,
-      top: `${item.y * this.minimapScaleY}px`,
+      left: `${(item.x - minX) * scale + offsetX}px`,
+      top: `${(item.y - minY) * scale + offsetY}px`,
+      width: `${item.width * scale}px`,
+      height: `${item.height * scale}px`,
     };
-  }
-
-  minimapBlockClass(item: WorkspaceCanvasItem): string {
-    if (item.type === 'sticky-note' || item.type === 'text') {
-      return 'mini-map-block--sm';
-    }
-    if (item.type === 'code-snippet' || item.type === 'link') {
-      return 'mini-map-block--wide';
-    }
-    return item.width >= item.height ? 'mini-map-block--wide' : 'mini-map-block--tall';
   }
 
   onMinimapMouseDown(event: MouseEvent) {
@@ -257,8 +320,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    const worldX = clickX / this.minimapScaleX;
-    const worldY = clickY / this.minimapScaleY;
+    const { minX, minY, scale, offsetX, offsetY } = this.minimapLayout;
+    const worldX = (clickX - offsetX) / scale + minX;
+    const worldY = (clickY - offsetY) / scale + minY;
 
     const viewportEl = this.viewportRef.nativeElement;
     this.panX = viewportEl.clientWidth / 2 - worldX * this.zoom;
@@ -281,7 +345,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       return;
     }
 
-    // this.cancelPendingWhiteboardSave();
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, select, a, .resize-handle, .item-delete-btn')) {
+      return;
+    }
 
     this.canvasList.map((canvasItem) => {
       if (canvasItem !== item && canvasItem.zIndex >= item.zIndex) {
@@ -353,8 +420,24 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     }
 
     event.preventDefault();
-    const factor = event.deltaY < 0 ? 1 + ZOOM_STEP : 1 - ZOOM_STEP;
-    this.zoomAtPoint(this.zoom * factor, event.clientX, event.clientY);
+
+    // browsers report trackpad pinch gestures as wheel events with ctrlKey set
+    if (event.ctrlKey) {
+      const clampedDelta = Math.max(
+        -MAX_ZOOM_WHEEL_DELTA,
+        Math.min(MAX_ZOOM_WHEEL_DELTA, event.deltaY),
+      );
+      const factor = Math.exp(-clampedDelta * ZOOM_WHEEL_SENSITIVITY);
+      this.zoomAtPoint(this.zoom * factor, event.clientX, event.clientY);
+      return;
+    }
+
+    // two-finger trackpad drag pans the canvas
+    this.panX -= event.deltaX;
+    this.panY -= event.deltaY;
+    setTimeout(() => {
+      localStorage.setItem('pan', JSON.stringify({ x: this.panX, y: this.panY }));
+    }, 2000);
   }
 
   zoomIn() {
@@ -371,6 +454,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.zoom = 0.5;
     this.panX = 0;
     this.panY = 0;
+    setTimeout(() => {
+      localStorage.setItem('zoom', this.zoom.toString());
+    }, 2000);
   }
 
   private zoomAtPoint(nextZoom: number, clientX: number, clientY: number) {
@@ -385,6 +471,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.panX = screenX - canvasX * clampedZoom;
     this.panY = screenY - canvasY * clampedZoom;
     this.zoom = clampedZoom;
+    setTimeout(() => {
+      localStorage.setItem('zoom', this.zoom.toString());
+    }, 2000);
   }
 
   private screenToCanvasPoint(clientX: number, clientY: number) {
@@ -403,7 +492,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   getItemId(type: EnumWorkspaceItemType): string {
-    const itemType = this.canvasItemResponse.filter((item) => item.type === type);
+    const itemType = this.activeWhiteboard.items.filter((item) => item.type === type);
     return `${type}-${itemType.length + 1}`;
   }
 
@@ -417,11 +506,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           return null;
         }
 
-        const randomNumber1To3 = (): number => {
-          return Math.floor(Math.random() * 7) - 3;
-        };
+        // const randomNumber1To3 = (): number => {
+        //   return Math.floor(Math.random() * 7) - 3;
+        // };
         return {
-          id: crypto.randomUUID(),
+          // id: this.getItemId(EnumWorkspaceItemType.STICKY_NOTE),
           projectId,
           type: EnumWorkspaceItemType.STICKY_NOTE,
           x: center.x - STICKY_NOTE_SIZE / 2,
@@ -431,7 +520,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           content: '',
           bgColor: event.color.bgColor,
           textColor: event.color.textColor,
-          rotation: randomNumber1To3(),
+          rotation: 0, //randomNumber1To3(),
           icon: '',
           width: STICKY_NOTE_SIZE,
           height: STICKY_NOTE_SIZE,
@@ -439,7 +528,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       }
       case EnumWorkspaceItemType.TEXT:
         return {
-          id: crypto.randomUUID(),
+          // id: this.getItemId(EnumWorkspaceItemType.TEXT),
           projectId,
           type: EnumWorkspaceItemType.TEXT,
           x: center.x - DEFAULT_TEXT_WIDTH / 2,
@@ -453,7 +542,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         };
       case EnumWorkspaceItemType.LINK:
         return {
-          id: crypto.randomUUID(),
+          // id: this.getItemId(EnumWorkspaceItemType.LINK),
           projectId,
           type: EnumWorkspaceItemType.LINK,
           x: center.x - DEFAULT_LINK_WIDTH / 2,
@@ -466,7 +555,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         };
       case EnumWorkspaceItemType.CODE_SNIPPET:
         return {
-          id: crypto.randomUUID(),
+          // id: this.getItemId(EnumWorkspaceItemType.CODE_SNIPPET),
           projectId,
           type: EnumWorkspaceItemType.CODE_SNIPPET,
           x: center.x - DEFAULT_CODE_SNIPPET_WIDTH / 2,
@@ -480,7 +569,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         };
       case EnumWorkspaceItemType.IMAGE:
         return {
-          id: crypto.randomUUID(),
+          // id: this.getItemId(EnumWorkspaceItemType.IMAGE),
           projectId,
           type: EnumWorkspaceItemType.IMAGE,
           x: center.x - 100,
@@ -508,8 +597,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       return;
     }
     this.isCanvasLoading = true;
-    this.http.post(SAVE_CANVAS_ITEM_ENDPOINT, this.focusedItem).subscribe({
+    const itemToSave = this.focusedItem;
+    console.info('\x1b[7;31;40m[DEBUGGER] ->> itemToSave\x1b[0m', itemToSave);
+    this.http.post<SaveCanvasItemResponse>(SAVE_CANVAS_ITEM_ENDPOINT, itemToSave).subscribe({
       next: (res) => {
+        itemToSave.id = res.data.id;
         console.log('Canvas item saved successfully', res);
         setTimeout(() => {
           this.isCanvasLoading = false;
