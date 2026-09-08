@@ -19,6 +19,7 @@ import { ToolHubsComponent, InsertToolEvent } from './tool-hubs/tool-hubs.compon
 import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
 import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.interface';
 import { MOCK_WORKSPACES } from '../../mock/work-space';
+import { environment } from '../../../environments/environment';
 import { finalize, switchMap } from 'rxjs';
 
 const MIN_ZOOM = 0.1;
@@ -45,10 +46,10 @@ const DEFAULT_CODE_SNIPPET_HEIGHT = 200;
 const DEFAULT_CODE_SNIPPET_FILE_NAME = 'untitled';
 const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
 const SAVE_WHITEBOARD_DELAY_MS = 0;
-const SAVE_CANVAS_ITEM_ENDPOINT = '/api/canvas/save-canvas-item';
-const GET_CANVAS_ITEM_ENDPOINT = '/api/canvas/get-canvas-item';
-const DELETE_CANVAS_ITEM_ENDPOINT = '/api/canvas/delete-canvas-item';
-const GET_ALL_PROJECTS_ENDPOINT = '/api/projects';
+const SAVE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/save-canvas-item`;
+const GET_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/get-canvas-item`;
+const DELETE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/delete-canvas-item`;
+const GET_ALL_PROJECTS_ENDPOINT = `${environment.apiBaseUrl}/api/projects`;
 
 interface SaveCanvasItemResponse {
   data: {

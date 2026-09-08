@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { getCorsOrigins } from './cors-origins';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -8,7 +9,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: `http://localhost:${process.env.FRONT_END_PORT}`,
+    origin: getCorsOrigins(),
     credentials: true,
   });
   await app.listen(process.env.PORT ?? 3000);
