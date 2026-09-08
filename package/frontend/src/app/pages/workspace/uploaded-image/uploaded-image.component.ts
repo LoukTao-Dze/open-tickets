@@ -1,5 +1,6 @@
-import { Component, HostListener, Input } from '@angular/core';
+import { Component, HostListener, Input, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { UploadImageService } from '../../../services/upload-image.service';
 import { UploadedImageItem } from '../../../interface/workspace.interface';
 import {
   computeResizedRect,
@@ -22,12 +23,17 @@ const MIN_HEIGHT = 80;
 export class UploadedImageComponent {
   @Input({ required: true }) image!: UploadedImageItem;
   @Input() zoom = 1;
+  constructor(
+    private cdr: ChangeDetectorRef,
+    private uploadImageService: UploadImageService,
+  ) {}
 
   private isResizing = false;
   private activeCorner: ResizeCorner | null = null;
   private resizeStart: ResizeStart = { x: 0, y: 0, width: 0, height: 0, itemX: 0, itemY: 0 };
 
   triggerUpload(fileInput: HTMLInputElement) {
+    if (this.image.imageUrl) return;
     fileInput.click();
   }
 
@@ -102,6 +108,15 @@ export class UploadedImageComponent {
       this.image.statusIcon = 'check_circle';
       this.image.statusIconClass = 'text-primary';
     };
-    reader.readAsDataURL(file);
+
+    this.uploadImageService.uploadImage(file, this.image.id).subscribe({
+      next: (response) => {
+        reader.readAsDataURL(file);
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Failed to upload image:', error);
+      },
+    });
   }
 }

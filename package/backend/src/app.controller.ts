@@ -1,5 +1,19 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AppService } from './app.service';
+
+interface UploadedImage {
+  buffer: Buffer;
+  originalname: string;
+}
 
 @Controller()
 export class AppController {
@@ -15,11 +29,19 @@ export class AppController {
     return this.appService.getAllProjects();
   }
 
-  @Post('upload-image')
+  @Post('upload-image/:id')
+  @UseInterceptors(FileInterceptor('imageBuffer'))
   uploadImageToDiscord(
-    @Body('imageBuffer') imageBuffer: Buffer,
-    @Body('filename') filename: string,
+    @Param('id') id: string,
+    @UploadedFile() image: UploadedImage | undefined,
   ) {
-    return this.appService.uploadImageToDiscord(imageBuffer, filename);
+    if (!image) {
+      throw new BadRequestException('An image file is required.');
+    }
+    return this.appService.uploadImageToDiscord(
+      image.buffer,
+      image.originalname,
+      id,
+    );
   }
 }

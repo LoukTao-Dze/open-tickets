@@ -8,8 +8,61 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { SupabaseService } from './supabase/supabase.service';
+import { AxiosResponse } from 'axios';
 // import axios from 'axios';
 // import * as fs from 'fs';
+
+export interface UploadedImage {
+  buffer: Buffer;
+  originalname: string;
+}
+
+export interface DiscordMessageResponse {
+  type: number;
+  content: string;
+  mentions: any[];
+  mention_roles: any[];
+  attachments: Attachment[];
+  embeds: any[];
+  timestamp: string;
+  edited_timestamp: any;
+  flags: number;
+  components: any[];
+  id: string;
+  channel_id: string;
+  author: Author;
+  pinned: boolean;
+  mention_everyone: boolean;
+  tts: boolean;
+  webhook_id: string;
+}
+
+export interface Attachment {
+  id: string;
+  filename: string;
+  size: number;
+  url: string;
+  proxy_url: string;
+  width: number;
+  height: number;
+  content_type: string;
+  content_scan_version: number;
+  placeholder: string;
+  placeholder_version: number;
+}
+
+export interface Author {
+  id: string;
+  username: string;
+  avatar: any;
+  discriminator: string;
+  public_flags: number;
+  flags: number;
+  bot: boolean;
+  global_name: any;
+  clan: any;
+  primary_guild: any;
+}
 
 @Injectable()
 export class AppService {
@@ -109,54 +162,74 @@ export class AppService {
       });
     }
   }
+
+  async updateImageUrl(imageId: string, imageUrl: string) {
+    try {
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('images')
+        .update({ image_url: imageUrl })
+        .eq('id', +imageId);
+
+      if (error) {
+        throw error;
+      }
+      return { data };
+    } catch (err: any) {
+      throw new InternalServerErrorException({
+        message: 'Failed to update image URL',
+        detail: err?.message || 'Unknown error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
   async uploadImageToDiscord(
     imageBuffer: Buffer,
     filename: string,
-  ): Promise<string> {
+    id: string,
+  ): Promise<DiscordMessageResponse> {
     const discordWebhookUrl =
       'https://discord.com/api/webhooks/1529309193478082580/OvGXkFXXhzupxO76RDDLMaiB3xX0_YS2CvvMkxya0SJ0fT1rn7UrOdBoN9HAROiCSrkV';
+    const discordWebhookUrlNew =
+      'https://discord.com/api/webhooks/1544601661513662555/y2F-6jG5QMsEj84WOafgOJlVSyL7md7c56hp1p0zfVhsOVSfS1wwzbL6YIiMSMdA3Fbh';
     // this.configService.get<string>('DISCORD_WEBHOOK_URL',);
-    if (!discordWebhookUrl) {
+    if (!discordWebhookUrl || !discordWebhookUrlNew) {
       throw new InternalServerErrorException(
         'Discord webhook URL is not configured.',
       );
     }
 
     const formData = new FormData();
+
     formData.append(
       'payload_json',
       JSON.stringify({
-        content: `
-          📷 New Image Upload
-          Image ID: ${Date.now()}
-          File Name: ${filename}
-        `.trim(),
+        content:
+          `======================================\n📷 New Image Upload:\nImage ID: ${id}\nDate: ${new Date().toISOString()}\nFile Name: ${filename}\n======================================`.trim(),
       }),
     );
 
     formData.append('file', imageBuffer, filename);
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.post(discordWebhookUrl, formData, {
-          headers: {
-            ...formData.getHeaders(),
-          },
-        }),
-      );
+      const response: AxiosResponse<DiscordMessageResponse> =
+        await firstValueFrom(
+          this.httpService.post(discordWebhookUrlNew, formData, {
+            headers: {
+              ...formData.getHeaders(),
+            },
+          }),
+        );
 
       if (response.status !== 200) {
         throw new BadRequestException(
           `Failed to upload image to Discord. Status code: ${response.status}`,
         );
       }
-
-      return response.data;
+      await this.updateImageUrl(id, response.data.attachments[0].url);
+      return response.data as DiscordMessageResponse;
     } catch (error: any) {
-      console.error(
-        'Failed to upload image to Discord:',
-        error.response?.data || error.message,
-      );
       throw new InternalServerErrorException({
         message: 'Failed to upload image to Discord',
         detail: error?.message || 'Unknown error',
