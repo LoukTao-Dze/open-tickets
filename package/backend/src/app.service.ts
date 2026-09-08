@@ -92,40 +92,34 @@ export class AppService {
       timestamp: string;
     };
   }> {
-    if (!this.supabaseService.hasConfiguration()) {
-      return this.buildHealthResponse(false);
-    }
-
     try {
       const res = await this.checkSupabaseHealth();
 
       const supabaseHealthy =
         res?.status === 'healthy' || res?.name === 'GoTrue';
 
-      return this.buildHealthResponse(supabaseHealthy);
+      return {
+        backend_healthy: {
+          status: 'healthy',
+          message: 'Backend is healthy',
+          timestamp: new Date().toISOString(),
+        },
+
+        supabase_healthy: {
+          status: supabaseHealthy ? 'healthy' : 'unhealthy',
+          message: supabaseHealthy
+            ? 'Supabase is healthy'
+            : 'Supabase is unhealthy',
+          timestamp: new Date().toISOString(),
+        },
+      };
     } catch (err: any) {
-      console.error('Supabase health check failed:', err?.message || err);
-      return this.buildHealthResponse(false);
+      throw new InternalServerErrorException({
+        message: 'Supabase health check failed',
+        detail: err?.message || 'Unknown error',
+        timestamp: new Date().toISOString(),
+      });
     }
-  }
-
-  private buildHealthResponse(supabaseHealthy: boolean) {
-    const timestamp = new Date().toISOString();
-
-    return {
-      backend_healthy: {
-        status: 'healthy',
-        message: 'Backend is healthy',
-        timestamp,
-      },
-      supabase_healthy: {
-        status: supabaseHealthy ? 'healthy' : 'unhealthy',
-        message: supabaseHealthy
-          ? 'Supabase is healthy'
-          : 'Supabase is unhealthy',
-        timestamp,
-      },
-    };
   }
 
   async checkSupabaseHealth() {
