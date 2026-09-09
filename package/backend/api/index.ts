@@ -25,8 +25,15 @@ async function bootstrap(): Promise<express.Express> {
 }
 
 export default async function handler(req: Request, res: Response) {
-  if (!cachedApp) {
-    cachedApp = await bootstrap();
+  try {
+    if (!cachedApp) {
+      cachedApp = await bootstrap();
+    }
+    cachedApp(req, res);
+  } catch (error) {
+    // Don't crash the function on bootstrap failure (e.g. missing env vars); log details server-side only.
+    cachedApp = undefined;
+    console.error('Backend bootstrap failed:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-  cachedApp(req, res);
 }
