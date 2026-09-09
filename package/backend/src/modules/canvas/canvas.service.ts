@@ -6,7 +6,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common/exceptions';
-import { SupabaseService } from 'src/supabase/supabase.service';
+import { SupabaseService } from '../../supabase/supabase.service';
 
 export interface CanvasItemPayload {
   id?: string;
