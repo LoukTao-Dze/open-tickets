@@ -189,12 +189,9 @@ export class AppService {
     filename: string,
     id: string,
   ): Promise<DiscordMessageResponse> {
-    const discordWebhookUrl =
-      'https://discord.com/api/webhooks/1529309193478082580/OvGXkFXXhzupxO76RDDLMaiB3xX0_YS2CvvMkxya0SJ0fT1rn7UrOdBoN9HAROiCSrkV';
-    const discordWebhookUrlNew =
-      'https://discord.com/api/webhooks/1544601661513662555/y2F-6jG5QMsEj84WOafgOJlVSyL7md7c56hp1p0zfVhsOVSfS1wwzbL6YIiMSMdA3Fbh';
-    // this.configService.get<string>('DISCORD_WEBHOOK_URL',);
-    if (!discordWebhookUrl || !discordWebhookUrlNew) {
+    const discordWebhookUrlNew = process.env.DISCORD_WEBHOOK_URL;
+    // this.configService.get<string>('DISCORD_WEBHOOK_URL');
+    if (!discordWebhookUrlNew) {
       throw new InternalServerErrorException(
         'Discord webhook URL is not configured.',
       );
