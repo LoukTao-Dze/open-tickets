@@ -96,7 +96,7 @@
     [style.fontSize.px]="contentFontSize"
     [style.color]="note.textColor"
     [innerHTML]="note.content"
-    (input)="onContentInput(contentInput.innerHTML)"
+    (input)="onContentInput(contentInput.innerHTML, contentInput)"
     (mousedown)="onContentMouseDown($event)"
     (dblclick)="startEditing(contentInput)"
     (blur)="stopEditing($event)"

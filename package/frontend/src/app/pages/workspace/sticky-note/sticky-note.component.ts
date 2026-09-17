@@ -117,8 +117,15 @@ export class StickyNoteComponent implements OnChanges {
     this.isLabelEditing = false;
   }
 
-  onContentInput(value: string) {
+  // re-setting [innerHTML] after each keystroke rebuilds the DOM and resets the caret to the
+  // start, so capture its position first and restore it once that rebuild happens
+  onContentInput(value: string, contentEl: HTMLElement) {
+    const offsets = this.getSelectionOffsets(contentEl);
     this.note.content = value;
+
+    if (offsets) {
+      setTimeout(() => this.restoreSelectionOffsets(contentEl, offsets));
+    }
   }
 
   setContentFontSize(value: string, contentEl: HTMLElement) {

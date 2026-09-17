@@ -52,6 +52,7 @@
             type="button"
             class="item-delete-btn"
             aria-label="Delete item"
+            [style.zIndex]="item.zIndex + 1"
             (mousedown)="$event.stopPropagation()"
             (click)="deleteItem($event, item)"
           >
