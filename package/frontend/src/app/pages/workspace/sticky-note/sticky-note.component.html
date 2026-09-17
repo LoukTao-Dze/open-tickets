@@ -40,7 +40,9 @@
           aria-label="Font size"
         >
           @for (size of fontSizeOptions; track size) {
-            <option [value]="size">{{ size }} px</option>
+            <option [value]="size" [selected]="size === (note.fontSize ?? contentFontSize)">
+              {{ size }} px
+            </option>
           }
         </select>
       </label>

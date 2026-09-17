@@ -611,7 +611,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     const itemToSave = this.focusedItem;
     this.http.post<SaveCanvasItemResponse>(SAVE_CANVAS_ITEM_ENDPOINT, itemToSave).subscribe({
       next: (res) => {
-        itemToSave.id = res.data.id;
+        itemToSave.id = res?.data?.id;
         console.log('Canvas item saved successfully', res);
         setTimeout(() => {
           this.isCanvasLoading = false;

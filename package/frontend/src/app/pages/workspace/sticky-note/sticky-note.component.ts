@@ -152,6 +152,7 @@ export class StickyNoteComponent implements OnChanges {
     this.isBoldActive = document.queryCommandState('bold');
     this.isItalicActive = document.queryCommandState('italic');
     this.isUnderlineActive = document.queryCommandState('underline');
+    this.isBack = this.note?.isBack || false;
   }
 
   onToolbarMouseDown(event: MouseEvent) {
