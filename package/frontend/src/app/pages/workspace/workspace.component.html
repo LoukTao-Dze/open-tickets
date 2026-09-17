@@ -64,6 +64,7 @@
                 [note]="item"
                 [isDragging]="isDragging(item)"
                 [zoom]="zoom"
+                [isFocused]="isFocused(item)"
               ></app-sticky-note>
             }
             @case (EnumWorkspaceItemType.IMAGE) {

@@ -49,14 +49,20 @@
   width: 100%;
   border: none;
   outline: none;
-  resize: none;
+  overflow: hidden;
   background: transparent;
   font-family: inherit;
   cursor: inherit;
-  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
   &.on-focus {
     border: 0.5px solid rgba(0, 0, 0, 0.4);
     border-radius: 2px;
+  }
+  &.is-empty::before {
+    content: attr(data-placeholder);
+    opacity: 0.5;
+    pointer-events: none;
   }
 }
 

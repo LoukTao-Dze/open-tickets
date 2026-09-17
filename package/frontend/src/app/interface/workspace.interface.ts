@@ -22,8 +22,7 @@ export interface StickyNoteItem extends CanvasItemBase {
   width: number;
   height: number;
   fontSize?: number;
-  isBold?: boolean;
-  isUnderlined?: boolean;
+  isBack?: boolean;
 }
 
 export interface UploadedImageItem extends CanvasItemBase {
@@ -65,11 +64,7 @@ export interface LinkItem extends CanvasItemBase {
 }
 
 export type WorkspaceCanvasItem =
-  | StickyNoteItem
-  | UploadedImageItem
-  | CodeSnippetItem
-  | TextItem
-  | LinkItem;
+  StickyNoteItem | UploadedImageItem | CodeSnippetItem | TextItem | LinkItem;
 
 export interface Whiteboard {
   id: string;

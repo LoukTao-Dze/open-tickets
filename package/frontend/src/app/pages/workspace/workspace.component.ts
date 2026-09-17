@@ -20,7 +20,7 @@ import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
 import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.interface';
 import { MOCK_WORKSPACES } from '../../mock/work-space';
 import { environment } from '../../../environments/environment';
-import { finalize, switchMap } from 'rxjs';
+import { debounceTime, finalize, switchMap } from 'rxjs';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
@@ -45,7 +45,7 @@ const DEFAULT_CODE_SNIPPET_WIDTH = 320;
 const DEFAULT_CODE_SNIPPET_HEIGHT = 200;
 const DEFAULT_CODE_SNIPPET_FILE_NAME = 'untitled';
 const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
-const SAVE_WHITEBOARD_DELAY_MS = 0;
+const SAVE_WHITEBOARD_DELAY_MS = 3000;
 const SAVE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/save-canvas-item`;
 const GET_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/get-canvas-item`;
 const DELETE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/delete-canvas-item`;
@@ -98,7 +98,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   private dragOffset = { x: 0, y: 0 };
   private zIndexCounter = 100;
 
-  private focusedItem: WorkspaceCanvasItem | null = null;
+  focusedItem: WorkspaceCanvasItem | null = null;
   private saveWhiteboardTimeoutId: ReturnType<typeof setTimeout> | null = null;
   constructor(private cdr: ChangeDetectorRef) {}
 
@@ -244,8 +244,12 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           this.whiteboards.forEach((board) => {
             board.items = itemsByProject.get(board.id) ?? [];
           });
+          this.isLoading = false;
+          this.cdr.detectChanges();
         },
         error: (err) => {
+          this.isLoading = false;
+          this.cdr.detectChanges();
           console.error('Failed to retrieve canvas items', err);
         },
       });
@@ -280,6 +284,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
     newItem.zIndex = ++this.zIndexCounter;
     this.activeWhiteboard.items.push(newItem);
+
     this.onSaveWhiteboard();
   }
 
@@ -287,7 +292,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     event.stopPropagation();
     this.http.post(DELETE_CANVAS_ITEM_ENDPOINT, { id: item.id, type: item.type }).subscribe({
       next: (res) => {
-        console.log('Canvas item deleted successfully', res);
         const board = this.activeWhiteboard;
         board.items = board.items.filter((candidate) => candidate.id !== item.id);
 
@@ -358,7 +362,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         canvasItem.zIndex = this.canvasList.length + 1;
       }
     });
-    this.activeItem = item;
+
+    if (item.type === 'sticky-note' && item.isBack) {
+      this.activeItem = item;
+      this.activeItem.zIndex = 0;
+    } else {
+      this.activeItem = item;
+    }
     this.focusedItem = item;
     const canvasPoint = this.screenToCanvasPoint(event.clientX, event.clientY);
     this.dragOffset = { x: canvasPoint.x - item.x, y: canvasPoint.y - item.y };

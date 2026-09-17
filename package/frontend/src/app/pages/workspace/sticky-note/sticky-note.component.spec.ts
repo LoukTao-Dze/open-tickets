@@ -26,8 +26,6 @@ describe('StickyNoteComponent', () => {
       rotation: 0,
       icon: 'note',
       fontSize: 16,
-      isBold: false,
-      isUnderlined: false,
     } as any;
     fixture.componentInstance.isContentEditing = true;
     fixture.detectChanges();

@@ -7,6 +7,7 @@
   [style.transform]="noteTransform"
   [style.width.px]="note.width"
   [style.height.px]="note.height"
+  [style.zIndex]="note.zIndex"
 >
   <input
     #labelInput
@@ -34,7 +35,8 @@
         <select
           id="sticky-note-font-size"
           [value]="note.fontSize ?? contentFontSize"
-          (change)="setContentFontSize($any($event.target).value)"
+          (change)="setContentFontSize($any($event.target).value, contentInput)"
+          (blur)="stopEditing($event)"
           aria-label="Font size"
         >
           @for (size of fontSizeOptions; track size) {
@@ -44,43 +46,62 @@
       </label>
       <button
         class="sticky-note-toolbar-button"
-        [class.is-active]="note.isBold"
+        [class.is-active]="isBoldActive"
         type="button"
         aria-label="Bold"
-        [attr.aria-pressed]="note.isBold"
-        (click)="$event.stopPropagation(); toggleBold()"
+        [attr.aria-pressed]="isBoldActive"
+        (click)="$event.stopPropagation(); applyFormat('bold', contentInput)"
       >
         <strong>B</strong>
       </button>
       <button
         class="sticky-note-toolbar-button"
-        [class.is-active]="note.isUnderlined"
+        [class.is-active]="isItalicActive"
+        type="button"
+        aria-label="Italic"
+        [attr.aria-pressed]="isItalicActive"
+        (click)="$event.stopPropagation(); applyFormat('italic', contentInput)"
+      >
+        <em>I</em>
+      </button>
+      <button
+        class="sticky-note-toolbar-button"
+        [class.is-active]="isUnderlineActive"
         type="button"
         aria-label="Underline"
-        [attr.aria-pressed]="note.isUnderlined"
-        (click)="$event.stopPropagation(); toggleUnderline()"
+        [attr.aria-pressed]="isUnderlineActive"
+        (click)="$event.stopPropagation(); applyFormat('underline', contentInput)"
       >
         <span class="sticky-note-toolbar-underline">U</span>
       </button>
+      <button
+        class="sticky-note-toolbar-button"
+        [class.is-active]="isBack"
+        type="button"
+        aria-label="Send to back"
+        (click)="$event.stopPropagation(); sendToBack()"
+      >
+        <span class="material-symbols-outlined">flip_to_back</span>
+      </button>
     </div>
   }
-  <textarea
+  <div
     #contentInput
     class="sticky-note-content"
     [class.on-focus]="isContentEditing"
-    spellcheck="false"
+    [class.is-empty]="!note.content"
+    [attr.contenteditable]="isEditing"
     [style.fontSize.px]="contentFontSize"
-    [style.fontWeight]="note.isBold ? 700 : 400"
-    [style.textDecoration]="note.isUnderlined ? 'underline' : 'none'"
     [style.color]="note.textColor"
-    [value]="note.content"
-    [readOnly]="!isEditing"
-    (input)="onContentInput(contentInput.value)"
+    [innerHTML]="note.content"
+    (input)="onContentInput(contentInput.innerHTML)"
     (mousedown)="onContentMouseDown($event)"
     (dblclick)="startEditing(contentInput)"
-    (blur)="stopEditing()"
-    placeholder="Write your note here..."
-  ></textarea>
+    (blur)="stopEditing($event)"
+    (mouseup)="updateActiveFormats()"
+    (keyup)="updateActiveFormats()"
+    data-placeholder="Write your note here..."
+  ></div>
   <div class="sticky-note-icon">
     <span class="material-symbols-outlined">{{ note.icon }}</span>
   </div>
