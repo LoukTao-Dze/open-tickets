@@ -41,6 +41,12 @@
             <span class="material-symbols-outlined" (click)="openEditTicketModal(ticket)">
               Edit
             </span>
+            <span
+              class="material-symbols-outlined"
+              (click)="$event.stopPropagation(); deleteTicket(ticket)"
+            >
+              delete
+            </span>
           </div>
 
           <h4 class="ticket-title">{{ ticket.title }}</h4>

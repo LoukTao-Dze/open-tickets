@@ -15,8 +15,9 @@ import {
   TicketFormModalData,
   TicketFormValue,
 } from './ticket-form-modal/ticket-form-modal.component';
-import { MOCK_KANBAN_COLUMNS, MOCK_TICKETS } from '../../mock/kanban';
 import { KanbanColumn, KanbanProject, KanbanTicket } from '../../interface/kanban.interface';
+import { KanbanApiService } from '../../services/kanban-api.service';
+import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 
 const ALL_PROJECTS = 'all';
 const PROJECT_NAME_MAX_LENGTH = 12;
@@ -32,27 +33,35 @@ export class KanbanComponent implements OnInit {
   constructor(
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
+    private kanbanApi: KanbanApiService,
+    private confirmDialog: ConfirmDialogService,
   ) {}
 
-  columns: KanbanColumn[] = MOCK_KANBAN_COLUMNS;
+  columns: KanbanColumn[] = [];
+  allProjects: KanbanProject[] = [];
 
   selectedProject = ALL_PROJECTS;
 
   get projects(): KanbanProject[] {
-    const allProjects = this.columns.flatMap((column) =>
-      column.tickets.map((ticket) => ticket.project),
-    );
-    const uniqueProjectsById = new Map(allProjects.map((project) => [project.id, project]));
-    return Array.from(uniqueProjectsById.values()).sort((a, b) =>
-      a.project_name.localeCompare(b.project_name),
-    );
+    return this.allProjects;
   }
 
   ngOnInit() {
-    this.columns = MOCK_KANBAN_COLUMNS.map((column) => ({
-      ...column,
-      tickets: MOCK_TICKETS.filter((ticket) => ticket.columnId === column.id),
-    }));
+    this.loadBoard();
+    this.kanbanApi.getProjects().subscribe({
+      next: (projects) => (this.allProjects = projects),
+      error: (err) => console.error('Failed to load projects', err),
+    });
+  }
+
+  private loadBoard() {
+    this.kanbanApi.getBoard().subscribe({
+      next: (columns) => {
+        this.columns = columns;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Failed to load kanban board', err),
+    });
   }
 
   visibleTickets(column: KanbanColumn): KanbanTicket[] {
@@ -79,6 +88,12 @@ export class KanbanComponent implements OnInit {
       return;
     }
 
+    const sourceColumn = this.columns.find(
+      (column) => column.tickets === event.previousContainer.data,
+    );
+    const targetColumn = this.columns.find((column) => column.tickets === event.container.data);
+    const previousColumnId = sourceColumn?.id;
+
     transferArrayItem(
       event.previousContainer.data,
       event.container.data,
@@ -86,21 +101,26 @@ export class KanbanComponent implements OnInit {
       event.currentIndex,
     );
 
-    const sourceColumn = this.columns.find(
-      (column) => column.tickets === event.previousContainer.data,
-    );
-    const targetColumn = this.columns.find((column) => column.tickets === event.container.data);
     if (sourceColumn) {
       sourceColumn.count = sourceColumn.tickets.length;
     }
-    if (targetColumn) {
-      targetColumn.count = targetColumn.tickets.length;
+    if (!targetColumn) {
+      return;
     }
-    if (targetColumn) {
-      targetColumn.count = targetColumn.tickets.length;
-      const movedTicket = targetColumn.tickets[event.currentIndex];
-      movedTicket.columnId = targetColumn.id;
-    }
+
+    targetColumn.count = targetColumn.tickets.length;
+    const movedTicket = targetColumn.tickets[event.currentIndex];
+    movedTicket.columnId = targetColumn.id;
+
+    this.kanbanApi.moveTicket(movedTicket.id, targetColumn.id).subscribe({
+      error: (err) => {
+        console.error('Failed to move ticket', err);
+        this.loadBoard();
+        if (previousColumnId) {
+          movedTicket.columnId = previousColumnId;
+        }
+      },
+    });
   }
 
   openAddTicketModal() {
@@ -144,58 +164,68 @@ export class KanbanComponent implements OnInit {
   }
 
   addTicket(value: TicketFormValue) {
-    const todoColumn = this.columns.find((column) => column.id === value.columnId);
-    if (!todoColumn) {
+    const targetColumn = this.columns.find((column) => column.id === value.columnId);
+    if (!targetColumn) {
       return;
     }
 
-    const ticket: KanbanTicket = {
-      id: this.generateTicketId(),
-      columnId: value.columnId,
-      title: value.title,
-      detail: value.detail,
-      priority: value.priority,
-      project: this.resolveProject(value.projectId),
-      createDate: value.createDate,
-      updateDate: value.updateDate,
-      assigneeAlt: value.assigneeAlt,
-      taskType: value.taskType,
-      jobType: value.jobType,
-      meta: [{ icon: 'schedule', label: 'New' }],
-      assigneeAvatarUrl: this.defaultAvatarUrl,
-    };
-
-    todoColumn.tickets.push(ticket);
-    todoColumn.count = todoColumn.tickets.length;
-    this.cdr.detectChanges();
+    this.kanbanApi.createTicket(value).subscribe({
+      next: (ticket) => {
+        targetColumn.tickets.push(ticket);
+        targetColumn.count = targetColumn.tickets.length;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Failed to create ticket', err),
+    });
   }
 
   updateTicket(ticket: KanbanTicket, value: TicketFormValue) {
-    ticket.title = value.title;
-    ticket.detail = value.detail;
-    ticket.priority = value.priority;
-    ticket.project = this.resolveProject(value.projectId);
-    ticket.createDate = value.createDate;
-    ticket.updateDate = value.updateDate;
-    ticket.assigneeAlt = value.assigneeAlt;
-    ticket.taskType = value.taskType;
-    ticket.jobType = value.jobType;
+    this.kanbanApi.updateTicket(ticket.id, value).subscribe({
+      next: (updatedTicket) => {
+        const sourceColumn = this.columns.find((column) =>
+          column.tickets.some((item) => item.id === ticket.id),
+        );
+        if (sourceColumn && sourceColumn.id !== updatedTicket.columnId) {
+          sourceColumn.tickets = sourceColumn.tickets.filter((item) => item.id !== ticket.id);
+          sourceColumn.count = sourceColumn.tickets.length;
+          const targetColumn = this.columns.find((column) => column.id === updatedTicket.columnId);
+          if (targetColumn) {
+            targetColumn.tickets.push(updatedTicket);
+            targetColumn.count = targetColumn.tickets.length;
+          }
+        } else {
+          Object.assign(ticket, updatedTicket);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Failed to update ticket', err),
+    });
   }
 
-  private readonly defaultAvatarUrl =
-    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238b919d'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>";
+  deleteTicket(ticket: KanbanTicket) {
+    this.confirmDialog
+      .confirm({
+        title: 'Delete ticket',
+        message: `Are you sure you want to delete "${ticket.title}"? This cannot be undone.`,
+        confirmText: 'Delete',
+        config: { confirmColor: 'error' },
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) {
+          return;
+        }
 
-  private resolveProject(projectId: string): KanbanProject {
-    const found = this.projects.find((project) => project.id === projectId);
-    return found ?? this.projects[0];
-  }
-
-  private generateTicketId(): string {
-    const numericIds = this.columns
-      .flatMap((column) => column.tickets)
-      .map((ticket) => Number(ticket.id.replace(/[^0-9]/g, '')))
-      .filter((value) => !Number.isNaN(value));
-    const nextNumber = (numericIds.length ? Math.max(...numericIds) : 1000) + 1;
-    return `DS-${nextNumber}`;
+        this.kanbanApi.deleteTicket(ticket.id).subscribe({
+          next: () => {
+            const column = this.columns.find((item) => item.id === ticket.columnId);
+            if (column) {
+              column.tickets = column.tickets.filter((item) => item.id !== ticket.id);
+              column.count = column.tickets.length;
+            }
+            this.cdr.detectChanges();
+          },
+          error: (err) => console.error('Failed to delete ticket', err),
+        });
+      });
   }
 }
