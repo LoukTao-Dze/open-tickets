@@ -1,0 +1,22 @@
+<div class="modal-panel">
+  <div class="modal-header">
+    <h2 class="modal-title">{{ title }}</h2>
+    <button type="button" class="modal-close" aria-label="Close" (click)="onCancel()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+
+  <p class="modal-message">{{ message }}</p>
+
+  <div class="modal-actions">
+    @if (!this.config.disableClose) {
+      <button type="button" class="modal-btn" [ngClass]="cancelButtonClass" (click)="onCancel()">
+        {{ cancelText }}
+      </button>
+    }
+
+    <button type="button" class="modal-btn" [ngClass]="confirmButtonClass" (click)="onConfirm()">
+      {{ confirmText }}
+    </button>
+  </div>
+</div>

@@ -1,5 +1,4 @@
 import {
-  ChangeDetectorRef,
   Component,
   ElementRef,
   HostListener,
@@ -18,9 +17,9 @@ import { LinkComponent } from './link/link.component';
 import { ToolHubsComponent, InsertToolEvent } from './tool-hubs/tool-hubs.component';
 import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
 import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.interface';
-import { MOCK_WORKSPACES } from '../../mock/work-space';
 import { environment } from '../../../environments/environment';
-import { debounceTime, finalize, switchMap } from 'rxjs';
+import { switchMap } from 'rxjs';
+import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
@@ -78,6 +77,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   private readonly http = inject(HttpClient);
 
+  private readonly confirmDialogService = inject(ConfirmDialogService);
+
   zoom = 0.5;
   panX = 0;
   panY = 0;
@@ -100,7 +101,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   focusedItem: WorkspaceCanvasItem | null = null;
   private saveWhiteboardTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  constructor(private cdr: ChangeDetectorRef) {}
 
   get activeWhiteboard(): Whiteboard {
     return (
@@ -225,9 +225,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             params: { projectId: this.selectedWhiteboardId },
           });
         }),
-        finalize(() => {
-          this.isLoading = false;
-        }),
       )
       .subscribe({
         next: (res) => {
@@ -245,11 +242,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             board.items = itemsByProject.get(board.id) ?? [];
           });
           this.isLoading = false;
-          this.cdr.detectChanges();
         },
         error: (err) => {
           this.isLoading = false;
-          this.cdr.detectChanges();
           console.error('Failed to retrieve canvas items', err);
         },
       });
@@ -263,8 +258,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     return this.focusedItem === item;
   }
 
-  trackByItemId(index: number, item: WorkspaceCanvasItem): number {
-    return item.id ?? -index - 1;
+  trackByItemId(index: number, item: WorkspaceCanvasItem): number | string {
+    return item?.id ?? index;
   }
 
   onWhiteboardChange(id: string) {
@@ -288,8 +283,27 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.onSaveWhiteboard();
   }
 
-  deleteItem(event: Event, item: WorkspaceCanvasItem) {
+  onDeleteItem(event: Event, item: WorkspaceCanvasItem) {
     event.stopPropagation();
+    this.confirmDialogService
+      .confirm({
+        title: 'Delete Item',
+        message: 'Are you sure you want to delete this item?',
+        cancelText: 'Cancel',
+        confirmText: 'Delete',
+        config: {
+          disableClose: false,
+          confirmColor: 'error',
+          cancelColor: 'neutral',
+        },
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.deleteItem(item);
+      });
+  }
+
+  deleteItem(item: WorkspaceCanvasItem) {
     this.http.post(DELETE_CANVAS_ITEM_ENDPOINT, { id: item.id, type: item.type }).subscribe({
       next: (res) => {
         const board = this.activeWhiteboard;
@@ -420,7 +434,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
-      this.deleteItem(event, this.focusedItem);
+      this.onDeleteItem(event, this.focusedItem);
     }
   }
 
@@ -615,14 +629,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         console.log('Canvas item saved successfully', res);
         setTimeout(() => {
           this.isCanvasLoading = false;
-          this.cdr.detectChanges();
         }, 1000);
-        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to save canvas item', err);
         this.isCanvasLoading = false;
-        this.cdr.detectChanges();
       },
     });
   }
