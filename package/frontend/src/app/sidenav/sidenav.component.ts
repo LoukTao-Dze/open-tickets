@@ -20,11 +20,11 @@ export class SidenavComponent {
   navLinks: SidenavLink[] = [
     { icon: 'view_kanban', label: 'Kanban', route: '/kanban', isActive: true },
     { icon: 'account_tree', label: 'Workspace', route: '/workspace', isActive: true },
-    { icon: 'archive', label: 'Files Storage', route: '/files', isActive: true },
+    { icon: 'archive', label: 'Files Storage', route: '/files', isActive: false },
     { icon: 'folder_open', label: 'Projects', route: '/projects', isActive: true },
     { icon: 'badge', label: 'Roles', route: '/roles', isActive: false },
     { icon: 'dashboard', label: 'Dashboard', route: '/overview', isActive: false },
-    { icon: 'settings', label: 'Settings', route: '/settings', isActive: true },
+    { icon: 'settings', label: 'Settings', route: '/settings', isActive: false },
   ];
 
   bottomNavLinks: SidenavLink[] = [
