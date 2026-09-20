@@ -1,5 +1,6 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ProjectApiService } from '../../services/project.service';
 import {
   CdkDrag,
   CdkDragDrop,
@@ -35,6 +36,7 @@ export class KanbanComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private kanbanApi: KanbanApiService,
     private confirmDialog: ConfirmDialogService,
+    private projectApi: ProjectApiService,
   ) {}
 
   columns: KanbanColumn[] = [];
@@ -48,7 +50,7 @@ export class KanbanComponent implements OnInit {
 
   ngOnInit() {
     this.loadBoard();
-    this.kanbanApi.getProjects().subscribe({
+    this.projectApi.getProjects().subscribe({
       next: (projects) => (this.allProjects = projects),
       error: (err) => console.error('Failed to load projects', err),
     });

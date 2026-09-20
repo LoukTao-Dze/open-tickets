@@ -78,7 +78,7 @@ export class ProjectsComponent implements OnInit {
 
   private loadProjects(): void {
     this.loading = true;
-    this.kanbanApi.getProjects().subscribe({
+    this.projectApi.getProjects().subscribe({
       next: (projects) => {
         this.projects = projects.map((project, index) => this.toMenuItem(project, index));
         this.loading = false;

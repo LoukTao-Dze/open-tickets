@@ -12,6 +12,12 @@ export class ProjectApiService {
 
   constructor(private readonly httpClient: HttpClient) {}
 
+  getProjects(): Observable<KanbanProject[]> {
+    return this.httpClient
+      .get<ApiResponse<KanbanProject[]>>(`${this.baseUrl}/get-projects`)
+      .pipe(map((response) => response.data));
+  }
+
   createProject(payload: KanbanProjectPayload): Observable<KanbanProject> {
     return this.httpClient
       .post<ApiResponse<KanbanProject>>(`${this.baseUrl}/projects`, payload)

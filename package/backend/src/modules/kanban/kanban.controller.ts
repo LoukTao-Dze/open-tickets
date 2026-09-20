@@ -23,11 +23,6 @@ export class KanbanController {
     return this.kanbanService.getBoard(projectId);
   }
 
-  @Get('projects')
-  getProjects() {
-    return this.kanbanService.getProjects();
-  }
-
   @Post('tickets')
   createTicket(@Body() body: CreateTicketDto) {
     return this.kanbanService.createTicket(body);

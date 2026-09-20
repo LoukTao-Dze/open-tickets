@@ -23,6 +23,34 @@ interface ProjectRow {
 @Injectable()
 export class ProjectsService {
   constructor(private readonly supabaseService: SupabaseService) {}
+
+  async getProjects() {
+    try {
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('projects')
+        .select(
+          'id, name, description, is_default, created_at, updated_at, priority, deadline, status',
+        )
+        .order('name');
+      if (error) {
+        throw error;
+      }
+
+      return {
+        data: (data ?? []).map((project) =>
+          this.mapProjectRow(project as ProjectRow),
+        ),
+      };
+    } catch (err: any) {
+      console.error('Failed to load projects:', err?.message || err);
+      throw new InternalServerErrorException({
+        message: 'Failed to load projects',
+        detail: err?.message || 'Unknown error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
   async createProject(dto: CreateProjectDto) {
     try {
       const { data, error } = await this.supabaseService

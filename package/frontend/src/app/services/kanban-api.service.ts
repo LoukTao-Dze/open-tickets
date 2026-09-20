@@ -49,12 +49,6 @@ export class KanbanApiService {
       .pipe(map((response) => response.data));
   }
 
-  getProjects(): Observable<KanbanProject[]> {
-    return this.httpClient
-      .get<ApiResponse<KanbanProject[]>>(`${this.baseUrl}/projects`)
-      .pipe(map((response) => response.data));
-  }
-
   createTicket(payload: KanbanTicketPayload): Observable<KanbanTicket> {
     return this.httpClient
       .post<ApiResponse<KanbanTicket>>(`${this.baseUrl}/tickets`, payload)
