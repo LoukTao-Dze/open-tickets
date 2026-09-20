@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   ElementRef,
   HostListener,
@@ -78,6 +79,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   private readonly http = inject(HttpClient);
 
   private readonly confirmDialogService = inject(ConfirmDialogService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   zoom = 0.5;
   panX = 0;
@@ -181,6 +183,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   ngOnInit() {
     this.setValuesFromLocalStorage();
     this.getCanvasItem();
+    this.selectedWhiteboardId = localStorage.getItem('selectedWhiteboardId') ?? '';
   }
 
   setValuesFromLocalStorage() {
@@ -220,7 +223,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             }))
             .sort((a, b) => Number(b.default) - Number(a.default));
           this.selectedWhiteboardId =
-            projects.find((project) => project.default)?.id ?? projects[0]?.id ?? '';
+            projects.find((project) =>
+              this.selectedWhiteboardId
+                ? project.id === this.selectedWhiteboardId
+                : project.default,
+            )?.id ??
+            projects[0]?.id ??
+            '';
           return this.http.get(GET_CANVAS_ITEM_ENDPOINT, {
             params: { projectId: this.selectedWhiteboardId },
           });
@@ -242,9 +251,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             board.items = itemsByProject.get(board.id) ?? [];
           });
           this.isLoading = false;
+          this.cdr.markForCheck();
         },
         error: (err) => {
           this.isLoading = false;
+          this.cdr.markForCheck();
           console.error('Failed to retrieve canvas items', err);
         },
       });
@@ -264,10 +275,12 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   onWhiteboardChange(id: string) {
     this.selectedWhiteboardId = id;
+    localStorage.setItem('selectedWhiteboardId', this.selectedWhiteboardId);
     this.activeItem = null;
     this.focusedItem = null;
     this.isPanning = false;
     this.resetView();
+    this.getCanvasItem();
   }
 
   onInsertItem(event: InsertToolEvent) {
@@ -279,8 +292,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
     newItem.zIndex = ++this.zIndexCounter;
     this.activeWhiteboard.items.push(newItem);
-
-    this.onSaveWhiteboard();
+    this.scheduleWhiteboardSave();
   }
 
   onDeleteItem(event: Event, item: WorkspaceCanvasItem) {

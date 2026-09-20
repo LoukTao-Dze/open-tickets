@@ -1,0 +1,252 @@
+@reference '../../../tailwind.css';
+
+:host {
+  display: block;
+}
+.projects-page {
+  @apply p-lg lg:p-xl max-w-7xl mx-auto text-on-surface space-y-lg;
+}
+.projects-page .material-symbols-outlined {
+  font-size: 1em;
+  line-height: 1;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+.page-heading,
+.section-heading {
+  @apply flex items-end justify-between gap-md;
+}
+.page-heading h1 {
+  @apply text-headline-lg font-headline-lg font-bold tracking-tight mb-xs;
+}
+.page-heading p {
+  @apply text-body-sm text-on-surface-variant max-w-2xl;
+}
+.system-status {
+  @apply px-md py-sm bg-surface-container border border-outline-variant rounded-lg text-label-caps text-secondary uppercase flex items-center gap-sm;
+}
+.system-status span {
+  @apply w-2 h-2 rounded-full bg-secondary;
+}
+.metrics {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-gutter;
+}
+.metric {
+  @apply bg-surface-container border border-outline-variant rounded-xl p-md flex items-center justify-between gap-sm;
+}
+.metric span {
+  @apply block text-[11px] text-on-surface-variant uppercase tracking-wider;
+}
+.metric strong {
+  @apply block text-2xl font-code-md mt-xs;
+}
+.metric small {
+  @apply text-sm text-on-surface-variant ml-1;
+}
+.metric .material-symbols-outlined {
+  @apply text-primary;
+}
+.workspace-grid {
+  @apply grid grid-cols-1 lg:grid-cols-12 gap-gutter;
+}
+.panel,
+.project-item {
+  @apply bg-surface-container border border-outline-variant rounded-xl;
+}
+.create-panel {
+  @apply lg:col-span-5 p-lg;
+}
+.project-list {
+  @apply lg:col-span-7 space-y-md;
+}
+.section-title {
+  @apply flex items-center gap-sm;
+}
+.section-title h2 {
+  @apply text-headline-md font-headline-md font-bold;
+}
+.title-icon {
+  @apply w-8 h-8 rounded-lg flex items-center justify-center;
+}
+.primary-icon {
+  @apply bg-primary/10 border border-primary/20 text-primary;
+}
+.tertiary-icon {
+  @apply bg-tertiary/10 border border-tertiary/20 text-tertiary;
+}
+form {
+  @apply space-y-md mt-lg;
+}
+label {
+  @apply block text-label-caps text-on-surface-variant uppercase;
+}
+input,
+textarea,
+select {
+  @apply w-full mt-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm text-body-sm text-on-surface outline-none focus:border-primary;
+}
+textarea {
+  @apply resize-none;
+}
+.form-row {
+  @apply grid grid-cols-2 gap-md;
+}
+.form-error {
+  @apply text-xs text-error;
+}
+.primary-button {
+  @apply w-full bg-primary-container text-on-primary-container font-bold py-sm rounded-lg uppercase text-label-caps flex items-center justify-center gap-sm hover:brightness-110;
+}
+.primary-button:disabled,
+.project-actions button:disabled {
+  @apply opacity-60 cursor-not-allowed;
+}
+.cancel-button {
+  @apply w-full border border-outline-variant text-on-surface-variant font-bold py-sm rounded-lg uppercase text-label-caps hover:bg-surface-container-highest;
+}
+.total-count {
+  @apply px-sm py-xs rounded border border-outline-variant text-label-caps text-on-surface-variant uppercase;
+}
+.filters {
+  @apply flex items-center gap-xs p-xs bg-surface-container border border-outline-variant rounded-lg;
+}
+.filters button {
+  @apply px-sm py-xs rounded text-label-caps text-on-surface-variant uppercase hover:bg-surface-container-highest;
+}
+.filters button.selected {
+  @apply bg-surface-container-highest text-primary;
+}
+.project-items {
+  @apply space-y-sm overflow-y-auto pr-xs;
+  max-height: 23rem;
+  scrollbar-width: thin;
+  scrollbar-color: #31353c transparent;
+}
+.project-items::-webkit-scrollbar {
+  width: 5px;
+}
+.project-items::-webkit-scrollbar-thumb {
+  background: #31353c;
+  border-radius: 3px;
+}
+.project-item {
+  @apply p-md flex items-start gap-md hover:border-primary/50;
+}
+.project-icon {
+  @apply w-11 h-11 flex-shrink-0 rounded-lg flex items-center justify-center;
+}
+.project-icon.secondary {
+  @apply bg-secondary/10 text-secondary border border-secondary/20;
+}
+.project-icon.tertiary {
+  @apply bg-tertiary/10 text-tertiary border border-tertiary/20;
+}
+.project-icon.primary {
+  @apply bg-primary/10 text-primary border border-primary/20;
+}
+.project-icon.neutral {
+  @apply bg-surface-container-highest text-on-surface-variant;
+}
+.project-copy {
+  @apply min-w-0 flex-1;
+}
+.project-name {
+  @apply flex items-center gap-sm flex-wrap;
+}
+.project-name > span {
+  @apply text-code-md text-primary font-semibold;
+}
+.project-name h3 {
+  @apply text-body-lg font-bold truncate;
+}
+.project-name b {
+  @apply px-sm py-xs rounded text-[11px] uppercase tracking-wider;
+}
+.project-name b.active {
+  @apply bg-secondary/15 text-secondary;
+}
+.project-name b.review {
+  @apply bg-tertiary/15 text-tertiary;
+}
+.project-name b.planning {
+  @apply bg-primary/15 text-primary;
+}
+.project-copy p {
+  @apply text-body-sm text-on-surface-variant truncate mt-xs;
+}
+.project-copy small {
+  @apply flex items-center gap-xs text-[11px] text-on-surface-variant uppercase mt-sm;
+}
+.project-copy small .material-symbols-outlined {
+  font-size: 1em;
+  width: 1em;
+  height: 1em;
+}
+.project-copy small i {
+  @apply w-1 h-1 rounded-full bg-outline-variant mx-xs;
+}
+.project-copy small strong {
+  @apply w-5 h-5 rounded-full bg-surface-container-highest text-primary flex items-center justify-center;
+}
+.project-actions {
+  @apply flex items-center gap-xs self-center;
+}
+.project-actions button {
+  @apply p-xs text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded;
+}
+.empty-state {
+  @apply p-lg text-center text-body-sm text-on-surface-variant;
+}
+.activity-panel {
+  @apply p-lg;
+}
+.activity-icon {
+  @apply text-primary;
+}
+.audit-link {
+  @apply text-label-caps text-primary uppercase flex items-center gap-xs;
+}
+.audit-link .material-symbols-outlined {
+  font-size: 16px;
+}
+.activity-list {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-md mt-md;
+}
+.activity-list > div {
+  @apply p-md rounded-lg bg-surface-container-lowest border border-outline-variant flex items-start gap-sm;
+}
+.activity-list .material-symbols-outlined {
+  @apply text-secondary;
+}
+.activity-list span {
+  @apply min-w-0;
+}
+.activity-list strong,
+.activity-list small {
+  @apply block truncate;
+}
+.activity-list strong {
+  @apply text-body-sm;
+}
+.activity-list small {
+  @apply text-[11px] text-on-surface-variant mt-xs;
+}
+
+@media (max-width: 640px) {
+  .page-heading {
+    @apply items-start flex-col;
+  }
+  .system-status {
+    @apply self-start;
+  }
+  .project-item {
+    @apply flex-wrap;
+  }
+  .project-actions {
+    @apply ml-auto;
+  }
+  .project-items {
+    max-height: 30rem;
+  }
+}

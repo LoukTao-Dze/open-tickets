@@ -2,7 +2,8 @@ import { Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
-export type ConfirmDialogColor = 'primary' | 'secondary' | 'tertiary' | 'error' | 'neutral';
+export type ConfirmDialogColor =
+  'primary' | 'secondary' | 'tertiary' | 'error' | 'neutral' | 'warning';
 
 const DEFAULT_CONFIRM_TEXT = 'Confirm';
 const DEFAULT_CANCEL_TEXT = 'Cancel';
@@ -15,6 +16,7 @@ const BUTTON_COLOR_CLASS: Record<ConfirmDialogColor, string> = {
   tertiary: 'btn-tertiary',
   error: 'btn-error',
   neutral: 'btn-neutral',
+  warning: 'btn-warning',
 };
 
 export interface ConfirmDialogData {

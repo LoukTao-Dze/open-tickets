@@ -23,7 +23,7 @@
 }
 
 .code-snippet-file {
-  @apply flex items-center gap-sm text-xs text-on-surface-variant font-code-md;
+  @apply flex items-center gap-sm text-xs text-on-surface-variant font-code-md w-full;
 
   .material-symbols-outlined {
     @apply text-xs;

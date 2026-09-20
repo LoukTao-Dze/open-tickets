@@ -23,7 +23,16 @@ export interface KanbanTicketPayload {
   jobType?: string;
 }
 
-interface ApiResponse<T> {
+export interface KanbanProjectPayload {
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  priority?: string;
+  deadline?: string;
+  status?: string;
+}
+
+export interface ApiResponse<T> {
   message?: string;
   data: T;
 }

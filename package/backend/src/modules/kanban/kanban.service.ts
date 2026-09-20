@@ -42,6 +42,18 @@ interface TicketRow {
     { icon: string; label: string; position: number }[] | null;
 }
 
+interface ProjectRow {
+  priority: string | null;
+  deadline: string | null;
+  status: string | null;
+  id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 @Injectable()
 export class KanbanService {
   constructor(private readonly supabaseService: SupabaseService) {}
@@ -111,17 +123,18 @@ export class KanbanService {
       const { data, error } = await this.supabaseService
         .getClient()
         .from('projects')
-        .select('id, name')
+        .select(
+          'id, name, description, is_default, created_at, updated_at, priority, deadline, status',
+        )
         .order('name');
       if (error) {
         throw error;
       }
 
       return {
-        data: (data ?? []).map((project) => ({
-          id: project.id,
-          project_name: project.name,
-        })),
+        data: (data ?? []).map((project) =>
+          this.mapProjectRow(project as ProjectRow),
+        ),
       };
     } catch (err: any) {
       console.error('Failed to load projects:', err?.message || err);
@@ -293,6 +306,20 @@ export class KanbanService {
     if (!data) {
       throw new NotFoundException(`Ticket ${id} not found`);
     }
+  }
+
+  private mapProjectRow(project: ProjectRow) {
+    return {
+      id: project.id,
+      project_name: project.name,
+      description: project.description,
+      isDefault: project.is_default,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+      priority: project.priority,
+      deadline: project.deadline,
+      status: project.status,
+    };
   }
 
   private async replaceTicketMeta(

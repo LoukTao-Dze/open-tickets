@@ -1,0 +1,199 @@
+<section class="projects-page">
+  <div class="page-heading">
+    <div>
+      <h1>Project Workspace</h1>
+      <p>
+        Manage infrastructure, delivery pipelines, and sprint coordination across your active
+        projects.
+      </p>
+    </div>
+    <div class="system-status"><span></span> Systems online</div>
+  </div>
+
+  <!-- <div class="metrics" aria-label="Workspace metrics">
+    <div class="metric">
+      <span>Active workspaces</span><strong>{{ projects.length }}</strong
+      ><span class="material-symbols-outlined">dataset</span>
+    </div>
+    <div class="metric">
+      <span>Deployed services</span><strong>28</strong
+      ><span class="material-symbols-outlined">dns</span>
+    </div>
+    <div class="metric">
+      <span>Incident-free sprints</span><strong>12</strong
+      ><span class="material-symbols-outlined">verified</span>
+    </div>
+    <div class="metric">
+      <span>Average latency</span><strong>24<small>ms</small></strong
+      ><span class="material-symbols-outlined">speed</span>
+    </div>
+  </div> -->
+
+  <div class="workspace-grid">
+    <section class="panel create-panel">
+      <div class="section-title">
+        <span class="title-icon primary-icon"
+          ><span class="material-symbols-outlined">add_box</span></span
+        >
+        <h2>{{ editingProjectId ? 'Edit Project' : 'Create New Project' }}</h2>
+      </div>
+      <form [formGroup]="projectForm" (ngSubmit)="createProject()" novalidate>
+        <label
+          >Project name<input formControlName="name" placeholder="e.g. Quantum Node Alpha"
+        /></label>
+        <label
+          >Description<textarea
+            formControlName="description"
+            rows="3"
+            placeholder="Brief overview of project scope and technical requirements..."
+          ></textarea>
+        </label>
+        <div class="form-row">
+          <label
+            >Priority<select formControlName="priority">
+              <option>P0 - Critical</option>
+              <option>P1 - High</option>
+              <option>P2 - Normal</option>
+              <option>P3 - Low</option>
+            </select></label
+          >
+          <label
+            >Status<select formControlName="status">
+              <option>Active</option>
+              <option>Review</option>
+              <option>Planning</option>
+            </select></label
+          >
+        </div>
+        <label>Target deadline<input formControlName="deadline" type="date" /></label>
+        <p class="form-error" *ngIf="submitted && projectForm.invalid">
+          Add a project name and description to continue.
+        </p>
+        <p class="form-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+        <button class="primary-button" type="submit" [disabled]="saving">
+          <span class="material-symbols-outlined">{{
+            editingProjectId ? 'save' : 'rocket_launch'
+          }}</span>
+          {{ saving ? 'Saving...' : editingProjectId ? 'Save project' : 'Initialize project' }}
+        </button>
+        <button
+          class="cancel-button"
+          type="button"
+          *ngIf="editingProjectId"
+          (click)="cancelEdit()"
+          [disabled]="saving"
+        >
+          Cancel edit
+        </button>
+      </form>
+    </section>
+
+    <section class="project-list">
+      <div class="section-heading">
+        <div class="section-title">
+          <span class="title-icon tertiary-icon"
+            ><span class="material-symbols-outlined">dynamic_feed</span></span
+          >
+          <h2>Active Projects</h2>
+        </div>
+        <span class="total-count">{{ projects.length }} total</span>
+      </div>
+      <div class="filters" role="tablist" aria-label="Project filters">
+        <button
+          *ngFor="let option of ['all', 'Active', 'Review', 'Planning']"
+          [class.selected]="filter.toLowerCase() === option.toLowerCase()"
+          (click)="setFilter($any(option.toLowerCase()))"
+          type="button"
+        >
+          {{ option }}
+        </button>
+      </div>
+      <div class="project-items" *ngIf="!loading; else loadingState">
+        <article class="project-item" *ngFor="let project of visibleProjects">
+          <div class="project-icon" [class]="project.tone">
+            <span class="material-symbols-outlined">{{ project.icon }}</span>
+          </div>
+          <div class="project-copy">
+            <div class="project-name">
+              <!-- <span>{{ project.id }}</span> -->
+              <h3>{{ project.project_name }}</h3>
+              <b [class]="project.status">{{ project.status }}</b>
+            </div>
+            <p>{{ project.description }}</p>
+            <small
+              ><span class="material-symbols-outlined">event</span>{{ project.deadline }} <i></i
+              ><strong>{{ project.initials }}</strong
+              >{{ project.owner }}</small
+            >
+          </div>
+          <div class="project-actions">
+            <button type="button" title="Star project">
+              <span class="material-symbols-outlined">star</span></button
+            ><button
+              type="button"
+              title="Edit project"
+              (click)="editProject(project)"
+              [disabled]="saving"
+            >
+              <span class="material-symbols-outlined">edit</span></button
+            ><button
+              type="button"
+              title="Archive project"
+              (click)="onArchiveProject(project)"
+              [disabled]="saving"
+            >
+              <span class="material-symbols-outlined">archive</span></button
+            ><button
+              type="button"
+              title="Archive project"
+              (click)="deleteProject(project)"
+              [disabled]="saving"
+            >
+              <!-- <span class="material-symbols-outlined">archive</span> -->
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </article>
+        <p class="empty-state" *ngIf="!visibleProjects.length">No projects match this filter.</p>
+      </div>
+      <ng-template #loadingState
+        ><p class="empty-state">Loading project registry...</p></ng-template
+      >
+    </section>
+  </div>
+
+  <section class="panel activity-panel">
+    <div class="section-heading">
+      <div class="section-title">
+        <span class="material-symbols-outlined activity-icon">commit</span>
+        <h2>Workspace Activity &amp; Deployments</h2>
+      </div>
+      <button class="audit-link" type="button">
+        View full audit log <span class="material-symbols-outlined">arrow_forward</span>
+      </button>
+    </div>
+    <div class="activity-list">
+      <div>
+        <span class="material-symbols-outlined">check_circle</span
+        ><span
+          ><strong>Prod Cluster us-east-1</strong
+          ><small>Deploy #4092 · 6 mins ago by @rivera</small></span
+        >
+      </div>
+      <div>
+        <span class="material-symbols-outlined">sync</span
+        ><span
+          ><strong>Zero-Trust mTLS Rollout</strong
+          ><small>Staging Canary · 28 mins ago by @chen</small></span
+        >
+      </div>
+      <div>
+        <span class="material-symbols-outlined">deployed_code</span
+        ><span
+          ><strong>Telemetry Agent 2.4.1</strong
+          ><small>EU Nodes Synced · 1 hr ago by @sre-bot</small></span
+        >
+      </div>
+    </div>
+  </section>
+</section>

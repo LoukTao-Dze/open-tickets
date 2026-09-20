@@ -51,3 +51,6 @@
 .btn-neutral {
   @apply bg-transparent border border-outline-variant text-on-surface hover:bg-surface-container-highest;
 }
+.btn-warning {
+  @apply bg-yellow-400 text-black hover:opacity-90;
+}

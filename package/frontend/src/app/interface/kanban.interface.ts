@@ -1,12 +1,7 @@
 export type KanbanPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
 export type KanbanColumnId =
-  | 'todo'
-  | 'in-progress'
-  | 'ready-to-test'
-  | 'test-in-progress'
-  | 'test-fail'
-  | 'done';
+  'todo' | 'in-progress' | 'ready-to-test' | 'test-in-progress' | 'test-fail' | 'done';
 
 export interface KanbanMeta {
   icon: string;
@@ -16,6 +11,13 @@ export interface KanbanMeta {
 export interface KanbanProject {
   id: string;
   project_name: string;
+  description?: string | null;
+  isDefault?: boolean;
+  priority?: string;
+  deadline?: string | null;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface KanbanTicket {
