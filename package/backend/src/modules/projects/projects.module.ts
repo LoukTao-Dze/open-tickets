@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
-import { SupabaseModule } from 'src/supabase/supabase.module';
+import { SupabaseModule } from '../../supabase/supabase.module';
 import { HttpModule } from '@nestjs/axios';
 
 @Module({
