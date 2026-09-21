@@ -18,7 +18,7 @@
         <textarea
           class="form-input form-textarea"
           formControlName="detail"
-          rows="3"
+          rows="5"
           placeholder="Describe the ticket"
         ></textarea>
       </label>
@@ -50,6 +50,14 @@
             formControlName="assigneeAlt"
             placeholder="Assignee name"
           />
+        </label>
+        <label class="form-field">
+          <span class="form-label">Meta</span>
+          <select class="form-input" formControlName="meta" [compareWith]="compareMeta">
+            <option *ngFor="let meta of TICKET_META_ITEMS" [ngValue]="meta">
+              {{ meta.label }}
+            </option>
+          </select>
         </label>
       </div>
 
