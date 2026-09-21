@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 import {
   KanbanColumn,
   KanbanColumnId,
+  KanbanMeta,
   KanbanProject,
   KanbanTicket,
 } from '../interface/kanban.interface';
@@ -21,6 +22,7 @@ export interface KanbanTicketPayload {
   updateDate?: string;
   taskType?: string;
   jobType?: string;
+  meta?: KanbanMeta[];
 }
 
 export interface KanbanProjectPayload {

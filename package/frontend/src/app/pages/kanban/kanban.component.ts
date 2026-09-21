@@ -170,7 +170,6 @@ export class KanbanComponent implements OnInit {
     if (!targetColumn) {
       return;
     }
-
     this.kanbanApi.createTicket(value).subscribe({
       next: (ticket) => {
         targetColumn.tickets.push(ticket);

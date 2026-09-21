@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import {
   KanbanColumnId,
+  KanbanMeta,
   KanbanPriority,
   KanbanProject,
   KanbanTicket,
@@ -15,6 +16,7 @@ export interface TicketFormValue {
   detail: string;
   priority: KanbanPriority;
   projectId: string;
+  meta: KanbanMeta[];
   createDate: string;
   updateDate: string;
   assigneeAlt: string;
@@ -48,6 +50,17 @@ export class TicketFormModalComponent {
   readonly jobTypes = ['Frontend', 'Backend', 'DevOps', 'QA', 'Design'];
   readonly projects: KanbanProject[];
   readonly isEditMode: boolean;
+  readonly TICKET_META_ITEMS: KanbanMeta[] = [
+    { icon: 'schedule', label: 'New' },
+    { icon: 'history', label: 'Overdue' },
+    { icon: 'bolt', label: 'Ready' },
+    { icon: 'sync', label: 'In Review' },
+    { icon: 'priority_high', label: 'Urgent' },
+    { icon: 'check_circle', label: 'Qa passed' },
+    { icon: 'task_alt', label: 'Approved' },
+    { icon: 'warning', label: 'Blocked' },
+    { icon: 'timer', label: 'Due today' },
+  ];
 
   form: FormGroup;
 
@@ -56,6 +69,7 @@ export class TicketFormModalComponent {
     private dialogRef: MatDialogRef<TicketFormModalComponent, TicketFormValue>,
     @Optional() @Inject(MAT_DIALOG_DATA) data: TicketFormModalData | null,
   ) {
+    console.info('\x1b[7;31;40m[DEBUGGER] ->> data\x1b[0m', data);
     this.projects = data?.projects ?? [];
     const ticket = data?.ticket;
     this.isEditMode = data?.action === TicketFormModalAction.EDIT;
@@ -65,6 +79,9 @@ export class TicketFormModalComponent {
       detail: this.fb.control(ticket?.detail ?? '', [Validators.maxLength(2000)]),
       priority: this.fb.control<KanbanPriority>(ticket?.priority ?? 'Low', [Validators.required]),
       projectId: this.fb.control(ticket?.project.id ?? this.projects[0]?.id ?? '', [
+        Validators.required,
+      ]),
+      meta: this.fb.control<KanbanMeta>(ticket?.meta?.[0] ?? this.TICKET_META_ITEMS[0], [
         Validators.required,
       ]),
       createDate: this.fb.control(ticket?.createDate ?? TODAY, [Validators.required]),
@@ -80,6 +97,10 @@ export class TicketFormModalComponent {
     this.form.get('updateDate')?.disable();
   }
 
+  compareMeta(first: KanbanMeta | null, second: KanbanMeta | null): boolean {
+    return first?.icon === second?.icon;
+  }
+
   onCancel() {
     this.dialogRef.close();
   }
@@ -89,6 +110,7 @@ export class TicketFormModalComponent {
       this.form.markAllAsTouched();
       return;
     }
-    this.dialogRef.close(this.form.getRawValue() as TicketFormValue);
+    const formValue = this.form.getRawValue();
+    this.dialogRef.close({ ...formValue, meta: [formValue.meta] } as TicketFormValue);
   }
 }
