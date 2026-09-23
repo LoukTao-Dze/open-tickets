@@ -46,6 +46,31 @@
           }
         </select>
       </label>
+      <div class="sticky-note-color-control">
+        <button
+          class="sticky-note-toolbar-button sticky-note-color-button"
+          type="button"
+          aria-label="Change sticky note color"
+          [attr.aria-expanded]="isColorPickerOpen"
+          (click)="$event.stopPropagation(); toggleColorPicker()"
+        >
+          <span class="sticky-note-color-swatch" [style.background]="note.bgColor"></span>
+        </button>
+        @if (isColorPickerOpen) {
+          <div class="sticky-note-color-picker">
+            @for (color of stickyNoteColorOptions; track color.id) {
+              <button
+                class="sticky-note-color-option"
+                type="button"
+                [style.background]="color.bgColor"
+                [attr.aria-label]="color.label"
+                [title]="color.label"
+                (click)="$event.stopPropagation(); chooseColor(color)"
+              ></button>
+            }
+          </div>
+        }
+      </div>
       <button
         class="sticky-note-toolbar-button"
         [class.is-active]="isBoldActive"

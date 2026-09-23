@@ -94,6 +94,46 @@
   font-size: 0.75rem;
 }
 
+.sticky-note-color-control {
+  position: relative;
+}
+
+.sticky-note-color-swatch {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 9999px;
+}
+
+.sticky-note-color-picker {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.sticky-note-color-option {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.15);
+  }
+}
+
 .sticky-note-toolbar-button {
   display: grid;
   width: 1.75rem;

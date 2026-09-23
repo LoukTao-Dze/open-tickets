@@ -1,6 +1,10 @@
 import { Component, HostListener, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { StickyNoteItem } from '../../../interface/workspace.interface';
 import {
+  STICKY_NOTE_COLOR_OPTIONS,
+  StickyNoteColorOption,
+} from '../../../shared/sticky-note-colors';
+import {
   computeResizedRect,
   ResizeCorner,
   ResizeStart,
@@ -35,8 +39,10 @@ export class StickyNoteComponent implements OnChanges {
   @Input() isFocused: boolean = false;
 
   readonly fontSizeOptions = FONT_SIZE_OPTIONS;
+  readonly stickyNoteColorOptions = STICKY_NOTE_COLOR_OPTIONS;
   isLabelEditing = false;
   isContentEditing = false;
+  isColorPickerOpen = false;
   isBoldActive = false;
   isItalicActive = false;
   isUnderlineActive = false;
@@ -132,6 +138,16 @@ export class StickyNoteComponent implements OnChanges {
     this.note.fontSize = Number(value);
     // restore focus/selection to the content so it doesn't look cleared after using the select
     queueMicrotask(() => this.restoreContentSelection(contentEl));
+  }
+
+  toggleColorPicker() {
+    this.isColorPickerOpen = !this.isColorPickerOpen;
+  }
+
+  chooseColor(color: StickyNoteColorOption) {
+    this.note.bgColor = color.bgColor;
+    this.note.textColor = color.textColor;
+    this.isColorPickerOpen = false;
   }
 
   sendToBack() {

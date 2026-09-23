@@ -59,6 +59,12 @@
 
 .ticket-card {
   @apply bg-surface-container border border-outline-variant p-md flex flex-col gap-sm cursor-grab transition-opacity;
+  .ticket-card-top {
+    @apply flex justify-between items-start gap-sm;
+    .ticket-actions {
+      @apply flex gap-xs;
+    }
+  }
 
   &.cdk-drag-preview {
     @apply shadow-lg cursor-grabbing;

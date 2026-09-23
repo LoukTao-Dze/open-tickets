@@ -38,15 +38,17 @@
         <div class="ticket-card" cdkDrag (dblclick)="openEditTicketModal(ticket)">
           <div class="ticket-card-top">
             <span class="ticket-id">{{ ticket.id }}: {{ ticket.columnId }}</span>
-            <span class="material-symbols-outlined" (click)="openEditTicketModal(ticket)">
-              Edit
-            </span>
-            <span
-              class="material-symbols-outlined"
-              (click)="$event.stopPropagation(); deleteTicket(ticket)"
-            >
-              delete
-            </span>
+            <div class="ticket-actions">
+              <span class="material-symbols-outlined" (click)="openEditTicketModal(ticket)">
+                Edit
+              </span>
+              <span
+                class="material-symbols-outlined"
+                (click)="$event.stopPropagation(); deleteTicket(ticket)"
+              >
+                delete
+              </span>
+            </div>
           </div>
 
           <h4 class="ticket-title">{{ ticket.title }}</h4>

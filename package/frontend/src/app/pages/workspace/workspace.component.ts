@@ -57,6 +57,13 @@ interface SaveCanvasItemResponse {
   };
 }
 
+interface ViewportState {
+  boardId: string;
+  zoom: number;
+  panX: number;
+  panY: number;
+}
+
 @Component({
   selector: 'app-workspace',
   standalone: true,
@@ -100,6 +107,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   private activeItem: WorkspaceCanvasItem | null = null;
   private dragOffset = { x: 0, y: 0 };
   private zIndexCounter = 100;
+  private currentViewportState: ViewportState[] = [];
 
   focusedItem: WorkspaceCanvasItem | null = null;
   private saveWhiteboardTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -181,23 +189,21 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   ngOnInit() {
-    this.setValuesFromLocalStorage();
     this.getCanvasItem();
-    this.selectedWhiteboardId = localStorage.getItem('selectedWhiteboardId') ?? '';
+    this.setValuesFromLocalStorage();
   }
 
   setValuesFromLocalStorage() {
-    this.zoom = parseFloat(localStorage.getItem('zoom') ?? '0.5');
-    this.panX = parseFloat(
-      localStorage.getItem('pan')
-        ? JSON.parse(localStorage.getItem('pan') ?? '{"x":0,"y":0}').x
-        : '0',
-    );
-    this.panY = parseFloat(
-      localStorage.getItem('pan')
-        ? JSON.parse(localStorage.getItem('pan') ?? '{"x":0,"y":0}').y
-        : '0',
-    );
+    this.selectedWhiteboardId = localStorage.getItem('selectedWhiteboardId') ?? '';
+    try {
+      const storedViewportState = JSON.parse(localStorage.getItem('viewportState') ?? '[]');
+      this.currentViewportState = Array.isArray(storedViewportState)
+        ? storedViewportState.filter((state): state is ViewportState => Boolean(state?.boardId))
+        : [];
+    } catch {
+      this.currentViewportState = [];
+    }
+    this.applyViewportState(this.selectedWhiteboardId);
   }
 
   getCanvasItem() {
@@ -230,6 +236,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             )?.id ??
             projects[0]?.id ??
             '';
+          this.applyViewportState(this.selectedWhiteboardId);
           return this.http.get(GET_CANVAS_ITEM_ENDPOINT, {
             params: { projectId: this.selectedWhiteboardId },
           });
@@ -279,7 +286,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.activeItem = null;
     this.focusedItem = null;
     this.isPanning = false;
-    this.resetView();
+    this.applyViewportState(id);
     this.getCanvasItem();
   }
 
@@ -472,9 +479,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     // two-finger trackpad drag pans the canvas
     this.panX -= event.deltaX;
     this.panY -= event.deltaY;
-    setTimeout(() => {
-      localStorage.setItem('pan', JSON.stringify({ x: this.panX, y: this.panY }));
-    }, 2000);
+    this.saveViewportState();
   }
 
   zoomIn() {
@@ -491,9 +496,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.zoom = 0.5;
     this.panX = 0;
     this.panY = 0;
-    setTimeout(() => {
-      localStorage.setItem('zoom', this.zoom.toString());
-    }, 2000);
+    this.saveViewportState();
   }
 
   private zoomAtPoint(nextZoom: number, clientX: number, clientY: number) {
@@ -508,8 +511,36 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.panX = screenX - canvasX * clampedZoom;
     this.panY = screenY - canvasY * clampedZoom;
     this.zoom = clampedZoom;
+    this.saveViewportState();
+  }
+
+  private applyViewportState(boardId: string) {
+    const viewportState = this.currentViewportState.find((state) => state.boardId === boardId);
+    this.panX = viewportState?.panX ?? 0;
+    this.panY = viewportState?.panY ?? 0;
+    this.zoom = viewportState?.zoom ?? 0.5;
+  }
+
+  private saveViewportState() {
     setTimeout(() => {
-      localStorage.setItem('zoom', this.zoom.toString());
+      const boardId = this.activeWhiteboard.id;
+      if (!boardId) {
+        return;
+      }
+
+      const viewportState: ViewportState = {
+        boardId,
+        panX: this.panX,
+        panY: this.panY,
+        zoom: this.zoom,
+      };
+      const index = this.currentViewportState.findIndex((state) => state.boardId === boardId);
+      if (index === -1) {
+        this.currentViewportState.push(viewportState);
+      } else {
+        this.currentViewportState[index] = viewportState;
+      }
+      localStorage.setItem('viewportState', JSON.stringify(this.currentViewportState));
     }, 2000);
   }
 
