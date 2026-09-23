@@ -18,11 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: build main
+  analyze:
+    name: Analyze with CodeQL
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -31,6 +29,19 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+  build:
+    name: build main
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -42,13 +53,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prepare backend environment for Docker Compose
+        run: cp package/backend/.env.example package/backend/.env
+
       - name: Build Docker images
         run: docker compose build
-
-      - name: Analyze with CodeQL
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: /language:javascript-typescript
 
       - name: Build backend and frontend
         run: npm run build
