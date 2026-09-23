@@ -36,6 +36,7 @@ jobs:
           category: /language:javascript-typescript
   build:
     name: build main
+    needs: [analyze]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
