@@ -1,4 +1,5 @@
 name: Build main
+run-name: Build main - ${{ github.ref_name }} by @${{ github.actor }}
 
 on:
   push:
