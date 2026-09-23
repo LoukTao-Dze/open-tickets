@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "start": "run-p start:frontend start:backend",
+    "start:docker": "docker compose up -d --build",
+    "stop:docker": "docker compose down",
     "start:frontend": "npm run start --prefix package/frontend",
     "start:backend": "npm run start:dev --prefix package/backend",
     "build": "npm run build -w package/backend && npm run build -w package/frontend",

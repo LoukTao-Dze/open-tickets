@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 concurrency:
   group: build-main-${{ github.ref }}
@@ -18,13 +19,18 @@ concurrency:
 
 jobs:
   build:
-    name: Test and build
+    name: build main
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -36,5 +42,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+
       - name: Build backend and frontend
         run: npm run build
+
+      - name: Clean up Docker resources
+        if: always()
+        run: docker compose down --remove-orphans
