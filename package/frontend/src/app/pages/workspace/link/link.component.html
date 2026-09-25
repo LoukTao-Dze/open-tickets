@@ -1,6 +1,7 @@
 <div
   class="link-card"
   [class.is-editing]="isEditing"
+  [style.--resize-handle-scale]="1 / zoom"
   [style.width.px]="item.width"
   [style.height.px]="item.height"
   (dblclick)="startEditing()"

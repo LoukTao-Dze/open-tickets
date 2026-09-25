@@ -33,8 +33,8 @@ const MAX_ZOOM_WHEEL_DELTA = 80;
 // world-space margin kept around board content so items never touch the minimap edge
 const MINIMAP_BOUNDS_PADDING = 200;
 
-const STICKY_NOTE_SIZE = 192;
-const DEFAULT_TEXT_FONT_SIZE = 18;
+const STICKY_NOTE_SIZE = 200;
+const DEFAULT_TEXT_FONT_SIZE = 20;
 const DEFAULT_TEXT_COLOR = '#dfe2eb';
 const DEFAULT_TEXT_WIDTH = 200;
 const DEFAULT_TEXT_HEIGHT = 60;

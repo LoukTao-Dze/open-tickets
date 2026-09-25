@@ -8,9 +8,9 @@ import {
 } from '../shared/item-resize.util';
 
 const MIN_CONTENT_FONT_SIZE = 8;
-const MAX_CONTENT_FONT_SIZE = 64;
-const MIN_WIDTH = 140;
-const MIN_HEIGHT = 140;
+const MAX_CONTENT_FONT_SIZE = 32;
+const MIN_WIDTH = 200;
+const MIN_HEIGHT = 80;
 // note padding (p-md) taken off both sides of width/height
 const NOTE_PADDING = 16;
 // approximate space used by the label row (font-size + margin-bottom)
@@ -18,8 +18,8 @@ const LABEL_RESERVED_HEIGHT = 20;
 // average glyph width/line-height as a ratio of font-size, for a proportional sans-serif font
 const CHAR_WIDTH_RATIO = 0.55;
 const LINE_HEIGHT_RATIO = 1.25;
-const FONT_SIZE_SEARCH_ITERATIONS = 20;
-const FONT_SIZE_OPTIONS = [12, 16, 20, 24, 28, 32] as const;
+const FONT_SIZE_SEARCH_ITERATIONS = 16;
+const FONT_SIZE_OPTIONS = [12, 16, 18, 20, 24, 28, 32, 64] as const;
 
 @Component({
   selector: 'app-sticky-note',

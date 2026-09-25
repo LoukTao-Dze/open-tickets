@@ -26,6 +26,7 @@
 
 .resize-handle {
   @apply absolute w-2.5 h-2.5 bg-primary border border-surface rounded-full opacity-0 transition-opacity;
+  transform: scale(var(--resize-handle-scale, 1));
 }
 
 .text-item-wrapper:hover .resize-handle {

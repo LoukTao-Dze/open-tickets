@@ -1,4 +1,9 @@
-<div class="code-snippet-wrapper" [style.width.px]="item.width" [style.height.px]="item.height">
+<div
+  class="code-snippet-wrapper"
+  [style.width.px]="item.width"
+  [style.height.px]="item.height"
+  [style.--resize-handle-scale]="1 / zoom"
+>
   <div class="code-snippet" [class.is-editing]="isEditing || isFileNameEditing">
     <div class="code-snippet-header">
       <div class="code-snippet-file">

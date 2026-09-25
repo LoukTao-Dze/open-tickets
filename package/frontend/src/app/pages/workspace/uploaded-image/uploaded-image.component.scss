@@ -47,6 +47,7 @@
 
 .resize-handle {
   @apply absolute w-2.5 h-2.5 bg-primary border border-surface rounded-full opacity-0 transition-opacity z-10;
+  transform: scale(var(--resize-handle-scale, 1));
 }
 
 .image-card:hover .resize-handle {

@@ -1,4 +1,4 @@
-<div class="image-card">
+<div class="image-card" [style.--resize-handle-scale]="1 / zoom">
   <div class="image-thumb" [style.width.px]="image.width" [style.height.px]="image.height">
     <img
       *ngIf="image.imageUrl"

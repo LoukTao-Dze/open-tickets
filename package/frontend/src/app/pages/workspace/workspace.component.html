@@ -52,6 +52,8 @@
             type="button"
             class="item-delete-btn"
             aria-label="Delete item"
+            [style.--item-control-scale]="1 / zoom"
+            [style.zIndex]="item.zIndex + 1"
             (mousedown)="$event.stopPropagation()"
             (click)="deleteItem($event, item)"
           >
@@ -88,7 +90,7 @@
   <app-tool-hubs (insertItem)="onInsertItem($event)"></app-tool-hubs>
 
   <div class="bottom-right-controls">
-    <div class="presence-row">
+    <!-- <div class="presence-row">
       <div class="presence-avatar presence-avatar--amber">JD</div>
       <div class="presence-avatar presence-avatar--blue">SM</div>
       <div class="presence-avatar presence-avatar--image">
@@ -98,7 +100,7 @@
         />
       </div>
       <div class="presence-avatar presence-avatar--more">+4</div>
-    </div>
+    </div> -->
 
     <div class="zoom-controls">
       <button class="zoom-btn" type="button" (click)="zoomOut()" aria-label="Zoom out">
