@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EnumWorkspaceItemType } from '../../../enum/workspace.enum';
 import {
@@ -41,7 +41,9 @@ const INSERTABLE_TOOL_TYPES: ReadonlySet<EnumWorkspaceItemType> = new Set([
   styleUrl: './tool-hubs.component.scss',
 })
 export class ToolHubsComponent {
+  @Input() isGroupingEnabled = true;
   @Output() insertItem = new EventEmitter<InsertToolEvent>();
+  @Output() groupingToggle = new EventEmitter<boolean>();
 
   readonly EnumWorkspaceItemType = EnumWorkspaceItemType;
   readonly stickyNoteColorOptions = STICKY_NOTE_COLOR_OPTIONS;
@@ -96,6 +98,10 @@ export class ToolHubsComponent {
     this.isStickyNoteColorPickerOpen = false;
     this.activeToolId = EnumWorkspaceItemType.SELECT;
     this.insertItem.emit({ type: EnumWorkspaceItemType.STICKY_NOTE, color });
+  }
+
+  onToggleGrouping() {
+    this.groupingToggle.emit(!this.isGroupingEnabled);
   }
 
   @HostListener('document:click', ['$event'])

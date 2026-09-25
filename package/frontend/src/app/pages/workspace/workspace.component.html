@@ -84,10 +84,42 @@
           }
         </div>
       </ng-container>
+
+      <ng-container *ngFor="let group of canvasGroups; trackBy: trackByGroupId">
+        <svg
+          class="group-outline"
+          [class.is-hover-target]="isGroupHovered(group)"
+          [style.left.px]="groupOutline(group).left"
+          [style.top.px]="groupOutline(group).top"
+          [attr.width]="groupOutline(group).width"
+          [attr.height]="groupOutline(group).height"
+          [attr.viewBox]="'0 0 ' + groupOutline(group).width + ' ' + groupOutline(group).height"
+          (mousedown)="onGroupOutlineMouseDown($event, group)"
+        >
+          <path [attr.d]="groupOutline(group).path" />
+        </svg>
+        <div
+          class="group-label"
+          #groupNameRef
+          [attr.contenteditable]="isEditingGroupName(group)"
+          [class.is-editing]="isEditingGroupName(group)"
+          [ngStyle]="groupLabelStyle(group)"
+          (mousedown)="onGroupLabelMouseDown($event, group)"
+          (dblclick)="onGroupLabelDoubleClick($event, group)"
+          (blur)="onGroupNameBlur($event, group)"
+          (keydown.enter)="$event.preventDefault(); groupNameRef.blur()"
+        >
+          {{ group.name }}
+        </div>
+      </ng-container>
     </div>
   </div>
 
-  <app-tool-hubs (insertItem)="onInsertItem($event)"></app-tool-hubs>
+  <app-tool-hubs
+    [isGroupingEnabled]="groupingEnabled"
+    (insertItem)="onInsertItem($event)"
+    (groupingToggle)="onToggleGrouping($event)"
+  ></app-tool-hubs>
 
   <div class="bottom-right-controls">
     <div class="presence-row">

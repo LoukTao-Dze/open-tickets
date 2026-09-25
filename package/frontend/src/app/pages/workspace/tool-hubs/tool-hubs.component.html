@@ -40,6 +40,19 @@
   <div class="tool-divider"></div>
 
   <button
+    type="button"
+    class="tool-btn"
+    [class.tool-btn--active]="isGroupingEnabled"
+    [attr.aria-label]="isGroupingEnabled ? 'Disable auto-grouping' : 'Enable auto-grouping'"
+    [title]="isGroupingEnabled ? 'Disable auto-grouping' : 'Enable auto-grouping'"
+    (click)="onToggleGrouping()"
+  >
+    <span class="material-symbols-outlined">hub</span>
+  </button>
+
+  <div class="tool-divider"></div>
+
+  <button
     *ngFor="let tool of historyTools"
     type="button"
     class="tool-btn"

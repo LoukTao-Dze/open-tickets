@@ -209,3 +209,43 @@
     background-position: right, left, center, right;
   }
 }
+
+.group-outline {
+  @apply absolute pointer-events-none;
+  z-index: 100000;
+  overflow: visible;
+
+  path {
+    fill: none;
+    stroke: #f2743c;
+    stroke-width: 3px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* only the drawn line itself is draggable, not the empty space it encircles */
+    pointer-events: stroke;
+    cursor: grab;
+  }
+
+  &.is-hover-target path {
+    fill: #f2743c;
+    fill-opacity: 0.1;
+  }
+}
+
+.group-label {
+  @apply absolute text-body-sm font-bold uppercase tracking-wide text-on-surface bg-surface-container-high border border-outline-variant rounded-full px-md py-1 shadow-lg cursor-grab;
+  z-index: 100001;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  outline: none;
+  user-select: none;
+
+  &.is-editing {
+    @apply cursor-text;
+    user-select: text;
+  }
+
+  &:active:not(.is-editing) {
+    cursor: grabbing;
+  }
+}

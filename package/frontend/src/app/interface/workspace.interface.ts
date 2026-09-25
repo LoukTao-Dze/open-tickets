@@ -66,8 +66,16 @@ export interface LinkItem extends CanvasItemBase {
 export type WorkspaceCanvasItem =
   StickyNoteItem | UploadedImageItem | CodeSnippetItem | TextItem | LinkItem;
 
+export interface WorkspaceGroup {
+  id: string;
+  name: string;
+  seed: number;
+  items: WorkspaceCanvasItem[];
+}
+
 export interface Whiteboard {
   id: string;
   name: string;
   items: WorkspaceCanvasItem[];
+  groups?: WorkspaceGroup[];
 }

@@ -13,8 +13,8 @@ import {
 
 const MIN_CONTENT_FONT_SIZE = 8;
 const MAX_CONTENT_FONT_SIZE = 64;
-const MIN_WIDTH = 140;
-const MIN_HEIGHT = 140;
+const MIN_WIDTH = 100;
+const MIN_HEIGHT = 80;
 // note padding (p-md) taken off both sides of width/height
 const NOTE_PADDING = 16;
 // approximate space used by the label row (font-size + margin-bottom)
