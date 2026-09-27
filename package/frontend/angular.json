@@ -30,7 +30,8 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/tailwind.css", "@angular/cdk/overlay-prebuilt.css", "src/styles.scss"]
+            "styles": ["src/tailwind.css", "@angular/cdk/overlay-prebuilt.css", "src/styles.scss"],
+            "serviceWorker": "ngsw-config.json"
           },
           "configurations": {
             "production": {

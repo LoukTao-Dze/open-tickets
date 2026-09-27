@@ -37,11 +37,11 @@ export class UploadedImageComponent {
     fileInput.click();
   }
 
-  onUploadMouseDown(event: MouseEvent) {
+  onUploadMouseDown(event: PointerEvent) {
     event.stopPropagation();
   }
 
-  onResizeMouseDown(event: MouseEvent, corner: ResizeCorner) {
+  onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -50,8 +50,8 @@ export class UploadedImageComponent {
     this.resizeStart = startResize(event, this.image);
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
     if (!this.isResizing || !this.activeCorner) {
       return;
     }
@@ -71,7 +71,8 @@ export class UploadedImageComponent {
     this.image.height = rect.height;
   }
 
-  @HostListener('document:mouseup')
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
   onDocumentMouseUp() {
     this.isResizing = false;
     this.activeCorner = null;

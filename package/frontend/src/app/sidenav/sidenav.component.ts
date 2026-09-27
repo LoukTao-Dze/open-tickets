@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { LayoutService } from '../services/layout.service';
 
 export interface SidenavLink {
   icon: string;
@@ -17,6 +18,7 @@ export interface SidenavLink {
   styleUrls: ['./sidenav.component.scss'],
 })
 export class SidenavComponent {
+  layout = inject(LayoutService);
   navLinks: SidenavLink[] = [
     { icon: 'view_kanban', label: 'Kanban', route: '/kanban', isActive: true },
     { icon: 'account_tree', label: 'Workspace', route: '/workspace', isActive: true },

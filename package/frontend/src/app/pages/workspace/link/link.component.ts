@@ -53,7 +53,7 @@ export class LinkComponent {
     this.item.url = value;
   }
 
-  onResizeMouseDown(event: MouseEvent, corner: ResizeCorner) {
+  onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -62,8 +62,8 @@ export class LinkComponent {
     this.resizeStart = startResize(event, this.item);
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
     if (!this.isResizing || !this.activeCorner) {
       return;
     }
@@ -83,7 +83,8 @@ export class LinkComponent {
     this.item.height = rect.height;
   }
 
-  @HostListener('document:mouseup')
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
   onDocumentMouseUp() {
     this.isResizing = false;
     this.activeCorner = null;

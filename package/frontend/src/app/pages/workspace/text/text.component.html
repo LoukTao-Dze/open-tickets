@@ -13,13 +13,25 @@
     [value]="item.content"
     [readOnly]="!isEditing"
     (input)="onContentInput(textInput.value)"
-    (mousedown)="onTextMouseDown($event)"
+    (pointerdown)="onTextMouseDown($event)"
     (dblclick)="startEditing(textInput)"
     (blur)="stopEditing()"
   ></textarea>
 
-  <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
-  <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
-  <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>
-  <div class="resize-handle resize-handle--se" (mousedown)="onResizeMouseDown($event, 'se')"></div>
+  <div
+    class="resize-handle resize-handle--nw"
+    (pointerdown)="onResizeMouseDown($event, 'nw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--ne"
+    (pointerdown)="onResizeMouseDown($event, 'ne')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--sw"
+    (pointerdown)="onResizeMouseDown($event, 'sw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--se"
+    (pointerdown)="onResizeMouseDown($event, 'se')"
+  ></div>
 </div>

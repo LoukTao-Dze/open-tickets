@@ -109,7 +109,7 @@ export class CodeSnippetComponent implements AfterViewInit, OnDestroy {
     this.item.fileName = value;
   }
 
-  onFileNameMouseDown(event: MouseEvent) {
+  onFileNameMouseDown(event: PointerEvent) {
     if (this.isFileNameEditing) {
       event.stopPropagation();
     }
@@ -124,13 +124,13 @@ export class CodeSnippetComponent implements AfterViewInit, OnDestroy {
     this.isFileNameEditing = false;
   }
 
-  onEditorMouseDown(event: MouseEvent) {
+  onEditorMouseDown(event: PointerEvent) {
     if (this.isEditing) {
       event.stopPropagation();
     }
   }
 
-  onResizeMouseDown(event: MouseEvent, corner: ResizeCorner) {
+  onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -139,8 +139,8 @@ export class CodeSnippetComponent implements AfterViewInit, OnDestroy {
     this.resizeStart = startResize(event, this.item);
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
     if (!this.isResizing || !this.activeCorner) {
       return;
     }
@@ -160,7 +160,8 @@ export class CodeSnippetComponent implements AfterViewInit, OnDestroy {
     this.item.height = rect.height;
   }
 
-  @HostListener('document:mouseup')
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
   onDocumentMouseUp() {
     this.isResizing = false;
     this.activeCorner = null;

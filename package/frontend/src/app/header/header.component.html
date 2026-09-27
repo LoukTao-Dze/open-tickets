@@ -2,7 +2,17 @@
   class="fixed top-0 left-0 right-0 h-16 z-50 flex justify-between items-center px-lg bg-surface border-b border-outline-variant"
 >
   <div class="flex items-center gap-md">
-    <span class="text-headline-md font-headline-md font-bold text-on-surface">DevOps Sentinel</span>
+    <button
+      type="button"
+      class="menu-toggle md:hidden material-symbols-outlined text-on-surface-variant hover:bg-surface-container-highest p-xs rounded-full transition-colors"
+      aria-label="Toggle navigation menu"
+      (click)="layout.toggleMobileNav()"
+    >
+      menu
+    </button>
+    <span class="text-headline-md font-headline-md font-bold text-on-surface truncate"
+      >DevOps Sentinel</span
+    >
     <div
       class="hidden md:flex items-center bg-surface-container-highest px-md py-xs rounded-lg border border-outline-variant"
     >
@@ -27,12 +37,20 @@
     >
       settings
     </button>
-    <div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
-      <img
-        class="h-full w-full object-cover"
-        alt="Lead Engineer Profile"
-        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVgfOzMV3fpDh3uhW0PqjyR7BeJWGrSSC92egleKVb9teQiAzXOTK28YvNHftQV19_f7vj0GdM7vKVX7KhOF7MQX6yEhcw9YYi9-RMcaeLSme6X-x7WMUo08ZPW5hJ6rXu_-OAVckmxljFaB0S679Rh4d5yzFPh1hv4lsaKtWwSioxgmMGs5kGz3hh7V7N5WmMqrkTAGKqc2GqNDHY6SfNIh70WfBig3RRR_iqt5uJbCnC3WZdBtAT9VjmEAjumbntP9mM-0g1CGVn"
-      />
+    <div
+      class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant"
+    >
+      @if (src) {
+        <img class="h-full w-full object-cover" alt="Lead Engineer Profile" [src]="src" />
+      } @else {
+        <span
+          class="material-symbols-outlined flex h-full w-full items-center justify-center text-on-surface-variant"
+          style="display: flex"
+          aria-label="Lead Engineer Profile"
+          role="img"
+          >account_circle</span
+        >
+      }
     </div>
   </div>
 </header>

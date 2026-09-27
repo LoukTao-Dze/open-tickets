@@ -31,16 +31,16 @@ describe('StickyNoteComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should stop toolbar button mousedown from bubbling to the canvas drag handler', () => {
+  it('should stop toolbar button pointerdown from bubbling to the canvas drag handler', () => {
     let bubbled = false;
-    fixture.nativeElement.addEventListener('mousedown', () => {
+    fixture.nativeElement.addEventListener('pointerdown', () => {
       bubbled = true;
     });
 
     const button = fixture.nativeElement.querySelector('.sticky-note-toolbar-button');
     expect(button).not.toBeNull();
 
-    button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
     expect(bubbled).toBeFalse();
   });

@@ -1,7 +1,7 @@
 <main
   class="workspace-main"
   #viewport
-  (mousedown)="onCanvasMouseDown($event)"
+  (pointerdown)="onCanvasMouseDown($event)"
   (wheel)="onWheelZoom($event)"
 >
   <div class="canvas-grid"></div>
@@ -18,22 +18,35 @@
     </div>
   }
 
-  <div class="whiteboard-switcher" (mousedown)="$event.stopPropagation()">
-    <span class="material-symbols-outlined whiteboard-switcher-icon">dashboard</span>
-    <select
-      #boardSelect
-      class="whiteboard-select"
-      [value]="selectedWhiteboardId"
-      (change)="onWhiteboardChange(boardSelect.value)"
-    >
-      <option
-        *ngFor="let board of whiteboards"
-        [value]="board.id"
-        [selected]="board.id === selectedWhiteboardId"
-      >
-        {{ board.name }}
-      </option>
-    </select>
+  <div
+    class="whiteboard-switcher"
+    [class.is-open]="isWhiteboardMenuOpen"
+    (pointerdown)="$event.stopPropagation()"
+  >
+    <button type="button" class="whiteboard-switcher-trigger" (click)="toggleWhiteboardMenu()">
+      <span class="material-symbols-outlined whiteboard-switcher-icon">dashboard</span>
+      <span class="whiteboard-switcher-label">{{ activeWhiteboard.name || 'Select board' }}</span>
+      <span class="material-symbols-outlined whiteboard-switcher-caret">expand_more</span>
+    </button>
+
+    @if (isWhiteboardMenuOpen) {
+      <ul class="whiteboard-switcher-menu" role="listbox">
+        @for (board of whiteboards; track board.id) {
+          <li
+            class="whiteboard-switcher-option"
+            role="option"
+            [class.is-selected]="board.id === selectedWhiteboardId"
+            [attr.aria-selected]="board.id === selectedWhiteboardId"
+            (click)="selectWhiteboard(board.id)"
+          >
+            @if (board.id === selectedWhiteboardId) {
+              <span class="material-symbols-outlined whiteboard-switcher-check">check</span>
+            }
+            <span class="whiteboard-switcher-option-label">{{ board.name }}</span>
+          </li>
+        }
+      </ul>
+    }
   </div>
 
   <div class="workspace-viewport">
@@ -46,14 +59,14 @@
           [style.left.px]="item.x"
           [style.top.px]="item.y"
           [style.zIndex]="item.zIndex"
-          (mousedown)="onItemMouseDown($event, item)"
+          (pointerdown)="onItemMouseDown($event, item)"
         >
           <button
             type="button"
             class="item-delete-btn"
             aria-label="Delete item"
             [style.zIndex]="item.zIndex + 1"
-            (mousedown)="$event.stopPropagation()"
+            (pointerdown)="$event.stopPropagation()"
             (click)="onDeleteItem($event, item)"
           >
             <span class="material-symbols-outlined">delete</span>
@@ -117,7 +130,7 @@
     </div>
   </div>
 
-  <div class="mini-map" #miniMap (mousedown)="onMinimapMouseDown($event)">
+  <div class="mini-map" #miniMap (pointerdown)="onMinimapMouseDown($event)">
     <div class="mini-map-items">
       <div
         *ngFor="let item of canvasList; trackBy: trackByItemId"

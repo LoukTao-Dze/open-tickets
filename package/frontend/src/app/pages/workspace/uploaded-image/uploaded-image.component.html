@@ -13,7 +13,7 @@
       type="button"
       class="image-upload-placeholder"
       aria-label="Upload image"
-      (mousedown)="onUploadMouseDown($event)"
+      (pointerdown)="onUploadMouseDown($event)"
       (dblclick)="triggerUpload(fileInput)"
     >
       <span class="material-symbols-outlined">upload</span>
@@ -25,7 +25,7 @@
       type="file"
       accept="image/*"
       hidden
-      (mousedown)="$event.stopPropagation()"
+      (pointerdown)="$event.stopPropagation()"
       (change)="onFileSelected($event)"
     />
   </div>
@@ -36,8 +36,20 @@
     }}</span>
   </div>
 
-  <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
-  <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
-  <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>
-  <div class="resize-handle resize-handle--se" (mousedown)="onResizeMouseDown($event, 'se')"></div>
+  <div
+    class="resize-handle resize-handle--nw"
+    (pointerdown)="onResizeMouseDown($event, 'nw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--ne"
+    (pointerdown)="onResizeMouseDown($event, 'ne')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--sw"
+    (pointerdown)="onResizeMouseDown($event, 'sw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--se"
+    (pointerdown)="onResizeMouseDown($event, 'se')"
+  ></div>
 </div>

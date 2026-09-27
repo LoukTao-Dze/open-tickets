@@ -11,7 +11,7 @@
           [value]="item.fileName"
           [readOnly]="!isFileNameEditing"
           (input)="onFileNameInput(fileNameInput.value)"
-          (mousedown)="onFileNameMouseDown($event)"
+          (pointerdown)="onFileNameMouseDown($event)"
           (dblclick)="startEditingFileName(fileNameInput)"
           (blur)="stopEditingFileName()"
         />
@@ -26,14 +26,26 @@
       <div
         #codeEditorHost
         class="code-snippet-code"
-        (mousedown)="onEditorMouseDown($event)"
+        (pointerdown)="onEditorMouseDown($event)"
         (dblclick)="startEditing()"
       ></div>
     </div>
   </div>
 
-  <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
-  <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
-  <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>
-  <div class="resize-handle resize-handle--se" (mousedown)="onResizeMouseDown($event, 'se')"></div>
+  <div
+    class="resize-handle resize-handle--nw"
+    (pointerdown)="onResizeMouseDown($event, 'nw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--ne"
+    (pointerdown)="onResizeMouseDown($event, 'ne')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--sw"
+    (pointerdown)="onResizeMouseDown($event, 'sw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--se"
+    (pointerdown)="onResizeMouseDown($event, 'se')"
+  ></div>
 </div>

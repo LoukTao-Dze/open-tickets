@@ -4,6 +4,7 @@ import { HeaderComponent } from './header/header.component';
 import { SidenavComponent } from './sidenav/sidenav.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../environments/environment';
+import { LayoutService } from './services/layout.service';
 
 @Component({
   selector: 'app-root',
@@ -13,6 +14,7 @@ import { environment } from '../environments/environment';
 })
 export class App {
   http = inject(HttpClient);
+  layout = inject(LayoutService);
 
   constructor() {
     this.http.get(`${environment.apiBaseUrl}/api/health`).subscribe({
