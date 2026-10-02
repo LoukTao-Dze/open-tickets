@@ -25,6 +25,16 @@ const LINE_HEIGHT_RATIO = 1.25;
 const FONT_SIZE_SEARCH_ITERATIONS = 16;
 const FONT_SIZE_OPTIONS = [12, 16, 18, 20, 24, 28, 32, 64] as const;
 
+interface ContentSelectionPoint {
+  path: number[];
+  offset: number;
+}
+
+interface ContentSelection {
+  start: ContentSelectionPoint;
+  end: ContentSelectionPoint;
+}
+
 @Component({
   selector: 'app-sticky-note',
   standalone: true,
@@ -123,14 +133,12 @@ export class StickyNoteComponent implements OnChanges {
     this.isLabelEditing = false;
   }
 
-  // re-setting [innerHTML] after each keystroke rebuilds the DOM and resets the caret to the
-  // start, so capture its position first and restore it once that rebuild happens
   onContentInput(value: string, contentEl: HTMLElement) {
-    const offsets = this.getSelectionOffsets(contentEl);
+    const selection = this.getContentSelection(contentEl);
     this.note.content = value;
 
-    if (offsets) {
-      setTimeout(() => this.restoreSelectionOffsets(contentEl, offsets));
+    if (selection) {
+      setTimeout(() => this.restoreContentSelectionPoints(contentEl, selection));
     }
   }
 
@@ -163,11 +171,9 @@ export class StickyNoteComponent implements OnChanges {
     this.note.content = contentEl.innerHTML;
     this.updateActiveFormats();
 
-    // re-setting [innerHTML] on the next change detection cycle rebuilds the DOM and clears the
-    // live selection, so capture it as character offsets now and restore it once that rebuild happens
-    const offsets = this.getSelectionOffsets(contentEl);
-    if (offsets) {
-      setTimeout(() => this.restoreSelectionOffsets(contentEl, offsets));
+    const selection = this.getContentSelection(contentEl);
+    if (selection) {
+      setTimeout(() => this.restoreContentSelectionPoints(contentEl, selection));
     }
   }
 
@@ -209,8 +215,7 @@ export class StickyNoteComponent implements OnChanges {
     selection?.addRange(this.savedContentRange);
   }
 
-  /** Captures the current selection as character offsets relative to `root`, so it survives `root`'s DOM being rebuilt. */
-  private getSelectionOffsets(root: HTMLElement): { start: number; end: number } | null {
+  private getContentSelection(root: HTMLElement): ContentSelection | null {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
       return null;
@@ -221,55 +226,53 @@ export class StickyNoteComponent implements OnChanges {
       return null;
     }
 
-    const preStartRange = document.createRange();
-    preStartRange.selectNodeContents(root);
-    preStartRange.setEnd(range.startContainer, range.startOffset);
-
-    const preEndRange = document.createRange();
-    preEndRange.selectNodeContents(root);
-    preEndRange.setEnd(range.endContainer, range.endOffset);
-
-    return { start: preStartRange.toString().length, end: preEndRange.toString().length };
+    return {
+      start: this.getContentSelectionPoint(root, range.startContainer, range.startOffset),
+      end: this.getContentSelectionPoint(root, range.endContainer, range.endOffset),
+    };
   }
 
-  /** Restores a selection previously captured by `getSelectionOffsets` after `root`'s DOM has been rebuilt. */
-  private restoreSelectionOffsets(root: HTMLElement, offsets: { start: number; end: number }) {
-    const range = document.createRange();
-    range.selectNodeContents(root);
-    range.collapse(true);
-
-    const nodeStack: Node[] = [root];
-    let charIndex = 0;
-    let startSet = false;
-    let endSet = false;
-    let node: Node | undefined;
-
-    while (!endSet && (node = nodeStack.pop())) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const textNode = node as Text;
-        const nextCharIndex = charIndex + textNode.length;
-
-        if (!startSet && offsets.start <= nextCharIndex) {
-          range.setStart(textNode, offsets.start - charIndex);
-          startSet = true;
-        }
-        if (!endSet && offsets.end <= nextCharIndex) {
-          range.setEnd(textNode, offsets.end - charIndex);
-          endSet = true;
-        }
-        charIndex = nextCharIndex;
-      } else {
-        const children = node.childNodes;
-        for (let i = children.length - 1; i >= 0; i--) {
-          nodeStack.push(children[i]);
-        }
-      }
+  private getContentSelectionPoint(
+    root: Node,
+    container: Node,
+    offset: number,
+  ): ContentSelectionPoint {
+    const path: number[] = [];
+    let currentNode = container;
+    while (currentNode !== root && currentNode.parentNode) {
+      const parentNode = currentNode.parentNode;
+      path.unshift(Array.from(parentNode.childNodes).indexOf(currentNode as ChildNode));
+      currentNode = parentNode;
     }
+    return { path, offset };
+  }
 
-    if (!startSet || !endSet) {
+  private resolveContentSelectionPoint(root: Node, point: ContentSelectionPoint): Node | null {
+    let currentNode = root;
+    for (const childIndex of point.path) {
+      const childNode = currentNode.childNodes.item(childIndex);
+      if (!childNode) {
+        return null;
+      }
+      currentNode = childNode;
+    }
+    const maxOffset =
+      currentNode.nodeType === Node.TEXT_NODE
+        ? (currentNode as Text).length
+        : currentNode.childNodes.length;
+    return point.offset <= maxOffset ? currentNode : null;
+  }
+
+  private restoreContentSelectionPoints(root: HTMLElement, selectionPoints: ContentSelection) {
+    const startNode = this.resolveContentSelectionPoint(root, selectionPoints.start);
+    const endNode = this.resolveContentSelectionPoint(root, selectionPoints.end);
+    if (!startNode || !endNode) {
       return;
     }
 
+    const range = document.createRange();
+    range.setStart(startNode, selectionPoints.start.offset);
+    range.setEnd(endNode, selectionPoints.end.offset);
     root.focus();
     const selection = window.getSelection();
     selection?.removeAllRanges();
