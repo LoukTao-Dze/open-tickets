@@ -108,7 +108,7 @@ export class StickyNoteComponent implements OnChanges {
     this.note.label = value;
   }
 
-  onLabelMouseDown(event: MouseEvent) {
+  onLabelMouseDown(event: PointerEvent) {
     if (this.isLabelEditing) {
       event.stopPropagation();
     }
@@ -178,7 +178,7 @@ export class StickyNoteComponent implements OnChanges {
     this.isBack = this.note?.isBack || false;
   }
 
-  onToolbarMouseDown(event: MouseEvent) {
+  onToolbarMouseDown(event: PointerEvent) {
     event.stopPropagation();
     this.saveContentSelection();
 
@@ -277,7 +277,7 @@ export class StickyNoteComponent implements OnChanges {
     this.updateActiveFormats();
   }
 
-  onContentMouseDown(event: MouseEvent) {
+  onContentMouseDown(event: PointerEvent) {
     if (this.isContentEditing) {
       event.stopPropagation();
     }
@@ -301,7 +301,7 @@ export class StickyNoteComponent implements OnChanges {
     this.isContentEditing = false;
   }
 
-  onResizeMouseDown(event: MouseEvent, corner: ResizeCorner) {
+  onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -310,8 +310,8 @@ export class StickyNoteComponent implements OnChanges {
     this.resizeStart = startResize(event, this.note);
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
     if (!this.isResizing || !this.activeCorner) {
       return;
     }
@@ -331,7 +331,8 @@ export class StickyNoteComponent implements OnChanges {
     this.note.height = rect.height;
   }
 
-  @HostListener('document:mouseup')
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
   onDocumentMouseUp() {
     this.isResizing = false;
     this.activeCorner = null;

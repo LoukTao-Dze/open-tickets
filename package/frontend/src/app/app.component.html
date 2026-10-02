@@ -1,6 +1,10 @@
 <app-header></app-header>
 <app-sidenav></app-sidenav>
 
+@if (layout.isMobileNavOpen()) {
+  <div class="nav-backdrop md:hidden" (click)="layout.closeMobileNav()"></div>
+}
+
 <main class="main-content">
   <router-outlet></router-outlet>
 </main>

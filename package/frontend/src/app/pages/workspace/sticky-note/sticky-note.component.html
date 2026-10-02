@@ -19,7 +19,7 @@
     [value]="note.label"
     [readOnly]="!isLabelEditing"
     (input)="onLabelInput(labelInput.value)"
-    (mousedown)="onLabelMouseDown($event)"
+    (pointerdown)="onLabelMouseDown($event)"
     (dblclick)="startEditingLabel(labelInput)"
     (blur)="stopEditingLabel()"
     placeholder="Sticky Note..."
@@ -29,7 +29,7 @@
       class="sticky-note-toolbar"
       role="toolbar"
       aria-label="Text formatting"
-      (mousedown)="onToolbarMouseDown($event)"
+      (pointerdown)="onToolbarMouseDown($event)"
     >
       <label class="sticky-note-toolbar-size" for="sticky-note-font-size">
         <span class="sr-only">Font size</span>
@@ -123,7 +123,7 @@
     [style.color]="note.textColor"
     [innerHTML]="note.content"
     (input)="onContentInput(contentInput.innerHTML, contentInput)"
-    (mousedown)="onContentMouseDown($event)"
+    (pointerdown)="onContentMouseDown($event)"
     (dblclick)="startEditing(contentInput)"
     (blur)="stopEditing($event)"
     (mouseup)="updateActiveFormats()"
@@ -133,8 +133,20 @@
     <span class="material-symbols-outlined">{{ note.icon }}</span>
   </div>
 
-  <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
-  <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
-  <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>
-  <div class="resize-handle resize-handle--se" (mousedown)="onResizeMouseDown($event, 'se')"></div>
+  <div
+    class="resize-handle resize-handle--nw"
+    (pointerdown)="onResizeMouseDown($event, 'nw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--ne"
+    (pointerdown)="onResizeMouseDown($event, 'ne')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--sw"
+    (pointerdown)="onResizeMouseDown($event, 'sw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--se"
+    (pointerdown)="onResizeMouseDown($event, 'se')"
+  ></div>
 </div>

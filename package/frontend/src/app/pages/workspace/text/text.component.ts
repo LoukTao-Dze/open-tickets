@@ -31,7 +31,7 @@ export class TextComponent {
     this.item.content = value;
   }
 
-  onTextMouseDown(event: MouseEvent) {
+  onTextMouseDown(event: PointerEvent) {
     if (this.isEditing) {
       event.stopPropagation();
     }
@@ -46,7 +46,7 @@ export class TextComponent {
     this.isEditing = false;
   }
 
-  onResizeMouseDown(event: MouseEvent, corner: ResizeCorner) {
+  onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -55,8 +55,8 @@ export class TextComponent {
     this.resizeStart = startResize(event, this.item);
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
     if (!this.isResizing || !this.activeCorner) {
       return;
     }
@@ -76,7 +76,8 @@ export class TextComponent {
     this.item.height = rect.height;
   }
 
-  @HostListener('document:mouseup')
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
   onDocumentMouseUp() {
     this.isResizing = false;
     this.activeCorner = null;

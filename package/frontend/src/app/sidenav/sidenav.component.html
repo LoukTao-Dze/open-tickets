@@ -1,4 +1,4 @@
-<nav class="sidenav">
+<nav class="sidenav" [class.is-open]="layout.isMobileNavOpen()">
   <div class="sidenav-top">
     <div class="brand">
       <div class="brand-icon">
@@ -17,6 +17,7 @@
           [routerLink]="link.route"
           routerLinkActive="active-link"
           class="nav-link"
+          (click)="layout.closeMobileNav()"
         >
           <span class="material-symbols-outlined">{{ link.icon }}</span>
           <span class="nav-label">{{ link.label }}</span>
@@ -32,6 +33,7 @@
         [routerLink]="link.route"
         routerLinkActive="active-link"
         class="nav-link"
+        (click)="layout.closeMobileNav()"
       >
         <span class="material-symbols-outlined">{{ link.icon }}</span>
         <span class="nav-label">{{ link.label }}</span>

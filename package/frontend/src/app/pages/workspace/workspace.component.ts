@@ -96,6 +96,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   whiteboards: Whiteboard[] = []; //MOCK_WORKSPACES;
 
   selectedWhiteboardId = '';
+  isWhiteboardMenuOpen = false;
   isLoading = false;
   isCanvasLoading = false;
   canvasItemResponse: WorkspaceCanvasItem[] = [];
@@ -103,6 +104,12 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   private isPanning = false;
   private panStartScreen = { x: 0, y: 0 };
   private panStartOffset = { x: 0, y: 0 };
+
+  // two-finger touch pinch-to-zoom tracking (keyed by PointerEvent.pointerId)
+  private readonly activeTouchPointers = new Map<number, { x: number; y: number }>();
+  private isPinching = false;
+  private pinchStartDistance = 0;
+  private pinchStartZoom = 1;
 
   private activeItem: WorkspaceCanvasItem | null = null;
   private dragOffset = { x: 0, y: 0 };
@@ -290,6 +297,21 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.getCanvasItem();
   }
 
+  toggleWhiteboardMenu() {
+    this.isWhiteboardMenuOpen = !this.isWhiteboardMenuOpen;
+  }
+
+  selectWhiteboard(id: string) {
+    this.isWhiteboardMenuOpen = false;
+    this.onWhiteboardChange(id);
+  }
+
+  // closes the whiteboard menu on any interaction outside it, since its own pointerdown stops propagation
+  @HostListener('document:pointerdown')
+  closeWhiteboardMenu() {
+    this.isWhiteboardMenuOpen = false;
+  }
+
   onInsertItem(event: InsertToolEvent) {
     const newItem = this.createItemForInsert(event);
     this.focusedItem = newItem;
@@ -351,7 +373,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     };
   }
 
-  onMinimapMouseDown(event: MouseEvent) {
+  onMinimapMouseDown(event: PointerEvent) {
     event.stopPropagation();
 
     const rect = this.miniMapRef.nativeElement.getBoundingClientRect();
@@ -367,7 +389,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.panY = viewportEl.clientHeight / 2 - worldY * this.zoom;
   }
 
-  onCanvasMouseDown(event: MouseEvent) {
+  onCanvasMouseDown(event: PointerEvent) {
+    if (event.pointerType === 'touch' && this.trackTouchPointer(event)) {
+      return;
+    }
     if (event.button !== 0) {
       return;
     }
@@ -377,8 +402,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.panStartOffset = { x: this.panX, y: this.panY };
   }
 
-  onItemMouseDown(event: MouseEvent, item: WorkspaceCanvasItem) {
+  onItemMouseDown(event: PointerEvent, item: WorkspaceCanvasItem) {
     event.stopPropagation();
+    if (event.pointerType === 'touch' && this.trackTouchPointer(event)) {
+      return;
+    }
     if (event.button !== 0) {
       return;
     }
@@ -407,8 +435,20 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.dragOffset = { x: canvasPoint.x - item.x, y: canvasPoint.y - item.y };
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
+    if (event.pointerType === 'touch' && this.activeTouchPointers.has(event.pointerId)) {
+      this.activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (this.isPinching && this.activeTouchPointers.size >= 2) {
+        const [a, b] = Array.from(this.activeTouchPointers.values());
+        const distance = Math.hypot(b.x - a.x, b.y - a.y);
+        const factor = this.pinchStartDistance > 0 ? distance / this.pinchStartDistance : 1;
+        this.zoomAtPoint(this.pinchStartZoom * factor, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        return;
+      }
+    }
+
     if (this.activeItem) {
       const canvasPoint = this.screenToCanvasPoint(event.clientX, event.clientY);
       this.activeItem.x = canvasPoint.x - this.dragOffset.x;
@@ -422,8 +462,16 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     }
   }
 
-  @HostListener('document:mouseup')
-  onDocumentMouseUp() {
+  @HostListener('document:pointerup', ['$event'])
+  @HostListener('document:pointercancel', ['$event'])
+  onDocumentMouseUp(event?: PointerEvent) {
+    if (event?.pointerType === 'touch') {
+      this.activeTouchPointers.delete(event.pointerId);
+      if (this.activeTouchPointers.size < 2) {
+        this.isPinching = false;
+      }
+    }
+
     this.isPanning = false;
 
     if (this.activeItem) {
@@ -542,6 +590,23 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       }
       localStorage.setItem('viewportState', JSON.stringify(this.currentViewportState));
     }, 2000);
+  }
+
+  /** Records a touch contact and starts pinch-to-zoom once a second finger joins. Returns true if this pointerdown should not also start a pan/drag. */
+  private trackTouchPointer(event: PointerEvent): boolean {
+    this.activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (this.activeTouchPointers.size === 2) {
+      const [a, b] = Array.from(this.activeTouchPointers.values());
+      this.isPinching = true;
+      this.isPanning = false;
+      this.activeItem = null;
+      this.pinchStartDistance = Math.hypot(b.x - a.x, b.y - a.y);
+      this.pinchStartZoom = this.zoom;
+      return true;
+    }
+
+    return this.activeTouchPointers.size > 2;
   }
 
   private screenToCanvasPoint(clientX: number, clientY: number) {

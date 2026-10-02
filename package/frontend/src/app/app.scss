@@ -1,5 +1,9 @@
 @reference '../tailwind.css';
 
 .main-content {
-  @apply pt-16 pl-[240px] min-h-screen bg-background;
+  @apply pt-16 pl-0 md:pl-[72px] lg:pl-[240px] min-h-screen bg-background transition-[padding-left] duration-200;
+}
+
+.nav-backdrop {
+  @apply fixed inset-0 bg-black/50 z-30;
 }

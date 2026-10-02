@@ -17,7 +17,7 @@
       class="link-edit-fields"
       [class.hidden]="!isEditing"
       #editFields
-      (mousedown)="$event.stopPropagation()"
+      (pointerdown)="$event.stopPropagation()"
       (focusout)="onFieldsFocusOut($event)"
     >
       <input
@@ -46,14 +46,26 @@
     target="_blank"
     rel="noopener noreferrer"
     aria-label="Open link"
-    (mousedown)="$event.stopPropagation()"
+    (pointerdown)="$event.stopPropagation()"
     (dblclick)="$event.stopPropagation()"
   >
     <span class="material-symbols-outlined">open_in_new</span>
   </a>
 
-  <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
-  <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
-  <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>
-  <div class="resize-handle resize-handle--se" (mousedown)="onResizeMouseDown($event, 'se')"></div>
+  <div
+    class="resize-handle resize-handle--nw"
+    (pointerdown)="onResizeMouseDown($event, 'nw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--ne"
+    (pointerdown)="onResizeMouseDown($event, 'ne')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--sw"
+    (pointerdown)="onResizeMouseDown($event, 'sw')"
+  ></div>
+  <div
+    class="resize-handle resize-handle--se"
+    (pointerdown)="onResizeMouseDown($event, 'se')"
+  ></div>
 </div>

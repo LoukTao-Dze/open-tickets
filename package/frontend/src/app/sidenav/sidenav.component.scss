@@ -5,7 +5,53 @@
 }
 
 .sidenav {
-  @apply fixed left-0 top-0 bottom-0 w-[240px] pt-16 flex flex-col z-40 bg-surface-container border-r border-outline-variant;
+  @apply fixed left-0 top-0 bottom-0 w-60 pt-16 flex flex-col z-40 bg-surface-container border-r border-outline-variant transition-transform duration-200 ease-out;
+  transform: translateX(-100%);
+
+  &.is-open {
+    transform: translateX(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .sidenav {
+    width: 4.5rem;
+    transform: translateX(0);
+  }
+
+  .brand-title,
+  .brand-subtitle,
+  .nav-label {
+    display: none;
+  }
+
+  .brand {
+    @apply justify-center gap-0;
+  }
+
+  .nav-link {
+    @apply justify-center px-0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidenav {
+    width: 240px;
+  }
+
+  .brand-title,
+  .brand-subtitle,
+  .nav-label {
+    display: block;
+  }
+
+  .brand {
+    @apply justify-start gap-sm;
+  }
+
+  .nav-link {
+    @apply justify-start px-md;
+  }
 }
 
 .sidenav-top {
