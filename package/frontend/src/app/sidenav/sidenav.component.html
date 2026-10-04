@@ -4,9 +4,20 @@
       <div class="brand-icon">
         <span class="material-symbols-outlined text-on-primary-container">account_tree</span>
       </div>
-      <div>
-        <div class="brand-title">Project Alpha</div>
-        <div class="brand-subtitle">Active Sprint 12</div>
+      <div class="brand-project">
+        <label class="sr-only" for="sidenav-project-select">Select project</label>
+        <select
+          id="sidenav-project-select"
+          class="project-select"
+          [(ngModel)]="selectedProjectId"
+          [disabled]="projects.length === 0"
+        >
+          <option *ngFor="let project of projects" [value]="project.id">
+            {{ project.project_name }}
+          </option>
+          <option *ngIf="projects.length === 0" value="">No projects</option>
+        </select>
+        <div class="brand-subtitle">{{ selectedProject?.status || 'Project workspace' }}</div>
       </div>
     </div>
 

@@ -1,0 +1,357 @@
+<app-loading-page *ngIf="isLoadingProjects || isLoadingItems"></app-loading-page>
+<section
+  class="storage-page"
+  [attr.aria-busy]="isLoadingProjects || isLoadingItems"
+  [attr.inert]="isLoadingProjects || isLoadingItems ? '' : null"
+>
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <button type="button" (click)="navigateTo(null)">Home</button>
+    <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+    <button type="button" (click)="navigateTo(null)">Projects</button>
+    <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+    <button type="button" (click)="navigateTo(null)">
+      {{ selectedProjectName || 'Projects' }}
+    </button>
+    <ng-container *ngFor="let folder of breadcrumbs">
+      <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+      <button type="button" (click)="navigateTo(folder.id)">{{ folder.name }}</button>
+    </ng-container>
+    <ng-container *ngIf="!currentFolder">
+      <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+      <span class="current-crumb">Documentation</span>
+    </ng-container>
+  </nav>
+
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ selectedProjectName || 'Projects' }} <span></span> FILES</p>
+      <h1>File Management</h1>
+      <p class="subtitle">Project documents and shared assets, in one place.</p>
+    </div>
+    <div class="page-actions">
+      <label class="sort-control project-control">
+        <span>Project</span>
+        <select
+          #projectSelect
+          [value]="selectedProjectId"
+          [disabled]="isLoadingProjects || !projects.length"
+          (change)="onProjectChange(projectSelect.value)"
+          aria-label="Select project"
+        >
+          <option value="" disabled *ngIf="!selectedProjectId">
+            {{
+              isLoadingProjects
+                ? 'Loading projects...'
+                : projectLoadFailed
+                  ? 'Unable to load projects'
+                  : 'No projects'
+            }}
+          </option>
+          <option *ngFor="let project of projects" [value]="project.id">
+            {{ project.project_name }}
+          </option>
+        </select>
+        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+      </label>
+      <div class="view-toggle" role="group" aria-label="File view">
+        <button
+          type="button"
+          aria-label="Grid view"
+          title="Grid view"
+          [class.active]="viewMode === 'grid'"
+          [attr.aria-pressed]="viewMode === 'grid'"
+          (click)="viewMode = 'grid'"
+        >
+          <span class="material-symbols-outlined">grid_view</span>
+        </button>
+        <button
+          type="button"
+          aria-label="List view"
+          title="List view"
+          [class.active]="viewMode === 'list'"
+          [attr.aria-pressed]="viewMode === 'list'"
+          (click)="viewMode = 'list'"
+        >
+          <span class="material-symbols-outlined">view_list</span>
+        </button>
+      </div>
+      <label class="sort-control">
+        <span>Sort</span>
+        <select [(ngModel)]="sortBy" aria-label="Sort files">
+          <option value="name">Name</option>
+          <option value="modified">Last modified</option>
+          <option value="size">File size</option>
+        </select>
+        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+      </label>
+      <div class="new-action">
+        <button
+          type="button"
+          class="new-button"
+          [disabled]="isUploading"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="isNewMenuOpen"
+          (click)="isNewMenuOpen = !isNewMenuOpen"
+        >
+          <span class="material-symbols-outlined">add</span>
+          <span>New</span>
+          <span class="material-symbols-outlined expand-icon">expand_more</span>
+        </button>
+        <div class="new-menu" role="menu" *ngIf="isNewMenuOpen">
+          <button type="button" role="menuitem" (click)="openFolderDialog()">
+            <span class="material-symbols-outlined">create_new_folder</span>
+            New folder
+          </button>
+          <button type="button" role="menuitem" (click)="uploadInput.click()">
+            <span class="material-symbols-outlined">upload_file</span>
+            {{ isUploading ? 'Uploading...' : 'Upload files' }}
+          </button>
+        </div>
+      </div>
+      <input
+        #uploadInput
+        class="visually-hidden"
+        type="file"
+        multiple
+        [disabled]="isUploading"
+        (change)="addFiles($event)"
+      />
+    </div>
+  </header>
+
+  <div class="storage-tools">
+    <label class="search-field">
+      <span class="material-symbols-outlined" aria-hidden="true">search</span>
+      <input
+        type="search"
+        placeholder="Search files and folders"
+        aria-label="Search files and folders"
+        [(ngModel)]="searchTerm"
+      />
+      <kbd>/</kbd>
+    </label>
+    <span class="object-count">{{ totalObjectCount }} OBJECTS</span>
+  </div>
+
+  <p class="storage-error" role="alert" *ngIf="storageError">{{ storageError }}</p>
+
+  <section class="content-section" *ngIf="!isLoadingItems && visibleFolders.length">
+    <div class="section-heading">
+      <h2>Folders</h2>
+      <span>{{ visibleFolders.length }} folders</span>
+    </div>
+    <div class="folder-grid">
+      <div class="folder-item" *ngFor="let folder of visibleFolders">
+        <button type="button" class="folder-open" (click)="openFolder(folder)">
+          <span class="folder-icon material-symbols-outlined" aria-hidden="true">folder</span>
+          <span class="folder-copy">
+            <strong>{{ folder.name }}</strong>
+            <small
+              >{{ folderFileCount(folder.id) }} files <span></span>
+              {{ formatModifiedAt(folder.modifiedAt) }}</small
+            >
+          </span>
+          <span class="material-symbols-outlined folder-arrow" aria-hidden="true"
+            >arrow_forward</span
+          >
+        </button>
+        <button
+          type="button"
+          class="folder-delete"
+          [attr.aria-label]="'Delete folder ' + folder.name"
+          title="Delete folder"
+          (click)="deleteFolder(folder)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section files-section" *ngIf="!isLoadingItems">
+    <div class="section-heading">
+      <h2>{{ currentFolder ? 'Files in ' + currentFolder.name : 'Recent files' }}</h2>
+      <span
+        >{{ visibleFiles.length }} shown <span class="count-divider">/</span>
+        {{ totalObjectCount }} total objects</span
+      >
+    </div>
+
+    <div class="file-grid" [class.list-view]="viewMode === 'list'" *ngIf="visibleFiles.length">
+      <button
+        type="button"
+        class="file-item"
+        *ngFor="let file of visibleFiles"
+        [class.selected]="selectedFileIds.has(file.id)"
+        [attr.aria-pressed]="selectedFileIds.has(file.id)"
+        (click)="toggleFileSelection(file)"
+        (dblclick)="openFile(file)"
+      >
+        <span class="file-icon" [ngClass]="fileKind(file)">
+          <span class="material-symbols-outlined" aria-hidden="true">{{ fileIcon(file) }}</span>
+        </span>
+        <span class="file-copy">
+          <strong>{{ file.name }}</strong>
+          <small>
+            {{ formatFileSize(file.sizeBytes) }} <span></span>
+            {{ formatModifiedAt(file.modifiedAt) }}
+          </small>
+        </span>
+        <span class="selection-indicator material-symbols-outlined" aria-hidden="true">
+          {{ selectedFileIds.has(file.id) ? 'check_circle' : 'more_horiz' }}
+        </span>
+      </button>
+    </div>
+
+    <div class="empty-state" *ngIf="!visibleFiles.length && !visibleFolders.length">
+      <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+      <h3>{{ searchTerm ? 'No matching items' : 'This folder is empty' }}</h3>
+      <p>
+        {{
+          searchTerm
+            ? 'Try another search term.'
+            : 'Upload a file or create a folder to get started.'
+        }}
+      </p>
+      <button type="button" *ngIf="!searchTerm" (click)="openFolderDialog()">
+        Create a folder
+      </button>
+    </div>
+  </section>
+</section>
+
+<div
+  class="selection-toolbar"
+  *ngIf="selectedFileIds.size"
+  role="toolbar"
+  aria-label="Selected file actions"
+>
+  <div class="selection-count">
+    <span>{{ selectedFileIds.size }}</span> selected
+  </div>
+  <span class="toolbar-divider"></span>
+  <button type="button" (click)="openMoveDialog()">
+    <span class="material-symbols-outlined">drive_file_move</span>
+    Move
+  </button>
+  <button type="button" [disabled]="!canDownloadSelection" (click)="downloadSelected()">
+    <span class="material-symbols-outlined">download</span>
+    Download
+  </button>
+  <button type="button" class="delete-action" (click)="deleteSelected()">
+    <span class="material-symbols-outlined">delete</span>
+    Delete
+  </button>
+  <button
+    type="button"
+    class="close-selection"
+    aria-label="Clear selection"
+    (click)="navigateTo(activeFolderId)"
+  >
+    <span class="material-symbols-outlined">close</span>
+  </button>
+</div>
+
+<app-file-preview-dialog
+  *ngIf="previewFile as file"
+  [file]="file"
+  [fileKind]="fileKind(file)"
+  [fileIcon]="fileIcon(file)"
+  [formattedFileSize]="formatFileSize(file.sizeBytes)"
+  [previewUrl]="previewUrl"
+  [previewObjectUrl]="previewObjectUrl"
+  [previewText]="previewText"
+  [isLoading]="isPreviewLoading"
+  [error]="previewError"
+  (closed)="closePreview()"
+  (downloadRequested)="downloadPreview()"
+></app-file-preview-dialog>
+
+<div
+  class="dialog-backdrop"
+  *ngIf="isFolderDialogOpen"
+  (click)="closeFolderDialog()"
+  (keydown.escape)="closeFolderDialog()"
+>
+  <form
+    class="folder-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="folder-dialog-title"
+    (click)="$event.stopPropagation()"
+    (ngSubmit)="createFolder()"
+  >
+    <div class="dialog-heading">
+      <div>
+        <p class="eyebrow">{{ selectedProjectName || 'Projects' }}</p>
+        <h2 id="folder-dialog-title">Create folder</h2>
+      </div>
+      <button
+        type="button"
+        class="icon-button"
+        aria-label="Close dialog"
+        (click)="closeFolderDialog()"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <label class="folder-name-label" for="folder-name">Folder name</label>
+    <input
+      id="folder-name"
+      name="folderName"
+      type="text"
+      [(ngModel)]="newFolderName"
+      placeholder="e.g. Production assets"
+      maxlength="80"
+      required
+      autofocus
+    />
+    <p class="dialog-note">This folder will be added to the current project view.</p>
+    <div class="dialog-actions">
+      <button type="button" class="cancel-button" (click)="closeFolderDialog()">Cancel</button>
+      <button type="submit" class="create-button" [disabled]="!newFolderName.trim()">
+        Create folder
+      </button>
+    </div>
+  </form>
+</div>
+
+<div
+  class="dialog-backdrop"
+  *ngIf="isMoveDialogOpen"
+  (click)="isMoveDialogOpen = false"
+  (keydown.escape)="isMoveDialogOpen = false"
+>
+  <form
+    class="folder-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="move-dialog-title"
+    (click)="$event.stopPropagation()"
+    (ngSubmit)="moveSelectedFiles()"
+  >
+    <div class="dialog-heading">
+      <div>
+        <p class="eyebrow">{{ selectedFileIds.size }} SELECTED</p>
+        <h2 id="move-dialog-title">Move files</h2>
+      </div>
+      <button
+        type="button"
+        class="icon-button"
+        aria-label="Close dialog"
+        (click)="isMoveDialogOpen = false"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <label class="folder-name-label" for="move-folder">Destination</label>
+    <select id="move-folder" name="folderId" [(ngModel)]="moveTargetFolderId">
+      <option [ngValue]="null">Project root</option>
+      <option *ngFor="let folder of movableFolders" [ngValue]="folder.id">{{ folder.name }}</option>
+    </select>
+    <div class="dialog-actions">
+      <button type="button" class="cancel-button" (click)="isMoveDialogOpen = false">Cancel</button>
+      <button type="submit" class="create-button">Move files</button>
+    </div>
+  </form>
+</div>

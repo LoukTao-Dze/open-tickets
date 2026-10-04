@@ -1,15 +1,20 @@
 <div class="tool-hubs">
-  <button
-    *ngFor="let tool of primaryTools"
-    type="button"
-    class="tool-btn"
-    [class.tool-btn--active]="activeToolId === tool.id"
-    (click)="selectTool(tool.id)"
-  >
-    <span class="material-symbols-outlined">{{ tool.icon }}</span>
-  </button>
-
-  <div class="tool-divider"></div>
+  @if (primaryTools.some((tool) => tool.isActive)) {
+    @for (tool of primaryTools; track $index) {
+      @if (tool.isActive) {
+        <button
+          *ngFor="let tool of primaryTools"
+          type="button"
+          class="tool-btn"
+          [class.tool-btn--active]="activeToolId === tool.id"
+          (click)="selectTool(tool.id)"
+        >
+          <span class="material-symbols-outlined">{{ tool.icon }}</span>
+        </button>
+      }
+    }
+    <div class="tool-divider"></div>
+  }
 
   <div *ngFor="let tool of insertTools" class="tool-btn-wrapper">
     @if (tool.isActive) {
@@ -37,15 +42,20 @@
     }
   </div>
 
-  <div class="tool-divider"></div>
-
-  <button
-    *ngFor="let tool of historyTools"
-    type="button"
-    class="tool-btn"
-    [class.tool-btn--active]="activeToolId === tool.id"
-    (click)="selectTool(tool.id)"
-  >
-    <span class="material-symbols-outlined">{{ tool.icon }}</span>
-  </button>
+  @if (historyTools.some((tool) => tool.isActive)) {
+    <div class="tool-divider"></div>
+    @for (item of historyTools; track $index) {
+      @if (item.isActive) {
+        <button
+          *ngFor="let tool of historyTools"
+          type="button"
+          class="tool-btn"
+          [class.tool-btn--active]="activeToolId === tool.id"
+          (click)="selectTool(tool.id)"
+        >
+          <span class="material-symbols-outlined">{{ tool.icon }}</span>
+        </button>
+      }
+    }
+  }
 </div>

@@ -24,10 +24,7 @@ export const routes: Routes = [
   {
     path: 'files',
     loadComponent: () =>
-      import('./pages/page-placeholder/page-placeholder.component').then(
-        (m) => m.PagePlaceholderComponent,
-      ),
-    data: { title: 'Files Storage' },
+      import('./pages/file-storage/file-storage.component').then((m) => m.FileStorageComponent),
   },
   {
     path: 'roles',

@@ -16,6 +16,23 @@
   @apply flex items-center gap-sm mb-lg;
 }
 
+.brand-project {
+  @apply min-w-0 flex-1;
+}
+
+.project-select {
+  @apply w-full min-w-0 bg-transparent text-label-caps font-label-caps text-on-surface outline-none cursor-pointer;
+  text-overflow: ellipsis;
+}
+
+.project-select:disabled {
+  @apply cursor-not-allowed text-on-surface-variant;
+}
+
+.project-select option {
+  @apply bg-surface-container text-on-surface;
+}
+
 .brand-icon {
   @apply h-10 w-10 bg-primary-container flex items-center justify-center rounded;
 }

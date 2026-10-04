@@ -47,7 +47,7 @@ export class ToolHubsComponent {
   readonly stickyNoteColorOptions = STICKY_NOTE_COLOR_OPTIONS;
 
   readonly primaryTools: ToolHubsButton[] = [
-    { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: true },
+    { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: false },
     { id: EnumWorkspaceItemType.PEN, icon: 'edit', isActive: false },
   ];
 
@@ -66,8 +66,8 @@ export class ToolHubsComponent {
   ];
 
   readonly historyTools: ToolHubsButton[] = [
-    { id: EnumWorkspaceItemType.UNDO, icon: 'undo', isActive: true },
-    { id: EnumWorkspaceItemType.REDO, icon: 'redo', isActive: true },
+    { id: EnumWorkspaceItemType.UNDO, icon: 'undo', isActive: false },
+    { id: EnumWorkspaceItemType.REDO, icon: 'redo', isActive: false },
   ];
 
   activeToolId = EnumWorkspaceItemType.SELECT;

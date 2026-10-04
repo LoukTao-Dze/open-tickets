@@ -1,0 +1,59 @@
+:host {
+  --loading-ink: #ffffff;
+  --loading-backdrop: rgba(255, 255, 255, 0);
+  --loading-font-size: 40px;
+  --loading-duration: 2s;
+  --loading-layer: 2000;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--loading-layer);
+}
+
+.loading-backdrop {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: var(--loading-backdrop);
+  backdrop-filter: blur(4px);
+  cursor: wait;
+}
+
+.loader {
+  width: fit-content;
+  max-width: 100%;
+  font-size: var(--loading-font-size);
+  line-height: 1.5;
+  font-family: system-ui, sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--loading-ink);
+  background:
+    radial-gradient(1.13em at 50% 1.6em, var(--loading-ink) 99%, transparent 101%) calc(50% - 1.6em)
+      0 / 3.2em 100%,
+    radial-gradient(1.13em at 50% -0.8em, transparent 99%, var(--loading-ink) 101%) 50% 0.8em /
+      3.2em 100% repeat-x;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: loading-wave var(--loading-duration) linear infinite;
+}
+
+.loader::before {
+  content: 'Loading';
+}
+
+@keyframes loading-wave {
+  to {
+    background-position:
+      calc(50% + 1.6em) 0,
+      calc(50% + 3.2em) 0.8em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader {
+    animation: none;
+  }
+}

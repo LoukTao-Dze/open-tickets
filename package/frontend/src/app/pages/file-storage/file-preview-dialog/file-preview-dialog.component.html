@@ -1,0 +1,48 @@
+<div class="dialog-backdrop preview-backdrop" (click)="close()" (keydown.escape)="close()">
+  <section
+    class="preview-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="preview-dialog-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="preview-heading">
+      <div class="preview-file-title">
+        <span class="file-icon" [ngClass]="fileKind">
+          <span class="material-symbols-outlined" aria-hidden="true">{{ fileIcon }}</span>
+        </span>
+        <div>
+          <h2 id="preview-dialog-title">{{ file.name }}</h2>
+          <p>{{ formattedFileSize }} <span></span> {{ file.mimeType }}</p>
+        </div>
+      </div>
+      <button type="button" class="icon-button" aria-label="Close preview" (click)="close()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
+    <div class="preview-content" [class.text-preview]="previewText !== null">
+      <p class="preview-status" role="status" *ngIf="isLoading">Loading preview...</p>
+      <p class="preview-status preview-error" role="alert" *ngIf="error">
+        {{ error }}
+      </p>
+      <img *ngIf="previewUrl && fileKind === 'image'" [src]="previewObjectUrl" [alt]="file.name" />
+      <iframe
+        *ngIf="previewUrl && fileKind === 'pdf'"
+        [src]="previewUrl"
+        [title]="file.name"
+      ></iframe>
+      <pre *ngIf="previewText !== null">{{ previewText }}</pre>
+      <div
+        class="preview-unavailable"
+        *ngIf="!isLoading && !error && !previewUrl && previewText === null"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">draft</span>
+        <p>Preview is not available for this file type.</p>
+        <button type="button" class="create-button" (click)="requestDownload()">
+          <span class="material-symbols-outlined" aria-hidden="true">download</span>
+          Download file
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
