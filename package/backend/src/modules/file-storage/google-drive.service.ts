@@ -157,7 +157,8 @@ export class GoogleDriveService {
       const auth = new google.auth.OAuth2(
         clientId,
         clientSecret,
-        'http://localhost',
+        this.configService.get<string>('GOOGLE_DRIVE_REDIRECT_URI') ??
+          'http://localhost',
       );
 
       auth.setCredentials({

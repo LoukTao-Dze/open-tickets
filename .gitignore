@@ -50,3 +50,14 @@ logs
 # System files
 .DS_Store
 Thumbs.db
+
+# skill
+/.agents/skills/*
+
+# My Skills: begin
+.agents/skills/using-agent-skills
+# .agents/skills/commit-message
+# .agents/skills/grill-me
+# .agents/skills/caveman
+# .agents/skills/ponytail
+# My Skills: end
