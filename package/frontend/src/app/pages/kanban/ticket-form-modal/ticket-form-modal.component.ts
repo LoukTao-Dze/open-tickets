@@ -69,13 +69,12 @@ export class TicketFormModalComponent {
     private dialogRef: MatDialogRef<TicketFormModalComponent, TicketFormValue>,
     @Optional() @Inject(MAT_DIALOG_DATA) data: TicketFormModalData | null,
   ) {
-    console.info('\x1b[7;31;40m[DEBUGGER] ->> data\x1b[0m', data);
     this.projects = data?.projects ?? [];
     const ticket = data?.ticket;
     this.isEditMode = data?.action === TicketFormModalAction.EDIT;
     this.form = this.fb.group({
       columnId: this.fb.control<KanbanColumnId>(ticket?.columnId ?? 'todo', [Validators.required]),
-      title: this.fb.control(ticket?.title ?? '', [Validators.required, Validators.maxLength(120)]),
+      title: this.fb.control(ticket?.title ?? '', [Validators.required, Validators.maxLength(300)]),
       detail: this.fb.control(ticket?.detail ?? '', [Validators.maxLength(2000)]),
       priority: this.fb.control<KanbanPriority>(ticket?.priority ?? 'Low', [Validators.required]),
       projectId: this.fb.control(ticket?.project.id ?? this.projects[0]?.id ?? '', [

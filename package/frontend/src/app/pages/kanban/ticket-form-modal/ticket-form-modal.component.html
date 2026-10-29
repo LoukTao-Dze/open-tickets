@@ -10,7 +10,17 @@
     <div class="modal-fields">
       <label class="form-field">
         <span class="form-label">Title</span>
-        <input class="form-input" type="text" formControlName="title" placeholder="Ticket title" />
+        <textarea
+          class="form-input form-textarea"
+          formControlName="title"
+          rows="2"
+          placeholder="Title of the ticket"
+          [attr.aria-invalid]="form.get('title')?.touched && form.get('title')?.invalid"
+          aria-describedby="title-error"
+        ></textarea>
+        <ng-container
+          *ngTemplateOutlet="validationError; context: { $implicit: 'title', label: 'Title' }"
+        ></ng-container>
       </label>
 
       <label class="form-field">
@@ -20,24 +30,51 @@
           formControlName="detail"
           rows="5"
           placeholder="Describe the ticket"
+          [attr.aria-invalid]="form.get('detail')?.touched && form.get('detail')?.invalid"
+          aria-describedby="detail-error"
         ></textarea>
+        <ng-container
+          *ngTemplateOutlet="validationError; context: { $implicit: 'detail', label: 'Detail' }"
+        ></ng-container>
       </label>
 
       <div class="form-row">
         <label class="form-field">
           <span class="form-label">Priority</span>
-          <select class="form-input" formControlName="priority">
+          <select
+            class="form-input"
+            formControlName="priority"
+            [attr.aria-invalid]="form.get('priority')?.touched && form.get('priority')?.invalid"
+            aria-describedby="priority-error"
+          >
             <option *ngFor="let priority of priorities" [value]="priority">{{ priority }}</option>
           </select>
+          <ng-container
+            *ngTemplateOutlet="
+              validationError;
+              context: { $implicit: 'priority', label: 'Priority' }
+            "
+          ></ng-container>
         </label>
 
         <label class="form-field">
           <span class="form-label">Project</span>
-          <select class="form-input" formControlName="projectId">
+          <select
+            class="form-input"
+            formControlName="projectId"
+            [attr.aria-invalid]="form.get('projectId')?.touched && form.get('projectId')?.invalid"
+            aria-describedby="projectId-error"
+          >
             <option *ngFor="let project of projects" [value]="project.id">
               {{ project.project_name }}
             </option>
           </select>
+          <ng-container
+            *ngTemplateOutlet="
+              validationError;
+              context: { $implicit: 'projectId', label: 'Project' }
+            "
+          ></ng-container>
         </label>
       </div>
 
@@ -49,33 +86,87 @@
             type="text"
             formControlName="assigneeAlt"
             placeholder="Assignee name"
+            [attr.aria-invalid]="
+              form.get('assigneeAlt')?.touched && form.get('assigneeAlt')?.invalid
+            "
+            aria-describedby="assigneeAlt-error"
           />
+          <ng-container
+            *ngTemplateOutlet="
+              validationError;
+              context: { $implicit: 'assigneeAlt', label: 'Assignee' }
+            "
+          ></ng-container>
         </label>
         <label class="form-field">
           <span class="form-label">Meta</span>
-          <select class="form-input" formControlName="meta" [compareWith]="compareMeta">
+          <select
+            class="form-input"
+            formControlName="meta"
+            [compareWith]="compareMeta"
+            [attr.aria-invalid]="form.get('meta')?.touched && form.get('meta')?.invalid"
+            aria-describedby="meta-error"
+          >
             <option *ngFor="let meta of TICKET_META_ITEMS" [ngValue]="meta">
               {{ meta.label }}
             </option>
           </select>
+          <ng-container
+            *ngTemplateOutlet="validationError; context: { $implicit: 'meta', label: 'Meta' }"
+          ></ng-container>
         </label>
       </div>
 
       <div class="form-row">
         <label class="form-field">
           <span class="form-label">Task Type</span>
-          <select class="form-input" formControlName="taskType">
+          <select
+            class="form-input"
+            formControlName="taskType"
+            [attr.aria-invalid]="form.get('taskType')?.touched && form.get('taskType')?.invalid"
+            aria-describedby="taskType-error"
+          >
             <option *ngFor="let taskType of taskTypes" [value]="taskType">{{ taskType }}</option>
           </select>
+          <ng-container
+            *ngTemplateOutlet="
+              validationError;
+              context: { $implicit: 'taskType', label: 'Task Type' }
+            "
+          ></ng-container>
         </label>
 
         <label class="form-field">
           <span class="form-label">Job Type</span>
-          <select class="form-input" formControlName="jobType">
+          <select
+            class="form-input"
+            formControlName="jobType"
+            [attr.aria-invalid]="form.get('jobType')?.touched && form.get('jobType')?.invalid"
+            aria-describedby="jobType-error"
+          >
             <option *ngFor="let jobType of jobTypes" [value]="jobType">{{ jobType }}</option>
           </select>
+          <ng-container
+            *ngTemplateOutlet="
+              validationError;
+              context: { $implicit: 'jobType', label: 'Job Type' }
+            "
+          ></ng-container>
         </label>
       </div>
+
+      <ng-template #validationError let-controlName let-label="label">
+        @let control = form.get(controlName);
+        <span class="form-error" [id]="controlName + '-error'" aria-live="polite">
+          @if (control?.touched && control?.invalid) {
+            @if (control?.hasError('required')) {
+              {{ label }} is required.
+            } @else if (control?.getError('maxlength'); as lengthError) {
+              {{ label }} must be {{ lengthError.requiredLength }} characters or fewer.
+            }
+          }
+        </span>
+      </ng-template>
 
       <div class="form-row">
         <label class="form-field">

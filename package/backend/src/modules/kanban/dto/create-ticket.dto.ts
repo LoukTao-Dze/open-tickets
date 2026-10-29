@@ -34,7 +34,7 @@ export class CreateTicketDto {
   columnId: string;
 
   @IsString()
-  @MaxLength(120)
+  @MaxLength(300)
   title: string;
 
   @IsOptional()

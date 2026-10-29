@@ -48,6 +48,18 @@
   @apply resize-none;
 }
 
+.form-input.ng-invalid.ng-touched {
+  @apply border-red-500;
+}
+
+.form-error {
+  @apply text-body-sm text-red-500;
+}
+
+.form-error:empty {
+  display: none;
+}
+
 .modal-actions {
   @apply flex items-center justify-end gap-sm mt-md;
 }
