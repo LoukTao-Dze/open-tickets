@@ -14,13 +14,26 @@ Once the server is running, open your browser and navigate to `http://localhost:
 
 ## Route authentication
 
-All application pages except `/login` use `authGuard`. The guard checks for a
-non-empty `access_token` cookie on navigation and redirects to `/login` when
-the cookie is missing, expired, or unreadable. Login saves the cookie before
-navigating to `/workspace`.
+All application pages except `/login` use `authGuard`. The guard calls
+`GET /api/auth/session` with credentials on every navigation. The backend checks
+the HttpOnly session cookie against Redis; missing, expired or unavailable
+sessions redirect to `/login`.
 
-This is a client-side navigation check, not token verification. Protected backend
-endpoints must authenticate and authorize requests independently.
+Token login sends `{ token }` to `POST /api/auth/login/token`, verifies that the
+browser accepted the server's cookie by reading the session endpoint, then
+navigates to `/workspace`. JavaScript does not write or read authentication
+cookies or store JWTs. The old `byPass` token is no longer accepted.
+
+See the [backend setup](../backend/README.md#token-login-development-mock) for
+Redis, `JWT_SECRET`, and the command to generate a signed mock JWT. Google
+sign-in remains unavailable. Configure CORS and cookie settings for your
+deployment. Production uses relative `/api` URLs: nginx proxies them to the
+Compose backend, and Vercel rewrites them to the configured backend deployment.
+This keeps session cookies first-party; update the Vercel rewrite destination
+if the backend deployment changes.
+
+This guard controls navigation only. Protected backend business endpoints must
+authenticate and authorize requests independently.
 
 ### User profile and Google sign-in
 

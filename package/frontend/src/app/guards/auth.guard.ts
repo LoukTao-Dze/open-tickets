@@ -1,18 +1,23 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { AuthService } from '../services/auth.service';
 
-const ACCESS_TOKEN_COOKIE = 'access_token';
 const LOGIN_ROUTE = '/login';
 
-// Client-side navigation check only; protected APIs must validate the session server-side.
+// HttpOnly cookies are verified by the backend, never read by browser JavaScript.
 export const authGuard: CanActivateFn = async () => {
   const router = inject(Router);
+  const auth = inject(AuthService);
 
   try {
-    const cookie = await window.cookieStore.get(ACCESS_TOKEN_COOKIE);
-    return cookie?.value?.trim() ? true : router.parseUrl(LOGIN_ROUTE);
-  } catch {
-    console.error('Unable to read the session cookie; redirecting to login.');
+    await firstValueFrom(auth.getSession());
+    return true;
+  } catch (error: unknown) {
+    if (!(error instanceof HttpErrorResponse) || error.status !== 401) {
+      console.error('Unable to verify the session; redirecting to login.');
+    }
     return router.parseUrl(LOGIN_ROUTE);
   }
 };

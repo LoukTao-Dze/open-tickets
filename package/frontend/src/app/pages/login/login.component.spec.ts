@@ -1,114 +1,120 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
+import { AuthService } from '../../services/auth.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { LoginComponent } from './login.component';
 
 describe('LoginComponent', () => {
   const confirm = vi.fn(() => of(false));
+  const auth = { loginWithToken: vi.fn(), getSession: vi.fn() };
+  const session = {
+    user: {
+      user_id: 'mock-user',
+      username: 'mock-user',
+      auth_provider: 'token' as const,
+      role: 'guest' as const,
+    },
+    expires_at: '2026-10-30T00:00:00Z',
+  };
+  const submitEvent = () => new Event('submit', { cancelable: true }) as SubmitEvent;
 
   beforeEach(async () => {
-    confirm.mockClear();
+    vi.clearAllMocks();
+    auth.loginWithToken.mockReturnValue(of(session));
+    auth.getSession.mockReturnValue(of(session));
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
-      providers: [provideRouter([]), { provide: ConfirmDialogService, useValue: { confirm } }],
+      providers: [
+        provideRouter([]),
+        { provide: ConfirmDialogService, useValue: { confirm } },
+        { provide: AuthService, useValue: auth },
+      ],
     }).compileComponents();
   });
 
-  it('saves the session before navigating to the workspace', async () => {
-    const router = TestBed.inject(Router);
-    const navigateByUrl = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    const fixture = TestBed.createComponent(LoginComponent);
-    const saveCookie = vi
-      .spyOn(fixture.componentInstance, 'setCookieStore')
-      .mockImplementation(async () => {
-        expect(navigateByUrl).not.toHaveBeenCalled();
-      });
-    const event = new Event('submit', { cancelable: true }) as SubmitEvent;
+  afterEach(() => vi.restoreAllMocks());
 
-    await fixture.componentInstance.submitToken('byPass', event);
-
+  it('logs in and verifies the server session before navigating', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    const event = submitEvent();
+    await component.submitToken(' signed-jwt ', event);
     expect(event.defaultPrevented).toBe(true);
-    expect(saveCookie).toHaveBeenCalledWith('access_token', 'byPass');
-    expect(navigateByUrl).toHaveBeenCalledWith('/workspace');
+    expect(auth.loginWithToken).toHaveBeenCalledWith('signed-jwt');
+    expect(auth.getSession).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith('/workspace');
+    expect(component.isSubmitting).toBe(false);
   });
 
-  it('stays on login and reports a session cookie failure', async () => {
-    const navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl');
-    const fixture = TestBed.createComponent(LoginComponent);
-    vi.spyOn(fixture.componentInstance, 'setCookieStore').mockRejectedValue(
-      new Error('Cookie store unavailable'),
-    );
-    const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      await fixture.componentInstance.submitToken(
-        'byPass',
-        new Event('submit', { cancelable: true }) as SubmitEvent,
-      );
-
-      expect(navigateByUrl).not.toHaveBeenCalled();
-      expect(fixture.componentInstance.statusMessage).toContain('Unable to save your session');
-      expect(logError).toHaveBeenCalled();
-    } finally {
-      logError.mockRestore();
-    }
+  it('rejects empty input without calling the backend', async () => {
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    await component.submitToken('  ', submitEvent());
+    expect(auth.loginWithToken).not.toHaveBeenCalled();
+    expect(component.statusMessage).toContain('Enter an access token');
   });
 
-  it('calculates the expiry timestamp for the requested time unit', () => {
-    vi.useFakeTimers();
-    try {
-      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
-      const fixture = TestBed.createComponent(LoginComponent);
-
-      expect(fixture.componentInstance.generateTimeToExpiry(2, 'hours')).toBe(
-        Date.now() + 2 * 60 * 60 * 1000,
-      );
-    } finally {
-      vi.useRealTimers();
-    }
+  it.each([
+    [401, 'Invalid or expired'],
+    [429, 'Too many sign-in attempts'],
+    [503, 'Unable to sign in'],
+    [0, 'Unable to sign in'],
+  ])('stays on login for HTTP %s', async (status, message) => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl');
+    auth.loginWithToken.mockReturnValue(throwError(() => new HttpErrorResponse({ status })));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    await component.submitToken('jwt', submitEvent());
+    expect(navigate).not.toHaveBeenCalled();
+    expect(auth.getSession).not.toHaveBeenCalled();
+    expect(component.statusMessage).toContain(message);
+    expect(component.isSubmitting).toBe(false);
   });
 
-  it('allows switching between Google and token sign-in', () => {
+  it('does not navigate if the browser did not accept the session cookie', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl');
+    auth.getSession.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    await component.submitToken('jwt', submitEvent());
+    expect(navigate).not.toHaveBeenCalled();
+    expect(component.statusMessage).toBeTruthy();
+  });
+
+  it('prevents duplicate submissions while waiting', async () => {
+    const pending = new Subject<typeof session>();
+    auth.loginWithToken.mockReturnValue(pending);
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    const first = component.submitToken('jwt', submitEvent());
+    await component.submitToken('jwt', submitEvent());
+    expect(auth.loginWithToken).toHaveBeenCalledOnce();
+    expect(component.isSubmitting).toBe(true);
+    pending.next(session);
+    pending.complete();
+    await first;
+    expect(component.isSubmitting).toBe(false);
+  });
+
+  it('allows switching methods and toggling token visibility', () => {
     const fixture = TestBed.createComponent(LoginComponent);
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
-    const methodButtons = element.querySelectorAll<HTMLButtonElement>('.method-switch button');
-
     expect(element.querySelector('.google-button')).toBeTruthy();
-    expect(element.querySelector('#access-token')).toBeNull();
-
-    methodButtons[1].click();
+    element.querySelectorAll<HTMLButtonElement>('.method-switch button')[1].click();
     fixture.detectChanges();
-
     const tokenInput = element.querySelector<HTMLInputElement>('#access-token');
     expect(tokenInput?.type).toBe('password');
-    expect(element.querySelector('.google-button')).toBeNull();
-
     element.querySelector<HTMLButtonElement>('.visibility-button')?.click();
     fixture.detectChanges();
     expect(tokenInput?.type).toBe('text');
-
-    tokenInput!.value = 'preview-token';
-    element
-      .querySelector('form')
-      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    fixture.detectChanges();
-
-    expect(confirm).not.toHaveBeenCalled();
   });
 
-  it('shows an unavailable dialog when Google sign-in is not implemented', () => {
+  it('shows an unavailable dialog for Google sign-in', () => {
     const fixture = TestBed.createComponent(LoginComponent);
     fixture.detectChanges();
     fixture.nativeElement.querySelector('.google-button').click();
-
-    expect(confirm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Sign-in unavailable',
-        message: 'This sign-in option is not set up yet. Please try again later.',
-      }),
-    );
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sign-in unavailable' }));
   });
 });
