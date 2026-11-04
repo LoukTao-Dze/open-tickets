@@ -1,7 +1,4 @@
-import { Component, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
-import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
-import { AuthService, AuthSession } from '../services/auth.service';
+import { Component, inject } from '@angular/core';
 import { LayoutService } from '../services/layout.service';
 
 @Component({
@@ -13,56 +10,6 @@ import { LayoutService } from '../services/layout.service';
 })
 export class HeaderComponent {
   layout = inject(LayoutService);
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
-  readonly accountMenu = viewChild.required<ElementRef<HTMLDetailsElement>>('accountMenu');
-  readonly accountTrigger = viewChild.required<ElementRef<HTMLElement>>('accountTrigger');
-  readonly session = signal<AuthSession | null>(null);
-  readonly showProfile = signal(false);
-  readonly isLoadingProfile = signal(false);
-  readonly isLoggingOut = signal(false);
-  readonly accountError = signal('');
   src = '';
-  @HostListener('document:click', ['$event'])
-  closeOnOutsideClick(event: MouseEvent): void {
-    if (event.target instanceof Node && !this.accountMenu().nativeElement.contains(event.target)) {
-      this.accountMenu().nativeElement.open = false;
-    }
-  }
-
-  @HostListener('document:keydown.escape')
-  closeOnEscape(): void {
-    if (!this.accountMenu().nativeElement.open) return;
-    this.accountMenu().nativeElement.open = false;
-    this.accountTrigger().nativeElement.focus();
-  }
-
-  async toggleProfile(): Promise<void> {
-    this.showProfile.update((isVisible) => !isVisible);
-    if (!this.showProfile() || this.session() || this.isLoadingProfile()) return;
-    this.isLoadingProfile.set(true);
-    this.accountError.set('');
-    try {
-      this.session.set(await firstValueFrom(this.auth.getSession()));
-    } catch {
-      this.accountError.set('Unable to load profile. Close and reopen Profile to retry.');
-    } finally {
-      this.isLoadingProfile.set(false);
-    }
-  }
-
-  async logout(): Promise<void> {
-    if (this.isLoggingOut()) return;
-    this.isLoggingOut.set(true);
-    this.accountError.set('');
-    try {
-      await firstValueFrom(this.auth.logout());
-      await this.router.navigateByUrl('/login');
-    } catch {
-      console.error('Account logout failed.');
-      this.accountError.set('Unable to log out. Please try again.');
-    } finally {
-      this.isLoggingOut.set(false);
-    }
-  }
+  //'https://lh3.googleusercontent.com/aida-public/AB6AXuBVgfOzMV3fpDh3uhW0PqjyR7BeJWGrSSC92egleKVb9teQiAzXOTK28YvNHftQV19_f7vj0GdM7vKVX7KhOF7MQX6yEhcw9YYi9-RMcaeLSme6X-x7WMUo08ZPW5hJ6rXu_-OAVckmxljFaB0S679Rh4d5yzFPh1hv4lsaKtWwSioxgmMGs5kGz3hh7V7N5WmMqrkTAGKqc2GqNDHY6SfNIh70WfBig3RRR_iqt5uJbCnC3WZdBtAT9VjmEAjumbntP9mM-0g1CGVn';
 }

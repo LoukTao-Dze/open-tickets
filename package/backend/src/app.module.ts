@@ -7,7 +7,6 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { CanvasModule } from './modules/canvas/canvas.module';
 import { KanbanModule } from './modules/kanban/kanban.module';
 import { ProjectsModule } from './modules/projects/projects.module';
-import { AuthModule } from './auth/auth.module';
 //TODO: Uncomment these modules when ready to use Discord functionality
 // import { DiscordModule } from './modules/discord/discord.module';
 // import { MessageModule } from './modules/message/message.module';
@@ -19,7 +18,6 @@ import { AuthModule } from './auth/auth.module';
       isGlobal: true,
     }),
     SupabaseModule,
-    AuthModule,
     HttpModule,
     CanvasModule,
     KanbanModule,

@@ -1,17 +1,3 @@
 :host {
   display: contents;
 }
-
-.account-trigger {
-  list-style: none;
-
-  &::-webkit-details-marker {
-    display: none;
-  }
-}
-
-.account-trigger:focus-visible,
-.account-action:focus-visible {
-  outline: 2px solid #a2c9ff;
-  outline-offset: 2px;
-}
