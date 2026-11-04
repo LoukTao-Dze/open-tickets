@@ -17,7 +17,7 @@ const REQUIRED_FIELDS = [
   ['jobType', 'Job Type'],
 ] as const;
 const LENGTH_LIMITS = [
-  ['title', 'Title', 120],
+  ['title', 'Title', 300],
   ['detail', 'Detail', 2000],
   ['assigneeAlt', 'Assignee', 80],
 ] as const;
