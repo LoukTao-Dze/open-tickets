@@ -37,20 +37,76 @@
     >
       settings
     </button>
-    <div
-      class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant"
-    >
-      @if (src) {
-        <img class="h-full w-full object-cover" alt="Lead Engineer Profile" [src]="src" />
-      } @else {
-        <span
-          class="material-symbols-outlined flex h-full w-full items-center justify-center text-on-surface-variant"
-          style="display: flex"
-          aria-label="Lead Engineer Profile"
-          role="img"
-          >account_circle</span
+    <details #accountMenu class="account-menu relative">
+      <summary
+        #accountTrigger
+        class="account-trigger flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-outline-variant text-on-surface-variant hover:bg-surface-container-highest"
+        aria-label="Account options"
+      >
+        @if (src) {
+          <img class="h-full w-full object-cover" alt="" [src]="src" />
+        } @else {
+          <span
+            class="material-symbols-outlined flex h-full w-full items-center justify-center text-on-surface-variant"
+            style="display: flex"
+            aria-hidden="true"
+            >account_circle</span
+          >
+        }
+      </summary>
+      <section
+        class="account-panel absolute right-0 top-full mt-sm w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-outline-variant bg-surface-container p-sm text-body-sm font-body-sm text-on-surface shadow-lg"
+        aria-label="Account options"
+      >
+        <button
+          type="button"
+          class="account-action flex w-full items-center gap-sm rounded-lg px-sm py-sm text-left hover:bg-surface-container-highest"
+          aria-controls="account-profile"
+          [attr.aria-expanded]="showProfile()"
+          (click)="toggleProfile()"
         >
-      }
-    </div>
+          <span class="material-symbols-outlined text-primary" aria-hidden="true">person</span>
+          Profile
+          <span
+            class="material-symbols-outlined ml-auto text-on-surface-variant"
+            aria-hidden="true"
+          >
+            {{ showProfile() ? 'expand_less' : 'expand_more' }}
+          </span>
+        </button>
+        <div id="account-profile" [hidden]="!showProfile()" class="px-sm py-sm">
+          @if (isLoadingProfile()) {
+            <p role="status" class="text-on-surface-variant">Loading profile...</p>
+          }
+          @if (session(); as profile) {
+            <dl class="flex flex-col gap-sm">
+              <div>
+                <dt class="font-bold text-on-surface-variant">Username :</dt>
+                <dd class="break-words text-xs">{{ profile.user.username }}</dd>
+              </div>
+              <div>
+                <dt class="font-bold text-on-surface-variant">Role :</dt>
+                <dd class="capitalize text-xs">{{ profile.user.role }}</dd>
+              </div>
+            </dl>
+          }
+        </div>
+        <div class="my-xs border-t border-outline-variant"></div>
+        <button
+          type="button"
+          class="account-action flex w-full items-center gap-sm rounded-lg px-sm py-sm text-left hover:bg-surface-container-highest disabled:cursor-wait disabled:opacity-60"
+          [disabled]="isLoggingOut()"
+          (click)="logout()"
+        >
+          <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true"
+            >logout</span
+          >
+          {{ isLoggingOut() ? 'Logging out...' : 'Logout' }}
+        </button>
+        @if (accountError()) {
+          <p role="alert" class="px-sm py-sm text-error">{{ accountError() }}</p>
+        }
+      </section>
+    </details>
   </div>
 </header>

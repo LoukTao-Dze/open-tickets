@@ -8,6 +8,10 @@ services:
       - ./package/backend/.env
     environment:
       - PORT=3000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - open-ticket
@@ -17,6 +21,22 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - open-ticket
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build: ./package/frontend
@@ -35,6 +55,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+volumes:
+  redis-data:
 
 networks:
   open-ticket:

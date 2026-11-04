@@ -27,6 +27,108 @@
 
 ## Project setup
 
+### Token login (development mock)
+
+`POST /api/auth/login/token` accepts `{ "token": "<signed JWT>" }`.
+The controller validates input and rate-limits each client IP to 10 attempts per
+minute using Redis. The service verifies **HS256**, issuer `open-ticket`, audience
+`open-ticket-login`, expiry, and non-empty `sub` / `username` claims.
+The mock user always has the `guest` role; submitted role claims are not trusted.
+There is deliberately no public endpoint that issues mock tokens.
+
+Configure these values in `package/backend/.env` (do not commit secrets):
+
+```dotenv
+REDIS_URL=redis://127.0.0.1:6379
+JWT_SECRET=<generate a random secret of at least 32 bytes>
+# Only for local HTTP development; omit or set true for HTTPS.
+AUTH_COOKIE_SECURE=false
+AUTH_COOKIE_SAME_SITE=lax
+CORS_ORIGINS=http://localhost:9998,http://localhost:4200
+```
+
+Generate a signing secret with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`,
+then save it as `JWT_SECRET`. Keep the existing Supabase configuration as well.
+Existing environment files must also include these new keys; updating
+`.env.example` does not update `.env`. Missing `REDIS_URL` or `JWT_SECRET` stops
+startup deliberately. After changing `.env`, restart the backend. Run the
+backend from its package directory or use `npm run start:backend` from the
+repository root so Nest loads `package/backend/.env`.
+
+From the repository root, start Redis for a locally running backend:
+
+```bash
+docker compose up -d redis
+```
+
+Or run the full stack with `docker compose up -d --build`; Compose overrides
+`REDIS_URL` to `redis://redis:6379` for the backend. Redis data is stored in the
+`redis-data` volume, and its host port is bound to loopback only. Use a protected
+Redis deployment and `rediss://` with authentication outside local development.
+
+Create a one-hour JWT with a mock identity from the `package/backend` directory:
+
+```bash
+node --env-file=.env -e '
+const { JwtService } = require("@nestjs/jwt");
+if (!process.env.JWT_SECRET || Buffer.byteLength(process.env.JWT_SECRET) < 32) {
+  throw new Error("JWT_SECRET must contain at least 32 bytes");
+}
+console.log(new JwtService().sign(
+  { sub: "mock-user", username: "mock-user" },
+  { secret: process.env.JWT_SECRET, algorithm: "HS256",
+    issuer: "open-ticket", audience: "open-ticket-login", expiresIn: "1h" }
+));
+'
+```
+
+Paste that JWT into the login page's **Access token** field. A successful response
+is `{ user: { user_id, username, auth_provider: "token", role: "guest" }, expires_at }`.
+The backend generates a new cryptographically random session ID and sends it in
+the `open_ticket_session` cookie (`HttpOnly`, `Secure` by default, `SameSite=Lax`,
+`Path=/api`). Only a SHA-256 hash of that session ID is used in the Redis key:
+`auth:session:<hash>`. Its JSON value contains the mock profile and expiry, not
+the JWT. TTL is the shorter of the JWT's remaining lifetime and 24 hours.
+
+`GET /api/auth/session` validates the cookie against Redis and returns the same
+profile. Missing/expired sessions return `401`; Redis failures return `503`
+without issuing a session cookie. Authentication responses use `Cache-Control:
+no-store`. Changing `JWT_SECRET` rejects old JWTs but does not revoke already
+created sessions; those expire via Redis TTL.
+
+### Logout from Postman
+
+Send `POST http://localhost:3000/api/auth/logout` with no body and the current
+session cookie (not the login JWT):
+
+```http
+Cookie: open_ticket_session=<session ID from the login response cookie>
+```
+
+Postman's cookie jar can send this automatically after login on the same host.
+For local HTTP, configure `AUTH_COOKIE_SECURE=false`; HTTPS should keep it true.
+Do not include an `Origin` header unless it is listed in `CORS_ORIGINS`.
+
+The endpoint deletes only `auth:session:<SHA-256 of session ID>` and expires the
+cookie using the same path and security settings as login. Success returns
+`204 No Content`, including when the session was already removed. Missing or
+malformed cookies return `401`; Redis failures return `503` without clearing
+the cookie. No arbitrary key deletion or Redis flush is exposed.
+Other sessions and login rate-limit keys remain untouched. Logout revokes this
+session only; an unexpired login JWT can still create a new session.
+
+For cross-site HTTPS frontend/backend deployments, configure
+`AUTH_COOKIE_SECURE=true`, `AUTH_COOKIE_SAME_SITE=none`, and explicit
+`CORS_ORIGINS`. Browsers may block third-party cookies; a same-origin API proxy
+is recommended. Behind a reverse proxy the limiter uses Express's default
+socket IP; configure trusted proxies deliberately before relying on per-user
+IP limits. Do not blindly trust client-supplied forwarding headers.
+
+This implements login and session verification only. Existing business endpoints
+still need server-side authentication and resource-level authorization before
+production use. Google OAuth, refresh and real user lookup are not implemented.
+
 ```bash
 $ yarn install
 ```
