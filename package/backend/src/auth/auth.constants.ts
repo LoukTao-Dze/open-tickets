@@ -1,0 +1,9 @@
+export const SESSION_COOKIE = 'open_ticket_session';
+export const SESSION_PREFIX = 'auth:session:';
+export const SESSION_MAX_SECONDS = 86400;
+export const JWT_ISSUER = 'open-ticket';
+export const JWT_AUDIENCE = 'open-ticket-login';
+export const LOGIN_WINDOW_SECONDS = 60;
+export const LOGIN_ATTEMPT_LIMIT = 10;
+export const MAX_TOKEN_LENGTH = 8192;
+export const SESSION_ID_PATTERN = /^[a-f0-9]{64}$/;
