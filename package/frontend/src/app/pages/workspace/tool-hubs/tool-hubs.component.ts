@@ -21,7 +21,8 @@ export type InsertableWorkspaceItemType =
   | EnumWorkspaceItemType.TEXT
   | EnumWorkspaceItemType.LINK
   | EnumWorkspaceItemType.CODE_SNIPPET
-  | EnumWorkspaceItemType.IMAGE;
+  | EnumWorkspaceItemType.IMAGE
+  | EnumWorkspaceItemType.MARKDOWN;
 
 export interface InsertToolEvent {
   type: InsertableWorkspaceItemType;
@@ -42,6 +43,7 @@ const INSERTABLE_TOOL_TYPES: ReadonlySet<EnumWorkspaceItemType> = new Set([
   EnumWorkspaceItemType.LINK,
   EnumWorkspaceItemType.CODE_SNIPPET,
   EnumWorkspaceItemType.IMAGE,
+  EnumWorkspaceItemType.MARKDOWN,
   EnumWorkspaceItemType.STICKY_NOTE,
 ]);
 
@@ -75,6 +77,7 @@ export class ToolHubsComponent {
     { id: EnumWorkspaceItemType.LINK, icon: 'link', isActive: true },
     { id: EnumWorkspaceItemType.IMAGE, icon: 'image', isActive: true },
     { id: EnumWorkspaceItemType.CODE_SNIPPET, icon: 'code', isActive: true },
+    { id: EnumWorkspaceItemType.MARKDOWN, icon: 'markdown', isActive: true },
   ];
 
   readonly historyTools: ToolHubsButton[] = [

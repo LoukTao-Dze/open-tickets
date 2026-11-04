@@ -1,0 +1,39 @@
+<div
+  class="markdown-item-wrapper"
+  [class.is-editing]="isEditing"
+  [style.--resize-handle-scale]="1 / zoom"
+  [style.width.px]="item.width"
+  [style.height.px]="item.height"
+>
+  @if (isEditing) {
+    <textarea
+      #sourceInput
+      class="markdown-source"
+      spellcheck="false"
+      aria-label="Markdown source"
+      [value]="item.content"
+      (input)="onContentInput(sourceInput.value)"
+      (mousedown)="onSourceMouseDown($event)"
+      (blur)="stopEditing()"
+    ></textarea>
+  } @else {
+    <div
+      class="markdown-preview"
+      tabindex="0"
+      role="article"
+      (dblclick)="startEditing()"
+      (keydown.enter)="startEditing()"
+    >
+      @if (isEmpty) {
+        <p class="markdown-placeholder">Double-click to write Markdown.</p>
+      } @else {
+        <div class="markdown-body" [innerHTML]="previewHtml"></div>
+      }
+    </div>
+  }
+
+  <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
+  <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
+  <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>
+  <div class="resize-handle resize-handle--se" (mousedown)="onResizeMouseDown($event, 'se')"></div>
+</div>
