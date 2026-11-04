@@ -32,6 +32,20 @@
     </div>
   }
 
+  @if (!isEmpty) {
+    <button
+      type="button"
+      class="markdown-download"
+      title="Download as .md"
+      aria-label="Download as .md"
+      (mousedown)="onDownloadMouseDown($event)"
+      (click)="download()"
+    >
+      <span class="material-symbols-outlined">download</span>
+      <span>.md</span>
+    </button>
+  }
+
   <div class="resize-handle resize-handle--nw" (mousedown)="onResizeMouseDown($event, 'nw')"></div>
   <div class="resize-handle resize-handle--ne" (mousedown)="onResizeMouseDown($event, 'ne')"></div>
   <div class="resize-handle resize-handle--sw" (mousedown)="onResizeMouseDown($event, 'sw')"></div>

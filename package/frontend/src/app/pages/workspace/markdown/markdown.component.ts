@@ -14,6 +14,7 @@ import {
   ResizeStart,
   startResize,
 } from '../shared/item-resize.util';
+import { downloadMarkdown } from '../shared/markdown-download.util';
 import { renderMarkdown } from '../shared/markdown-render.util';
 
 const MIN_WIDTH = 200;
@@ -64,6 +65,16 @@ export class MarkdownComponent {
 
   onSourceMouseDown(event: MouseEvent) {
     event.stopPropagation();
+  }
+
+  // Keeps focus (and the editing state) on the note and stops the board from starting a drag.
+  onDownloadMouseDown(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  download() {
+    downloadMarkdown(this.item.content);
   }
 
   startEditing() {
