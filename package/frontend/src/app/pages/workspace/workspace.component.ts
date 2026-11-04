@@ -15,6 +15,7 @@ import { UploadedImageComponent } from './uploaded-image/uploaded-image.componen
 import { CodeSnippetComponent } from './code-snippet/code-snippet.component';
 import { TextComponent } from './text/text.component';
 import { LinkComponent } from './link/link.component';
+import { MarkdownComponent } from './markdown/markdown.component';
 import { ToolHubsComponent, InsertToolEvent } from './tool-hubs/tool-hubs.component';
 import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
 import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.interface';
@@ -50,6 +51,9 @@ const SAVE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/save-can
 const GET_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/get-canvas-item`;
 const DELETE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/delete-canvas-item`;
 const GET_ALL_PROJECTS_ENDPOINT = `${environment.apiBaseUrl}/api/projects`;
+const DEFAULT_MARKDOWN_WIDTH = 360;
+const DEFAULT_MARKDOWN_HEIGHT = 280;
+const DEFAULT_MARKDOWN_CONTENT = '# Untitled\n\nWrite **Markdown** here.';
 
 interface SaveCanvasItemResponse {
   data: {
@@ -74,6 +78,7 @@ interface ViewportState {
     CodeSnippetComponent,
     TextComponent,
     LinkComponent,
+    MarkdownComponent,
     ToolHubsComponent,
   ],
   templateUrl: './workspace.component.html',
@@ -699,6 +704,17 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           language: DEFAULT_CODE_SNIPPET_LANGUAGE,
           width: DEFAULT_CODE_SNIPPET_WIDTH,
           height: DEFAULT_CODE_SNIPPET_HEIGHT,
+        };
+      case EnumWorkspaceItemType.MARKDOWN:
+        return {
+          projectId,
+          type: EnumWorkspaceItemType.MARKDOWN,
+          x: center.x - DEFAULT_MARKDOWN_WIDTH / 2,
+          y: center.y - DEFAULT_MARKDOWN_HEIGHT / 2,
+          zIndex: 0,
+          content: DEFAULT_MARKDOWN_CONTENT,
+          width: DEFAULT_MARKDOWN_WIDTH,
+          height: DEFAULT_MARKDOWN_HEIGHT,
         };
       case EnumWorkspaceItemType.IMAGE:
         return {

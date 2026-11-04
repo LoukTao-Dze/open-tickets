@@ -36,6 +36,14 @@ export interface DiscordMessageResponse {
   tts: boolean;
   webhook_id: string;
 }
+const CANVAS_ITEM_TABLE_BY_TYPE: Record<string, string> = {
+  'sticky-note': 'sticky_notes',
+  image: 'images',
+  'code-snippet': 'code_snippets',
+  text: 'texts',
+  link: 'links',
+  markdown: 'markdown_items',
+};
 
 export interface Attachment {
   id: string;

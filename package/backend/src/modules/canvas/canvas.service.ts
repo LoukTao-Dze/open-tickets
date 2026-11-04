@@ -24,6 +24,7 @@ const CANVAS_ITEM_TABLE_BY_TYPE: Record<string, string> = {
   'code-snippet': 'code_snippets',
   text: 'texts',
   link: 'links',
+  markdown: 'markdown_items',
 };
 
 const CANVAS_ITEM_TYPE_BY_TABLE: Record<string, string> = Object.fromEntries(

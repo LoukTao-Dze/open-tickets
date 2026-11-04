@@ -63,8 +63,20 @@ export interface LinkItem extends CanvasItemBase {
   height: number;
 }
 
+export interface MarkdownItem extends CanvasItemBase {
+  type: EnumWorkspaceItemType.MARKDOWN;
+  content: string;
+  width: number;
+  height: number;
+}
+
 export type WorkspaceCanvasItem =
-  StickyNoteItem | UploadedImageItem | CodeSnippetItem | TextItem | LinkItem;
+  | StickyNoteItem
+  | UploadedImageItem
+  | CodeSnippetItem
+  | TextItem
+  | LinkItem
+  | MarkdownItem;
 
 export interface Whiteboard {
   id: string;

@@ -4,6 +4,7 @@ export enum EnumWorkspaceItemType {
   CODE_SNIPPET = 'code-snippet',
   TEXT = 'text',
   LINK = 'link',
+  MARKDOWN = 'markdown',
   SHAPES = 'shapes',
   SELECT = 'select',
   PEN = 'pen',

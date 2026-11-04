@@ -94,6 +94,9 @@
             @case (EnumWorkspaceItemType.LINK) {
               <app-link [item]="item" [zoom]="zoom"></app-link>
             }
+            @case (EnumWorkspaceItemType.MARKDOWN) {
+              <app-markdown [item]="item" [zoom]="zoom"></app-markdown>
+            }
             @default {}
           }
         </div>
