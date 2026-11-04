@@ -7,14 +7,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient } from 'redis';
 import { LOGIN_WINDOW_SECONDS } from './auth.constants';
+import { SessionStore } from './session-store';
 
 @Injectable()
-export class RedisService implements OnModuleDestroy {
+export class RedisService extends SessionStore implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private readonly client: ReturnType<typeof createClient>;
   private connection?: Promise<unknown>;
 
   constructor(config: ConfigService) {
+    super();
     this.client = createClient({
       url: config.getOrThrow<string>('REDIS_URL'),
       socket: { connectTimeout: 5000, reconnectStrategy: false },

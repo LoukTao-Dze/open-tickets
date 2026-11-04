@@ -19,6 +19,8 @@ describe('LoginComponent', () => {
     },
     expires_at: '2026-10-30T00:00:00Z',
   };
+  const tokenInput = (value: string) =>
+    Object.assign(document.createElement('input'), { value });
   const submitEvent = () => new Event('submit', { cancelable: true }) as SubmitEvent;
 
   beforeEach(async () => {
@@ -41,7 +43,7 @@ describe('LoginComponent', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const component = TestBed.createComponent(LoginComponent).componentInstance;
     const event = submitEvent();
-    await component.submitToken(' signed-jwt ', event);
+    await component.submitToken(tokenInput(' signed-jwt '), event);
     expect(event.defaultPrevented).toBe(true);
     expect(auth.loginWithToken).toHaveBeenCalledWith('signed-jwt');
     expect(auth.getSession).toHaveBeenCalledOnce();
@@ -52,7 +54,7 @@ describe('LoginComponent', () => {
 
   it('rejects empty input without calling the backend', async () => {
     const component = TestBed.createComponent(LoginComponent).componentInstance;
-    await component.submitToken('  ', submitEvent());
+    await component.submitToken(tokenInput('  '), submitEvent());
     expect(auth.loginWithToken).not.toHaveBeenCalled();
     expect(component.statusMessage).toContain('Enter an access token');
   });
@@ -67,7 +69,7 @@ describe('LoginComponent', () => {
     auth.loginWithToken.mockReturnValue(throwError(() => new HttpErrorResponse({ status })));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const component = TestBed.createComponent(LoginComponent).componentInstance;
-    await component.submitToken('jwt', submitEvent());
+    await component.submitToken(tokenInput('jwt'), submitEvent());
     expect(navigate).not.toHaveBeenCalled();
     expect(auth.getSession).not.toHaveBeenCalled();
     expect(component.statusMessage).toContain(message);
@@ -78,7 +80,7 @@ describe('LoginComponent', () => {
     auth.loginWithToken.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const component = TestBed.createComponent(LoginComponent).componentInstance;
-    await component.submitToken('jwt', submitEvent());
+    await component.submitToken(tokenInput('jwt'), submitEvent());
     expect(confirm).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Sign-in failed',
@@ -91,7 +93,7 @@ describe('LoginComponent', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl');
     auth.getSession.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
     const component = TestBed.createComponent(LoginComponent).componentInstance;
-    await component.submitToken('jwt', submitEvent());
+    await component.submitToken(tokenInput('jwt'), submitEvent());
     expect(navigate).not.toHaveBeenCalled();
     expect(component.statusMessage).toBeTruthy();
   });
@@ -101,8 +103,8 @@ describe('LoginComponent', () => {
     auth.loginWithToken.mockReturnValue(pending);
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const component = TestBed.createComponent(LoginComponent).componentInstance;
-    const first = component.submitToken('jwt', submitEvent());
-    await component.submitToken('jwt', submitEvent());
+    const first = component.submitToken(tokenInput('jwt'), submitEvent());
+    await component.submitToken(tokenInput('jwt'), submitEvent());
     expect(auth.loginWithToken).toHaveBeenCalledOnce();
     expect(component.isSubmitting).toBe(true);
     pending.next(session);
