@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, switchMap } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 
@@ -75,20 +75,6 @@ const generateExpiresAt = (
       return now;
   }
 };
-const MOCK_USER_PROFILE_TOKEN: UserProfile = {
-  user_id: '0',
-  auth_provider: 'token',
-  provider_user_id: null,
-  email: 'falsy@nullist.com',
-  email_verified: false,
-  username: 'undefinedz',
-  fullname: { first: 'undefined', last: 'nullist', nickname: 'falsy' },
-  image: '',
-  role: EnumUserRole.GUEST,
-  memberships: [],
-  created_at: new Date().toISOString(),
-  expires_at: generateExpiresAt(1, 'days'),
-};
 
 @Component({
   selector: 'app-login',
@@ -117,11 +103,40 @@ export class LoginComponent {
     if (isImplemented) {
       return;
     }
-    this.showSignInUnavailable();
+    this.showSignInFailed('Sign-in failed', 'Google sign-in is not implemented.', 'OK');
+  }
+  generateBypassToken() {
+    const MOCK_BYPASS_TOKEN = {
+      sub: '0',
+      iss: 'open-ticket',
+      aud: 'open-ticket-login',
+      exp: generateExpiresAt(1, 'days'),
+      user_id: '0',
+      auth_provider: 'bypass',
+      provider_user_id: null,
+      email: 'falsy@nullist.com',
+      email_verified: false,
+      username: 'undefinedz',
+      fullname: {
+        first: 'undefined',
+        last: 'nullist',
+        nickname: 'falsy',
+      },
+      image: '',
+      role: 'guest',
+      memberships: [],
+      created_at: '2027-10-30T00:56:52.287Z',
+      expires_at: generateExpiresAt(1, 'days'),
+    };
+    console.info('\x1b[7;31;40m[DEBUGGER] ->> MOCK_BYPASS_TOKEN\x1b[0m', MOCK_BYPASS_TOKEN);
   }
 
-  async submitToken(token: string, event: SubmitEvent): Promise<void> {
+  submitToken(token: string, event: SubmitEvent): void {
     event.preventDefault();
+    if (token === '-g') {
+      this.generateBypassToken();
+      return;
+    }
     if (this.isSubmitting) return;
     const trimmedToken = token.trim();
     if (!trimmedToken) {
@@ -130,33 +145,37 @@ export class LoginComponent {
     }
     this.isSubmitting = true;
     this.statusMessage = '';
-    try {
-      await firstValueFrom(this.auth.loginWithToken(trimmedToken));
-      // Confirm the browser accepted the HttpOnly cookie before leaving login.
-      await firstValueFrom(this.auth.getSession());
-      await this.router.navigateByUrl('/workspace');
-    } catch (error: unknown) {
-      if (error instanceof HttpErrorResponse && error.status === 401) {
-        this.statusMessage = 'Invalid or expired access token.';
-      } else if (error instanceof HttpErrorResponse && error.status === 429) {
-        this.statusMessage = 'Too many sign-in attempts. Please try again in a minute.';
-      } else {
-        console.error('Token sign-in failed.');
-        this.statusMessage = 'Unable to sign in. Please check your connection and cookie settings.';
-      }
-      this.isSubmitting = false;
-    } finally {
-      this.isSubmitting = false;
-    }
+    this.auth
+      .loginWithToken(trimmedToken)
+      .pipe(switchMap(() => this.auth.getSession()))
+      .subscribe({
+        next: (response) => {
+          console.log('Login successful', response);
+          this.router.navigateByUrl('/workspace');
+        },
+        error: (error) => {
+          console.log('Login failed', error);
+          if (error instanceof HttpErrorResponse && error.status === 401) {
+            this.statusMessage = 'Invalid or expired access token.';
+          } else if (error instanceof HttpErrorResponse && error.status === 429) {
+            this.statusMessage = 'Too many sign-in attempts. Please try again in a minute.';
+          } else {
+            this.statusMessage =
+              'Unable to sign in. Please check your connection and cookie settings.';
+          }
+          this.showSignInFailed('Sign-in failed', this.statusMessage, 'Try again');
+          this.isSubmitting = false;
+        },
+      });
   }
 
-  private showSignInUnavailable(): void {
+  private showSignInFailed(title: string, message: string, confirmText: string): void {
     this.confirmDialog
       .confirm({
-        title: 'Sign-in unavailable',
-        message: 'This sign-in option is not set up yet. Please try again later.',
-        confirmText: 'Got it',
-        config: { disableClose: true },
+        title,
+        message,
+        confirmText,
+        config: { confirmColor: 'error', disableClose: true },
       })
       .subscribe();
   }

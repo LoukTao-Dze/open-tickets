@@ -29,4 +29,8 @@ export class AuthService {
   getSession(): Observable<AuthSession> {
     return this.http.get<AuthSession>(`${this.baseUrl}/session`, { withCredentials: true });
   }
+
+  logout(): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/logout`, {}, { withCredentials: true });
+  }
 }

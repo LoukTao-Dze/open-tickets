@@ -34,7 +34,7 @@ export class App {
     });
     this.auth.getSession().subscribe({
       next: (session) => {
-        console.log('Session:', session);
+        localStorage.setItem('session', JSON.stringify(session));
       },
       error: (err) => {
         console.warn('Failed to get session:', err);

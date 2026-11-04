@@ -73,6 +73,19 @@ describe('LoginComponent', () => {
     expect(component.isSubmitting).toBe(false);
   });
 
+  it('shows a sign-in failed popup when loginWithToken errors', async () => {
+    auth.loginWithToken.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    await component.submitToken('jwt', submitEvent());
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Sign-in failed',
+        message: 'Invalid or expired access token.',
+      }),
+    );
+  });
+
   it('does not navigate if the browser did not accept the session cookie', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl');
     auth.getSession.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));

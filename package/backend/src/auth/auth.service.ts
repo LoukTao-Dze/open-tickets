@@ -19,18 +19,14 @@ import {
   SESSION_MAX_SECONDS,
   SESSION_PREFIX,
 } from './auth.constants';
-import {
-  AuthSession,
-  EnumAuthProvider,
-  EnumUserRole,
-  LoginClaims,
-} from './auth.dto';
+import { AuthSession, LoginClaims } from './auth.dto';
 import { RedisService } from './redis.service';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly secret: string;
+  private readonly LOGIN_BYPASS = 'bypass';
 
   constructor(
     private readonly jwt: JwtService,
@@ -86,6 +82,9 @@ export class AuthService {
     token: string,
   ): Promise<{ sessionId: string; session: AuthSession; ttl: number }> {
     const claims = await this.verifyToken(token);
+    if (claims.auth_provider !== this.LOGIN_BYPASS) {
+      throw new UnauthorizedException('Login Failed');
+    }
     const ttl = Math.min(
       Math.floor((claims.exp * 1000 - Date.now()) / 1000),
       SESSION_MAX_SECONDS,

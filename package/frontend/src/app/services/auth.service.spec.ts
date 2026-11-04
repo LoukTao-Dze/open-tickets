@@ -32,4 +32,15 @@ describe('AuthService', () => {
     expect(request.request.withCredentials).toBe(true);
     request.flush({});
   });
+
+  it('logs out through the backend with credentials enabled', () => {
+    TestBed.inject(AuthService).logout().subscribe();
+    const request = TestBed.inject(HttpTestingController).expectOne(
+      `${environment.apiBaseUrl}/api/auth/logout`,
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    expect(request.request.withCredentials).toBe(true);
+    request.flush(null, { status: 204, statusText: 'No Content' });
+  });
 });
