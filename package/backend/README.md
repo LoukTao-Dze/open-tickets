@@ -47,6 +47,13 @@ AUTH_COOKIE_SAME_SITE=lax
 CORS_ORIGINS=http://localhost:9998,http://localhost:4200
 ```
 
+Set `USE_REDIS=false` to store sessions and login-attempt counters in Supabase
+(tables `auth_sessions` / `auth_login_attempts`, migration
+`009_create_auth_session_tables.sql`) instead of Redis. `REDIS_URL` is then not
+used. Each session row holds `session_id` (SHA-256 hash of the cookie ID), `session`,
+`ttl`, `auth_provider`, `expires_at`, `create_date` and `update_date`; logging in
+again with the same `session_id` updates the row. Any other value (or unset) keeps Redis.
+
 Generate a signing secret with
 `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`,
 then save it as `JWT_SECRET`. Keep the existing Supabase configuration as well.

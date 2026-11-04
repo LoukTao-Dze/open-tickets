@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, switchMap } from 'rxjs';
@@ -86,6 +86,7 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly auth = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
   selectedMethod: LoginMethod = 'google';
   isTokenVisible = false;
   statusMessage = '';
@@ -131,16 +132,17 @@ export class LoginComponent {
     console.info('\x1b[7;31;40m[DEBUGGER] ->> MOCK_BYPASS_TOKEN\x1b[0m', MOCK_BYPASS_TOKEN);
   }
 
-  submitToken(token: string, event: SubmitEvent): void {
+  submitToken(inputToken: HTMLInputElement, event: SubmitEvent): void {
     event.preventDefault();
-    if (token === '-g') {
+    if (inputToken.value === '-g') {
       this.generateBypassToken();
       return;
     }
     if (this.isSubmitting) return;
-    const trimmedToken = token.trim();
+    const trimmedToken = inputToken.value.trim();
     if (!trimmedToken) {
       this.statusMessage = 'Enter an access token to continue.';
+      this.cdr.detectChanges();
       return;
     }
     this.isSubmitting = true;
@@ -154,6 +156,7 @@ export class LoginComponent {
           this.router.navigateByUrl('/workspace');
         },
         error: (error) => {
+          inputToken.value = '';
           console.log('Login failed', error);
           if (error instanceof HttpErrorResponse && error.status === 401) {
             this.statusMessage = 'Invalid or expired access token.';
@@ -165,6 +168,7 @@ export class LoginComponent {
           }
           this.showSignInFailed('Sign-in failed', this.statusMessage, 'Try again');
           this.isSubmitting = false;
+          this.cdr.detectChanges();
         },
       });
   }

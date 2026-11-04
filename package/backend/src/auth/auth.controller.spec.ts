@@ -6,7 +6,8 @@ import request from 'supertest';
 import { createHash } from 'node:crypto';
 import type { Server } from 'node:http';
 import { AuthModule } from './auth.module';
-import { RedisService } from './redis.service';
+import { SessionStore } from './session-store';
+import { SupabaseService } from '../supabase/supabase.service';
 import {
   JWT_AUDIENCE,
   JWT_ISSUER,
@@ -53,7 +54,9 @@ describe('Token login HTTP flow', () => {
     })
       .overrideProvider(ConfigService)
       .useValue(new ConfigService({ JWT_SECRET: secret }))
-      .overrideProvider(RedisService)
+      .overrideProvider(SupabaseService)
+      .useValue({})
+      .overrideProvider(SessionStore)
       .useValue(redis)
       .compile();
     // ConfigService is normally global through AppModule.
@@ -99,6 +102,10 @@ describe('Token login HTTP flow', () => {
       expect.stringMatching(/^auth:session:[a-f0-9]{64}$/),
       expect.not.stringContaining(token),
       expect.any(Number),
+      {
+        authProvider: 'bypass',
+        expiresAt: expect.any(String) as string,
+      },
     );
     expect(redis.setSession.mock.calls[0][2]).toBeGreaterThan(3590);
     expect(redis.setSession.mock.calls[0][2]).toBeLessThanOrEqual(3600);
@@ -120,16 +127,13 @@ describe('Token login HTTP flow', () => {
   });
 
   it('rotates session IDs and caps long-lived JWT sessions at one day', async () => {
-    const token = jwt.sign(
-      validClaims,
-      {
-        secret,
-        algorithm: 'HS256',
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-        expiresIn: '7d',
-      },
-    );
+    const token = jwt.sign(validClaims, {
+      secret,
+      algorithm: 'HS256',
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      expiresIn: '7d',
+    });
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await request(app.getHttpServer())
         .post('/api/auth/login/token')
@@ -173,17 +177,14 @@ describe('Token login HTTP flow', () => {
     { secret, audience: 'other-app' },
     { secret, expiresIn: -1 },
   ])('rejects invalid JWT verification options %j', async (options) => {
-    const token = jwt.sign(
-      validClaims,
-      {
-        secret,
-        algorithm: 'HS256',
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-        expiresIn: 3600,
-        ...options,
-      },
-    );
+    const token = jwt.sign(validClaims, {
+      secret,
+      algorithm: 'HS256',
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      expiresIn: 3600,
+      ...options,
+    });
     await request(app.getHttpServer())
       .post('/api/auth/login/token')
       .send({ token })
@@ -196,15 +197,12 @@ describe('Token login HTTP flow', () => {
     { auth_provider: undefined },
     { role: undefined },
     { role: 'superuser' },
-  ])(
-    'rejects missing profile claims %j',
-    async (claims) => {
-      await request(app.getHttpServer())
-        .post('/api/auth/login/token')
-        .send({ token: signToken(claims) })
-        .expect(401);
-    },
-  );
+  ])('rejects missing profile claims %j', async (claims) => {
+    await request(app.getHttpServer())
+      .post('/api/auth/login/token')
+      .send({ token: signToken(claims) })
+      .expect(401);
+  });
 
   it('rejects tokens from non-bypass auth providers', async () => {
     await request(app.getHttpServer())
@@ -215,15 +213,12 @@ describe('Token login HTTP flow', () => {
   });
 
   it('requires an expiry claim', async () => {
-    const token = jwt.sign(
-      validClaims,
-      {
-        secret,
-        algorithm: 'HS256',
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-      },
-    );
+    const token = jwt.sign(validClaims, {
+      secret,
+      algorithm: 'HS256',
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    });
     await request(app.getHttpServer())
       .post('/api/auth/login/token')
       .send({ token })

@@ -20,7 +20,7 @@ import {
   SESSION_PREFIX,
 } from './auth.constants';
 import { AuthSession, LoginClaims } from './auth.dto';
-import { RedisService } from './redis.service';
+import { SessionStore } from './session-store';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +30,7 @@ export class AuthService {
 
   constructor(
     private readonly jwt: JwtService,
-    private readonly redis: RedisService,
+    private readonly sessions: SessionStore,
     config: ConfigService,
   ) {
     this.secret = config.getOrThrow<string>('JWT_SECRET');
@@ -41,7 +41,7 @@ export class AuthService {
 
   async checkRateLimit(address: string): Promise<void> {
     const addressHash = createHash('sha256').update(address).digest('hex');
-    const attempts = await this.redis.recordAttempt(
+    const attempts = await this.sessions.recordAttempt(
       `auth:attempts:${addressHash}`,
     );
     if (attempts > LOGIN_ATTEMPT_LIMIT) {
@@ -101,10 +101,14 @@ export class AuthService {
       },
       expires_at: new Date(Date.now() + ttl * 1000).toISOString(),
     };
-    await this.redis.setSession(
+    await this.sessions.setSession(
       this.sessionKey(sessionId),
       JSON.stringify(session),
       ttl,
+      {
+        authProvider: claims.auth_provider,
+        expiresAt: session.expires_at,
+      },
     );
     return { sessionId, session, ttl };
   }
@@ -113,7 +117,7 @@ export class AuthService {
     if (!sessionId || !SESSION_ID_PATTERN.test(sessionId)) {
       throw new UnauthorizedException('Session expired or missing');
     }
-    const stored = await this.redis.getSession(this.sessionKey(sessionId));
+    const stored = await this.sessions.getSession(this.sessionKey(sessionId));
     if (!stored) throw new UnauthorizedException('Session expired or missing');
     const session = this.parseSession(stored);
     if (Date.parse(session.expires_at) <= Date.now()) {
@@ -126,7 +130,7 @@ export class AuthService {
     if (!sessionId || !SESSION_ID_PATTERN.test(sessionId)) {
       throw new UnauthorizedException('Session expired or missing');
     }
-    await this.redis.deleteSession(this.sessionKey(sessionId));
+    await this.sessions.deleteSession(this.sessionKey(sessionId));
   }
 
   private parseSession(stored: string): AuthSession {
@@ -144,7 +148,7 @@ export class AuthService {
       }
       return session;
     } catch {
-      this.logger.error('Invalid session record in Redis');
+      this.logger.error('Invalid session record');
       throw new ServiceUnavailableException(
         'Authentication temporarily unavailable',
       );

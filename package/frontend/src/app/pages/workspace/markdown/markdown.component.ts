@@ -63,12 +63,12 @@ export class MarkdownComponent {
     this.item.content = value;
   }
 
-  onSourceMouseDown(event: MouseEvent) {
+  onSourceMouseDown(event: PointerEvent) {
     event.stopPropagation();
   }
 
   // Keeps focus (and the editing state) on the note and stops the board from starting a drag.
-  onDownloadMouseDown(event: MouseEvent) {
+  onDownloadMouseDown(event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
   }
@@ -85,7 +85,7 @@ export class MarkdownComponent {
     this.isEditing = false;
   }
 
-  onResizeMouseDown(event: MouseEvent, corner: ResizeCorner) {
+  onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -94,8 +94,8 @@ export class MarkdownComponent {
     this.resizeStart = startResize(event, this.item);
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent) {
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentMouseMove(event: PointerEvent) {
     if (!this.isResizing || !this.activeCorner) {
       return;
     }
@@ -115,7 +115,8 @@ export class MarkdownComponent {
     this.item.height = rect.height;
   }
 
-  @HostListener('document:mouseup')
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
   onDocumentMouseUp() {
     this.isResizing = false;
     this.activeCorner = null;
