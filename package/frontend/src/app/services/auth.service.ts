@@ -1,7 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
 
 export interface AuthSession {
   user: {
@@ -16,7 +15,8 @@ export interface AuthSession {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiBaseUrl}/api/auth`;
+  // Same-origin path (proxied by the dev server / Vercel rewrite) keeps the session cookie first-party.
+  private readonly baseUrl = '/api/auth';
 
   loginWithToken(token: string): Observable<AuthSession> {
     return this.http.post<AuthSession>(
