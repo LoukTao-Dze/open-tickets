@@ -11,6 +11,7 @@ export interface ToolHubsButton {
   icon: string;
   iconClass?: string;
   isActive?: boolean;
+  openTool?: boolean;
 }
 
 export type InsertableWorkspaceItemType =
@@ -49,8 +50,8 @@ export class ToolHubsComponent {
   readonly stickyNoteColorOptions = STICKY_NOTE_COLOR_OPTIONS;
 
   readonly primaryTools: ToolHubsButton[] = [
-    { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: true },
-    { id: EnumWorkspaceItemType.PEN, icon: 'edit', isActive: false },
+    { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: true, openTool: false },
+    { id: EnumWorkspaceItemType.PEN, icon: 'edit', isActive: false, openTool: false },
   ];
 
   readonly insertTools: ToolHubsButton[] = [
@@ -60,17 +61,17 @@ export class ToolHubsComponent {
       iconClass: 'text-[#fde68a]',
       isActive: true,
     },
-    { id: EnumWorkspaceItemType.SHAPES, icon: 'category', isActive: false },
-    { id: EnumWorkspaceItemType.TEXT, icon: 'text_fields', isActive: true },
-    { id: EnumWorkspaceItemType.LINK, icon: 'link', isActive: true },
-    { id: EnumWorkspaceItemType.IMAGE, icon: 'image', isActive: true },
-    { id: EnumWorkspaceItemType.CODE_SNIPPET, icon: 'code', isActive: true },
-    { id: EnumWorkspaceItemType.MARKDOWN, icon: 'markdown', isActive: true },
+    { id: EnumWorkspaceItemType.SHAPES, icon: 'category', isActive: false, openTool: true },
+    { id: EnumWorkspaceItemType.TEXT, icon: 'text_fields', isActive: true, openTool: true },
+    { id: EnumWorkspaceItemType.LINK, icon: 'link', isActive: true, openTool: true },
+    { id: EnumWorkspaceItemType.IMAGE, icon: 'image', isActive: true, openTool: true },
+    { id: EnumWorkspaceItemType.CODE_SNIPPET, icon: 'code', isActive: true, openTool: true },
+    { id: EnumWorkspaceItemType.MARKDOWN, icon: 'markdown', isActive: true, openTool: true },
   ];
 
   readonly historyTools: ToolHubsButton[] = [
-    { id: EnumWorkspaceItemType.UNDO, icon: 'undo', isActive: true },
-    { id: EnumWorkspaceItemType.REDO, icon: 'redo', isActive: true },
+    { id: EnumWorkspaceItemType.UNDO, icon: 'undo', isActive: false, openTool: false },
+    { id: EnumWorkspaceItemType.REDO, icon: 'redo', isActive: true, openTool: false },
   ];
 
   activeToolId = EnumWorkspaceItemType.SELECT;

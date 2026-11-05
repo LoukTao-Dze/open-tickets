@@ -1,51 +1,61 @@
 <div class="tool-hubs">
-  <button
-    *ngFor="let tool of primaryTools"
-    type="button"
-    class="tool-btn"
-    [class.tool-btn--active]="activeToolId === tool.id"
-    (click)="selectTool(tool.id)"
-  >
-    <span class="material-symbols-outlined">{{ tool.icon }}</span>
-  </button>
-
-  <div class="tool-divider"></div>
-
-  <div *ngFor="let tool of insertTools" class="tool-btn-wrapper">
-    @if (tool.isActive) {
+  @for (tool of primaryTools; track $index) {
+    @if (tool.openTool) {
       <button
         type="button"
         class="tool-btn"
         [class.tool-btn--active]="activeToolId === tool.id"
-        (click)="onInsertToolClick(tool)"
+        (click)="selectTool(tool.id)"
       >
-        <span class="material-symbols-outlined" [ngClass]="tool.iconClass">{{ tool.icon }}</span>
+        <span class="material-symbols-outlined">{{ tool.icon }}</span>
       </button>
-      @if (tool.id === EnumWorkspaceItemType.STICKY_NOTE && isStickyNoteColorPickerOpen) {
-        <div class="sticky-note-color-picker">
-          <button
-            *ngFor="let color of stickyNoteColorOptions"
-            type="button"
-            class="sticky-note-color-option"
-            [style.background]="color.bgColor"
-            [attr.aria-label]="color.label"
-            [title]="color.label"
-            (click)="chooseStickyNoteColor(color)"
-          ></button>
-        </div>
-      }
     }
-  </div>
+  }
 
   <div class="tool-divider"></div>
+  @for (tool of insertTools; track $index) {
+    @if (tool.openTool) {
+      <div class="tool-btn-wrapper">
+        @if (tool.isActive) {
+          <button
+            type="button"
+            class="tool-btn"
+            [class.tool-btn--active]="activeToolId === tool.id"
+            (click)="onInsertToolClick(tool)"
+          >
+            <span class="material-symbols-outlined" [ngClass]="tool.iconClass">{{
+              tool.icon
+            }}</span>
+          </button>
+          @if (tool.id === EnumWorkspaceItemType.STICKY_NOTE && isStickyNoteColorPickerOpen) {
+            <div class="sticky-note-color-picker">
+              <button
+                *ngFor="let color of stickyNoteColorOptions"
+                type="button"
+                class="sticky-note-color-option"
+                [style.background]="color.bgColor"
+                [attr.aria-label]="color.label"
+                [title]="color.label"
+                (click)="chooseStickyNoteColor(color)"
+              ></button>
+            </div>
+          }
+        }
+      </div>
+    }
+  }
 
-  <button
-    *ngFor="let tool of historyTools"
-    type="button"
-    class="tool-btn"
-    [class.tool-btn--active]="activeToolId === tool.id"
-    (click)="selectTool(tool.id)"
-  >
-    <span class="material-symbols-outlined">{{ tool.icon }}</span>
-  </button>
+  <div class="tool-divider"></div>
+  @for (tool of historyTools; track $index) {
+    @if (tool.openTool) {
+      <button
+        type="button"
+        class="tool-btn"
+        [class.tool-btn--active]="activeToolId === tool.id"
+        (click)="selectTool(tool.id)"
+      >
+        <span class="material-symbols-outlined">{{ tool.icon }}</span>
+      </button>
+    }
+  }
 </div>
