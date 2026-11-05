@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AdminGuard } from './admin.guard';
+import { SessionGuard } from './session.guard';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { DatabaseSessionService } from './database-session.service';
@@ -25,6 +27,7 @@ const sessionStoreProvider = {
 @Module({
   imports: [JwtModule.register({}), SupabaseModule],
   controllers: [AuthController],
-  providers: [AuthService, sessionStoreProvider],
+  providers: [AuthService, AdminGuard, SessionGuard, sessionStoreProvider],
+  exports: [AuthService, AdminGuard, SessionGuard],
 })
 export class AuthModule {}

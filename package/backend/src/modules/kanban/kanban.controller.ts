@@ -8,7 +8,11 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CurrentSession, SessionGuard } from '../../auth/session.guard';
+import type { AuthSession } from '../../auth/auth.dto';
+import { ProjectAccessService } from '../roles/project-access.service';
 import { KanbanService } from './kanban.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
@@ -16,11 +20,29 @@ import { MoveTicketDto } from './dto/move-ticket.dto';
 
 @Controller('kanban')
 export class KanbanController {
-  constructor(private readonly kanbanService: KanbanService) {}
+  constructor(
+    private readonly kanbanService: KanbanService,
+    private readonly projectAccess: ProjectAccessService,
+  ) {}
 
   @Get('board')
-  getBoard(@Query('projectId') projectId?: string) {
-    return this.kanbanService.getBoard(projectId);
+  @UseGuards(SessionGuard)
+  async getBoard(
+    @CurrentSession() session: AuthSession,
+    @Query('projectId') projectId?: string,
+  ) {
+    const { data } = await this.kanbanService.getBoard(projectId);
+    const columns = await Promise.all(
+      data.map(async (column) => {
+        const tickets = await this.projectAccess.filterByProject(
+          session.user.role,
+          column.tickets,
+          (ticket) => ticket.project.id || undefined,
+        );
+        return { ...column, tickets, count: tickets.length };
+      }),
+    );
+    return { data: columns };
   }
 
   @Post('tickets')

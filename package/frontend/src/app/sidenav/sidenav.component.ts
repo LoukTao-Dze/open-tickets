@@ -24,7 +24,7 @@ export class SidenavComponent {
     { icon: 'account_tree', label: 'Workspace', route: '/workspace', isActive: true },
     { icon: 'archive', label: 'Files Storage', route: '/files', isActive: false },
     { icon: 'folder_open', label: 'Projects', route: '/projects', isActive: true },
-    { icon: 'badge', label: 'Roles', route: '/roles', isActive: false },
+    { icon: 'badge', label: 'Roles', route: '/roles', isActive: true },
     { icon: 'dashboard', label: 'Dashboard', route: '/overview', isActive: false },
     { icon: 'settings', label: 'Settings', route: '/settings', isActive: false },
   ];

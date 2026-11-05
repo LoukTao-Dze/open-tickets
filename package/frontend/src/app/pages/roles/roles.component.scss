@@ -1,0 +1,186 @@
+@reference '../../../tailwind.css';
+
+:host {
+  display: block;
+}
+
+.roles-page {
+  @apply p-lg lg:p-xl max-w-5xl mx-auto text-on-surface space-y-lg;
+}
+
+.roles-page .material-symbols-outlined {
+  font-size: 1em;
+  line-height: 1;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+.page-heading h1 {
+  @apply text-headline-lg font-headline-lg font-bold tracking-tight mb-xs;
+}
+
+.page-heading p {
+  @apply text-body-sm text-on-surface-variant;
+}
+
+.notice {
+  @apply flex items-center gap-sm px-md py-sm rounded-lg border border-tertiary/30 bg-tertiary/10 text-body-sm text-tertiary;
+}
+
+.roles-layout {
+  @apply grid grid-cols-1 md:grid-cols-[14rem_minmax(0,1fr)] gap-lg items-start;
+}
+
+.role-rail {
+  @apply flex md:flex-col gap-sm overflow-x-auto;
+}
+
+.role-tab {
+  @apply flex flex-col items-start gap-xs text-left min-w-40 md:min-w-0 px-md py-sm rounded-xl border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high;
+}
+
+.role-tab.is-selected {
+  @apply border-primary bg-primary/10 text-on-surface;
+}
+
+.role-name {
+  @apply text-body-lg font-bold;
+}
+
+.role-summary {
+  @apply text-xs text-on-surface-variant;
+}
+
+.role-detail {
+  @apply bg-surface-container border border-outline-variant rounded-xl p-lg space-y-lg;
+}
+
+.detail-head h2 {
+  @apply text-headline-md font-headline-md font-bold mb-xs;
+}
+
+.detail-head p {
+  @apply text-body-sm text-on-surface-variant max-w-prose;
+}
+
+.edit-switch-row {
+  @apply flex items-center justify-between gap-md py-md border-y border-outline-variant;
+}
+
+.switch-title {
+  @apply text-body-sm font-bold;
+}
+
+.switch-hint {
+  @apply text-xs text-on-surface-variant mt-xs;
+}
+
+.switch {
+  @apply relative shrink-0 w-11 h-6 rounded-full bg-surface-container-highest border border-outline transition-colors;
+}
+
+.switch[aria-checked='true'] {
+  @apply bg-secondary-container border-secondary;
+}
+
+.switch-thumb {
+  @apply absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-on-surface transition-transform;
+}
+
+.switch[aria-checked='true'] .switch-thumb {
+  @apply translate-x-5;
+}
+
+.access-head {
+  @apply flex items-baseline justify-between gap-md;
+}
+
+.access-head h3 {
+  @apply text-body-lg font-bold;
+}
+
+.access-head p {
+  @apply text-xs text-on-surface-variant;
+}
+
+.project-rows {
+  @apply divide-y divide-outline-variant;
+}
+
+.project-row {
+  @apply flex flex-col sm:flex-row sm:items-center justify-between gap-sm py-md;
+}
+
+.project-name {
+  @apply text-body-sm font-bold break-words min-w-0;
+}
+
+.access-control {
+  @apply inline-flex shrink-0 rounded-lg border border-outline-variant bg-surface-container-lowest p-0.5;
+}
+
+.access-option {
+  @apply px-md py-xs rounded text-xs font-bold text-on-surface-variant transition-colors;
+}
+
+.access-option:not(:disabled):not(.is-active):hover {
+  @apply bg-surface-container-high text-on-surface;
+}
+
+.access-option:disabled:not(.is-active) {
+  @apply opacity-40;
+}
+
+.access-option.is-active[data-access='none'] {
+  @apply bg-surface-container-highest text-on-surface;
+}
+
+.access-option.is-active[data-access='view'] {
+  @apply bg-primary/20 text-primary;
+}
+
+.access-option.is-active[data-access='edit'] {
+  @apply bg-secondary/20 text-secondary;
+}
+
+.role-tab,
+.switch,
+.access-option,
+.retry-button {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-primary;
+}
+
+.switch:disabled,
+.access-option:disabled {
+  @apply cursor-not-allowed;
+}
+
+.empty {
+  @apply flex items-center justify-between gap-md py-lg text-body-sm text-on-surface-variant;
+}
+
+.retry-button {
+  @apply px-md py-xs rounded-lg border border-outline-variant font-bold text-on-surface hover:bg-surface-container-highest;
+}
+
+.save-bar {
+  @apply flex items-center justify-end gap-md pt-md border-t border-outline-variant;
+}
+
+.save-status {
+  @apply text-xs text-on-surface-variant;
+}
+
+.save-button {
+  @apply px-lg py-xs rounded-lg bg-primary text-on-primary font-bold outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-tab,
+  .switch,
+  .switch-thumb,
+  .access-option {
+    transition: none;
+  }
+}

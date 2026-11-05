@@ -42,11 +42,7 @@ export const routes: Routes = [
   {
     path: 'roles',
     canActivate: [authGuard],
-    loadComponent: () =>
-      import('./pages/page-placeholder/page-placeholder.component').then(
-        (m) => m.PagePlaceholderComponent,
-      ),
-    data: { title: 'Roles' },
+    loadComponent: () => import('./pages/roles/roles.component').then((m) => m.RolesComponent),
   },
   {
     path: 'settings',

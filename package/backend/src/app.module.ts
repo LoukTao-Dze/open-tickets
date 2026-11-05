@@ -8,6 +8,7 @@ import { CanvasModule } from './modules/canvas/canvas.module';
 import { KanbanModule } from './modules/kanban/kanban.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { AuthModule } from './auth/auth.module';
+import { RolesModule } from './modules/roles/roles.module';
 //TODO: Uncomment these modules when ready to use Discord functionality
 // import { DiscordModule } from './modules/discord/discord.module';
 // import { MessageModule } from './modules/message/message.module';
@@ -24,6 +25,7 @@ import { AuthModule } from './auth/auth.module';
     CanvasModule,
     KanbanModule,
     ProjectsModule,
+    RolesModule,
     //TODO: Uncomment these modules when ready to use Discord functionality
     // DiscordModule,
     // MessageModule,

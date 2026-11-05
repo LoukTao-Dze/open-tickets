@@ -17,6 +17,7 @@ import { getCorsOrigins } from '../cors-origins';
 import { SESSION_COOKIE } from './auth.constants';
 import { TokenLoginDto } from './auth.dto';
 import { AuthService } from './auth.service';
+import { extractSessionId } from './session-cookie';
 
 @Controller('auth')
 @UsePipes(
@@ -75,11 +76,7 @@ export class AuthController {
   }
 
   private sessionId(request: Request): string | undefined {
-    const cookie = request.headers.cookie
-      ?.split(';')
-      .map((part: string) => part.trim())
-      .find((part: string) => part.startsWith(`${SESSION_COOKIE}=`));
-    return cookie?.slice(SESSION_COOKIE.length + 1);
+    return extractSessionId(request);
   }
 
   private cookieOptions(ttl?: number): CookieOptions {

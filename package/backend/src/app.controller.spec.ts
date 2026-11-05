@@ -2,6 +2,9 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { SessionGuard } from './auth/session.guard';
+import { EnumUserRole } from './auth/auth.dto';
+import { ProjectAccessService } from './modules/roles/project-access.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -11,12 +14,23 @@ describe('AppController', () => {
     uploadImageToDiscord: jest.fn(),
   };
 
+  const projectAccess = { filterByProject: jest.fn() };
+  const session = {
+    user: { role: EnumUserRole.GUEST },
+  } as Parameters<AppController['getAllProjects']>[0];
+
   beforeEach(async () => {
     jest.resetAllMocks();
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [{ provide: AppService, useValue: appService }],
-    }).compile();
+      providers: [
+        { provide: AppService, useValue: appService },
+        { provide: ProjectAccessService, useValue: projectAccess },
+      ],
+    })
+      .overrideGuard(SessionGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     appController = app.get<AppController>(AppController);
   });
@@ -29,10 +43,18 @@ describe('AppController', () => {
   });
 
   it('should return all projects from the service', async () => {
-    const projects = { data: [{ id: '1' }] };
+    const projects = { data: [{ id: '1' }, { id: '2' }] };
     appService.getAllProjects.mockResolvedValue(projects);
+    projectAccess.filterByProject.mockResolvedValue([{ id: '1' }]);
 
-    await expect(appController.getAllProjects()).resolves.toBe(projects);
+    await expect(appController.getAllProjects(session)).resolves.toEqual({
+      data: [{ id: '1' }],
+    });
+    expect(projectAccess.filterByProject).toHaveBeenCalledWith(
+      EnumUserRole.GUEST,
+      projects.data,
+      expect.any(Function),
+    );
   });
 
   describe('uploadImageToDiscord', () => {

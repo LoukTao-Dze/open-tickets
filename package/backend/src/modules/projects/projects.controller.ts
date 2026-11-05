@@ -7,18 +7,33 @@ import {
   Put,
   ParseUUIDPipe,
   Get,
+  UseGuards,
 } from '@nestjs/common';
+import { CurrentSession, SessionGuard } from '../../auth/session.guard';
+import type { AuthSession } from '../../auth/auth.dto';
+import { ProjectAccessService } from '../roles/project-access.service';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly projectAccess: ProjectAccessService,
+  ) {}
 
   @Get('get-projects')
-  getProjects() {
-    return this.projectsService.getProjects();
+  @UseGuards(SessionGuard)
+  async getProjects(@CurrentSession() session: AuthSession) {
+    const { data } = await this.projectsService.getProjects();
+    return {
+      data: await this.projectAccess.filterByProject(
+        session.user.role,
+        data,
+        (project) => project.id,
+      ),
+    };
   }
 
   @Post('projects')
