@@ -1,4 +1,5 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://open-tickets-backend.vercel.app',
+  apiBaseUrl: '',
+  socketUrl: 'https://open-tickets-backend.vercel.app',
 };

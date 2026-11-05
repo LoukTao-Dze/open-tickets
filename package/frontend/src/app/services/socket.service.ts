@@ -10,7 +10,7 @@ export interface DiscordMessage {
 
 @Injectable({ providedIn: 'root' })
 export class SocketService {
-  socket = io(environment.apiBaseUrl || 'http://localhost:3000');
+  socket = io(environment.socketUrl);
 
   join(channelId: string) {
     this.socket.emit('join', channelId);
