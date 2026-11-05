@@ -19,9 +19,11 @@ import {
 import { KanbanColumn, KanbanProject, KanbanTicket } from '../../interface/kanban.interface';
 import { KanbanApiService } from '../../services/kanban-api.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
+import { AuthService } from '../../services/auth.service';
 
 const ALL_PROJECTS = 'all';
 const PROJECT_NAME_MAX_LENGTH = 12;
+const GUEST_TICKET_ID_PREFIX = 'guest-';
 
 @Component({
   selector: 'app-kanban',
@@ -37,18 +39,28 @@ export class KanbanComponent implements OnInit {
     private kanbanApi: KanbanApiService,
     private confirmDialog: ConfirmDialogService,
     private projectApi: ProjectApiService,
+    private auth: AuthService,
   ) {}
 
   columns: KanbanColumn[] = [];
   allProjects: KanbanProject[] = [];
 
   selectedProject = ALL_PROJECTS;
+  // Deny by default: stays read-only until the server confirms a non-guest role.
+  isReadOnly = true;
 
   get projects(): KanbanProject[] {
     return this.allProjects;
   }
 
   ngOnInit() {
+    this.auth.getSession().subscribe({
+      next: (session) => {
+        this.isReadOnly = session.user.role === 'guest';
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Failed to resolve user role', err),
+    });
     this.loadBoard();
     this.projectApi.getProjects().subscribe({
       next: (projects) => (this.allProjects = projects),
@@ -114,6 +126,10 @@ export class KanbanComponent implements OnInit {
     const movedTicket = targetColumn.tickets[event.currentIndex];
     movedTicket.columnId = targetColumn.id;
 
+    if (this.isReadOnly) {
+      return;
+    }
+
     this.kanbanApi.moveTicket(movedTicket.id, targetColumn.id).subscribe({
       error: (err) => {
         console.error('Failed to move ticket', err);
@@ -170,6 +186,12 @@ export class KanbanComponent implements OnInit {
     if (!targetColumn) {
       return;
     }
+    if (this.isReadOnly) {
+      targetColumn.tickets.push(this.buildLocalTicket(value));
+      targetColumn.count = targetColumn.tickets.length;
+      this.cdr.detectChanges();
+      return;
+    }
     this.kanbanApi.createTicket(value).subscribe({
       next: (ticket) => {
         targetColumn.tickets.push(ticket);
@@ -181,26 +203,60 @@ export class KanbanComponent implements OnInit {
   }
 
   updateTicket(ticket: KanbanTicket, value: TicketFormValue) {
+    if (this.isReadOnly) {
+      this.applyTicketUpdate(ticket, { ...ticket, ...this.buildLocalTicket(value), id: ticket.id });
+      return;
+    }
     this.kanbanApi.updateTicket(ticket.id, value).subscribe({
-      next: (updatedTicket) => {
-        const sourceColumn = this.columns.find((column) =>
-          column.tickets.some((item) => item.id === ticket.id),
-        );
-        if (sourceColumn && sourceColumn.id !== updatedTicket.columnId) {
-          sourceColumn.tickets = sourceColumn.tickets.filter((item) => item.id !== ticket.id);
-          sourceColumn.count = sourceColumn.tickets.length;
-          const targetColumn = this.columns.find((column) => column.id === updatedTicket.columnId);
-          if (targetColumn) {
-            targetColumn.tickets.push(updatedTicket);
-            targetColumn.count = targetColumn.tickets.length;
-          }
-        } else {
-          Object.assign(ticket, updatedTicket);
-        }
-        this.cdr.detectChanges();
-      },
+      next: (updatedTicket) => this.applyTicketUpdate(ticket, updatedTicket),
       error: (err) => console.error('Failed to update ticket', err),
     });
+  }
+
+  private applyTicketUpdate(ticket: KanbanTicket, updatedTicket: KanbanTicket) {
+    const sourceColumn = this.columns.find((column) =>
+      column.tickets.some((item) => item.id === ticket.id),
+    );
+    if (sourceColumn && sourceColumn.id !== updatedTicket.columnId) {
+      sourceColumn.tickets = sourceColumn.tickets.filter((item) => item.id !== ticket.id);
+      sourceColumn.count = sourceColumn.tickets.length;
+      const targetColumn = this.columns.find((column) => column.id === updatedTicket.columnId);
+      if (targetColumn) {
+        targetColumn.tickets.push(updatedTicket);
+        targetColumn.count = targetColumn.tickets.length;
+      }
+    } else {
+      Object.assign(ticket, updatedTicket);
+    }
+    this.cdr.detectChanges();
+  }
+
+  private buildLocalTicket(value: TicketFormValue): KanbanTicket {
+    const project = this.allProjects.find((item) => item.id === value.projectId);
+    return {
+      id: `${GUEST_TICKET_ID_PREFIX}10000`,
+      columnId: value.columnId,
+      title: value.title,
+      priority: value.priority,
+      project: project ?? { id: value.projectId, project_name: '' },
+      meta: value.meta,
+      assigneeAvatarUrl: '',
+      assigneeAlt: value.assigneeAlt,
+      detail: value.detail,
+      createDate: value.createDate,
+      updateDate: value.updateDate,
+      taskType: value.taskType,
+      jobType: value.jobType,
+    };
+  }
+
+  private removeTicketFromColumn(ticket: KanbanTicket) {
+    const column = this.columns.find((item) => item.id === ticket.columnId);
+    if (column) {
+      column.tickets = column.tickets.filter((item) => item.id !== ticket.id);
+      column.count = column.tickets.length;
+    }
+    this.cdr.detectChanges();
   }
 
   deleteTicket(ticket: KanbanTicket) {
@@ -216,15 +272,13 @@ export class KanbanComponent implements OnInit {
           return;
         }
 
+        if (this.isReadOnly) {
+          this.removeTicketFromColumn(ticket);
+          return;
+        }
+
         this.kanbanApi.deleteTicket(ticket.id).subscribe({
-          next: () => {
-            const column = this.columns.find((item) => item.id === ticket.columnId);
-            if (column) {
-              column.tickets = column.tickets.filter((item) => item.id !== ticket.id);
-              column.count = column.tickets.length;
-            }
-            this.cdr.detectChanges();
-          },
+          next: () => this.removeTicketFromColumn(ticket),
           error: (err) => console.error('Failed to delete ticket', err),
         });
       });

@@ -5,6 +5,9 @@ import { KanbanApiService } from '../../services/kanban-api.service';
 import { KanbanProject } from '../../interface/kanban.interface';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { ProjectApiService } from '../../services/project.service';
+import { AuthService } from '../../services/auth.service';
+
+const GUEST_PROJECT_ID_PREFIX = 'guest-';
 
 type ProjectFilter = 'all' | 'active' | 'review' | 'planning';
 
@@ -55,6 +58,8 @@ export class ProjectsComponent implements OnInit {
   saving = false;
   errorMessage = '';
   editingProjectId: string | null = null;
+  // Deny by default: stays read-only until the server confirms a non-guest role.
+  isReadOnly = true;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -62,6 +67,7 @@ export class ProjectsComponent implements OnInit {
     private readonly projectApi: ProjectApiService,
     private readonly confirmDialog: ConfirmDialogService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly auth: AuthService,
   ) {
     this.projectForm = this.formBuilder.nonNullable.group({
       name: ['', [Validators.required, Validators.maxLength(80)]],
@@ -73,6 +79,13 @@ export class ProjectsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.auth.getSession().subscribe({
+      next: (session) => {
+        this.isReadOnly = session.user.role === 'guest';
+        this.cdr.markForCheck();
+      },
+      error: (error) => console.error('Failed to resolve user role', error),
+    });
     this.loadProjects();
   }
 
@@ -119,6 +132,10 @@ export class ProjectsComponent implements OnInit {
       deadline: value.deadline,
       status: value.status,
     };
+    if (this.isReadOnly) {
+      this.saveProjectLocally(payload, value.deadline);
+      return;
+    }
     if (this.editingProjectId) {
       this.projectApi.updateProject(this.editingProjectId, payload).subscribe({
         next: (project) => this.replaceProject(project),
@@ -183,19 +200,55 @@ export class ProjectsComponent implements OnInit {
           return;
         }
 
+        if (this.isReadOnly) {
+          this.removeProject(project);
+          return;
+        }
+
         this.saving = true;
         this.errorMessage = '';
         this.projectApi.deleteProject(project.id).subscribe({
-          next: () => {
-            this.projects = this.projects.filter((item) => item.id !== project.id);
-            if (this.editingProjectId === project.id) {
-              this.resetForm();
-            }
-            this.saving = false;
-          },
+          next: () => this.removeProject(project),
           error: () => this.handleProjectRequestError('delete'),
         });
       });
+  }
+
+  private removeProject(project: ProjectMenuItem): void {
+    this.projects = this.projects.filter((item) => item.id !== project.id);
+    if (this.editingProjectId === project.id) {
+      this.resetForm();
+    }
+    this.saving = false;
+  }
+
+  private saveProjectLocally(
+    payload: {
+      name: string;
+      description: string;
+      priority: string;
+      deadline: string;
+      status: string;
+    },
+    deadline: string,
+  ): void {
+    const existingProject = this.projects.find((item) => item.id === this.editingProjectId);
+    const project: KanbanProject = {
+      ...existingProject,
+      id: existingProject?.id ?? `${GUEST_PROJECT_ID_PREFIX}${crypto.randomUUID()}`,
+      project_name: payload.name,
+      description: payload.description,
+      priority: payload.priority,
+      deadline: payload.deadline,
+      status: payload.status,
+    };
+    if (existingProject) {
+      this.replaceProject(project);
+      return;
+    }
+    this.projects = [this.toMenuItem(project, 0, deadline), ...this.projects];
+    this.resetForm();
+    this.saving = false;
   }
 
   private replaceProject(project: KanbanProject): void {

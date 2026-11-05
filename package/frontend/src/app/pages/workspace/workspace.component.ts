@@ -22,7 +22,7 @@ import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.inter
 import { environment } from '../../../environments/environment';
 import { switchMap } from 'rxjs';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
-
+import { AuthService } from '../../services/auth.service';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
@@ -92,6 +92,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   private readonly confirmDialogService = inject(ConfirmDialogService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly auth = inject(AuthService);
+
+  // Deny by default: stays read-only until the server confirms a non-guest role.
+  isReadOnly = true;
 
   zoom = 0.5;
   panX = 0;
@@ -201,6 +205,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   ngOnInit() {
+    this.auth.getSession().subscribe({
+      next: (session) => {
+        this.isReadOnly = session.user.role === 'guest';
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Failed to resolve user role', err),
+    });
     this.getCanvasItem();
     this.setValuesFromLocalStorage();
   }
@@ -350,22 +361,28 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   deleteItem(item: WorkspaceCanvasItem) {
+    if (this.isReadOnly || !item.id) {
+      this.removeItemFromBoard(item);
+      return;
+    }
     this.http.post(DELETE_CANVAS_ITEM_ENDPOINT, { id: item.id, type: item.type }).subscribe({
-      next: (res) => {
-        const board = this.activeWhiteboard;
-        board.items = board.items.filter((candidate) => candidate.id !== item.id);
-
-        if (this.activeItem === item) {
-          this.activeItem = null;
-        }
-        if (this.focusedItem === item) {
-          this.focusedItem = null;
-        }
-      },
+      next: () => this.removeItemFromBoard(item),
       error: (err) => {
         console.error('Failed to delete canvas item', err);
       },
     });
+  }
+
+  private removeItemFromBoard(item: WorkspaceCanvasItem) {
+    const board = this.activeWhiteboard;
+    board.items = board.items.filter((candidate) => candidate !== item);
+
+    if (this.activeItem === item) {
+      this.activeItem = null;
+    }
+    if (this.focusedItem === item) {
+      this.focusedItem = null;
+    }
   }
 
   minimapItemStyle(item: WorkspaceCanvasItem) {
@@ -742,7 +759,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   onSaveWhiteboard() {
-    if (!this.focusedItem) {
+    if (this.isReadOnly || !this.focusedItem) {
       return;
     }
     this.isCanvasLoading = true;
@@ -763,6 +780,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   private scheduleWhiteboardSave() {
+    if (this.isReadOnly) {
+      return;
+    }
     this.cancelPendingWhiteboardSave();
     this.saveWhiteboardTimeoutId = setTimeout(() => {
       this.saveWhiteboardTimeoutId = null;

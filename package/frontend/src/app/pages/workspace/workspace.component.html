@@ -83,7 +83,11 @@
               ></app-sticky-note>
             }
             @case (EnumWorkspaceItemType.IMAGE) {
-              <app-uploaded-image [image]="item" [zoom]="zoom"></app-uploaded-image>
+              <app-uploaded-image
+                [image]="item"
+                [zoom]="zoom"
+                [readOnly]="isReadOnly"
+              ></app-uploaded-image>
             }
             @case (EnumWorkspaceItemType.CODE_SNIPPET) {
               <app-code-snippet [item]="item" [zoom]="zoom"></app-code-snippet>

@@ -23,6 +23,8 @@ const MIN_HEIGHT = 80;
 export class UploadedImageComponent {
   @Input({ required: true }) image!: UploadedImageItem;
   @Input() zoom = 1;
+  // Guests preview images locally without calling the upload API.
+  @Input() readOnly = false;
   constructor(
     private cdr: ChangeDetectorRef,
     private uploadImageService: UploadImageService,
@@ -108,7 +110,13 @@ export class UploadedImageComponent {
       this.image.imageAlt = file.name;
       this.image.statusIcon = 'check_circle';
       this.image.statusIconClass = 'text-primary';
+      this.cdr.detectChanges();
     };
+
+    if (this.readOnly) {
+      reader.readAsDataURL(file);
+      return;
+    }
 
     this.uploadImageService.uploadImage(file, this.image.id).subscribe({
       next: (response) => {

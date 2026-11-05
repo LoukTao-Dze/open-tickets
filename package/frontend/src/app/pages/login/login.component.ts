@@ -106,7 +106,7 @@ export class LoginComponent {
     }
     this.showSignInFailed('Sign-in failed', 'Google sign-in is not implemented.', 'OK');
   }
-  generateBypassToken() {
+  generateBypassToken(role: EnumUserRole) {
     const MOCK_BYPASS_TOKEN = {
       sub: '0',
       iss: 'open-ticket',
@@ -124,18 +124,33 @@ export class LoginComponent {
         nickname: 'falsy',
       },
       image: '',
-      role: 'guest',
+      role: role,
       memberships: [],
       created_at: '2027-10-30T00:56:52.287Z',
       expires_at: generateExpiresAt(1, 'days'),
     };
-    console.info('\x1b[7;31;40m[DEBUGGER] ->> MOCK_BYPASS_TOKEN\x1b[0m', MOCK_BYPASS_TOKEN);
+    console.info('[DEBUGGER] ->> MOCK_BYPASS_TOKEN', MOCK_BYPASS_TOKEN);
+  }
+
+  generateUserRoleToken(stringRole: string) {
+    const normalizedRole = stringRole.trim().toLowerCase();
+    const role = Object.values(EnumUserRole).find((enumRole) => enumRole === normalizedRole);
+    if (!role) {
+      this.showSignInFailed('Sign-in failed', 'Invalid user role.', 'OK');
+      return;
+    }
+    this.generateBypassToken(role);
   }
 
   submitToken(inputToken: HTMLInputElement, event: SubmitEvent): void {
     event.preventDefault();
-    if (inputToken.value === '-g') {
-      this.generateBypassToken();
+    if (inputToken.value.includes('-g')) {
+      const consolidatedTokens: string[] = inputToken.value.trim().split(/\s+/).filter(Boolean);
+      if (consolidatedTokens.length === 2) {
+        this.generateUserRoleToken(consolidatedTokens[1]);
+      } else if (consolidatedTokens.length === 1) {
+        this.generateBypassToken(EnumUserRole.GUEST);
+      }
       return;
     }
     if (this.isSubmitting) return;
