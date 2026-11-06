@@ -6,4 +6,9 @@ export const JWT_AUDIENCE = 'open-ticket-login';
 export const LOGIN_WINDOW_SECONDS = 60;
 export const LOGIN_ATTEMPT_LIMIT = 10;
 export const MAX_TOKEN_LENGTH = 8192;
+export const ROLE_NAME_MIN_LENGTH = 2;
+export const ROLE_NAME_MAX_LENGTH = 32;
+// Rejects control characters so a role name stays printable in the UI and logs.
+export const ROLE_NAME_PATTERN = /^[^\p{C}]+$/u;
+export const ADMIN_ROLE = 'admin';
 export const SESSION_ID_PATTERN = /^[a-f0-9]{64}$/;

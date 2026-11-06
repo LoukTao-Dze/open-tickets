@@ -196,7 +196,7 @@ describe('Token login HTTP flow', () => {
     { username: null },
     { auth_provider: undefined },
     { role: undefined },
-    { role: 'superuser' },
+    { role: '' },
   ])('rejects missing profile claims %j', async (claims) => {
     await request(app.getHttpServer())
       .post('/api/auth/login/token')

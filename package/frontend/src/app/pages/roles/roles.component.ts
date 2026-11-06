@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { KanbanProject } from '../../interface/kanban.interface';
 import { AuthService } from '../../services/auth.service';
 import { ProjectApiService } from '../../services/project.service';
@@ -44,6 +46,12 @@ const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
   },
 ];
 
+const ROLE_NAME_MIN_LENGTH = 2;
+const ROLE_NAME_MAX_LENGTH = 32;
+const ROLE_DESCRIPTION_MAX_LENGTH = 200;
+const HTTP_CONFLICT = 409;
+const FALLBACK_ROLE_ID: ManagedRole = 'guest';
+
 const ACCESS_OPTIONS: readonly AccessOption[] = [
   { value: 'none', label: 'No access' },
   { value: 'view', label: 'View' },
@@ -61,9 +69,16 @@ export class RolesComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly permissionService = inject(RolePermissionService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
-  readonly roles = ROLE_DEFINITIONS;
+  readonly roles = computed<RoleDefinition[]>(() => [
+    ...ROLE_DEFINITIONS,
+    ...this.permissionService.customRoles(),
+  ]);
   readonly accessOptions = ACCESS_OPTIONS;
+  readonly roleNameMinLength = ROLE_NAME_MIN_LENGTH;
+  readonly roleNameMaxLength = ROLE_NAME_MAX_LENGTH;
+  readonly roleDescriptionMaxLength = ROLE_DESCRIPTION_MAX_LENGTH;
 
   readonly projects = signal<KanbanProject[]>([]);
   readonly isLoading = signal(true);
@@ -74,11 +89,32 @@ export class RolesComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly saveStatus = signal<'idle' | 'saved' | 'failed'>('idle');
 
+  readonly isAddingRole = signal(false);
+  readonly newRoleName = signal('');
+  readonly newRoleDescription = signal('');
+  readonly newRoleCanEdit = signal(true);
+  readonly newRoleDefaultAccess = signal<ProjectAccess>('view');
+  readonly isCreating = signal(false);
+  readonly createError = signal('');
+  readonly roleNotice = signal('');
+  readonly isDeleting = signal(false);
+  readonly deleteError = signal('');
+
   readonly selectedRole = computed(
-    () => this.roles.find((role) => role.id === this.selectedRoleId()) ?? this.roles[0],
+    () => this.roles().find((role) => role.id === this.selectedRoleId()) ?? this.roles()[0],
+  );
+  readonly isNewRoleNameValid = computed(() => {
+    const nameLength = this.newRoleName().trim().length;
+    return nameLength >= ROLE_NAME_MIN_LENGTH && nameLength <= ROLE_NAME_MAX_LENGTH;
+  });
+  readonly canCreateRole = computed(
+    () => this.isAdmin() && this.isNewRoleNameValid() && !this.isCreating(),
   );
   readonly selectedPermission = computed(
     () => this.permissionService.permissions()[this.selectedRoleId()],
+  );
+  readonly isCustomRole = computed(() =>
+    this.permissionService.customRoles().some((role) => role.id === this.selectedRoleId()),
   );
   readonly isLocked = computed(() => this.permissionService.isLocked(this.selectedRoleId()));
   readonly isEditable = computed(() => this.isAdmin() && !this.isLocked());
@@ -138,7 +174,103 @@ export class RolesComponent implements OnInit {
   }
 
   selectRole(role: ManagedRole): void {
+    this.isAddingRole.set(false);
+    this.roleNotice.set('');
+    this.deleteError.set('');
     this.selectedRoleId.set(role);
+  }
+
+  openAddRole(): void {
+    this.createError.set('');
+    this.isAddingRole.set(true);
+  }
+
+  setNewRoleName(event: Event): void {
+    this.createError.set('');
+    this.newRoleName.set((event.target as HTMLInputElement).value);
+  }
+
+  setNewRoleDescription(event: Event): void {
+    this.newRoleDescription.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  toggleNewRoleCanEdit(): void {
+    const canEdit = !this.newRoleCanEdit();
+    this.newRoleCanEdit.set(canEdit);
+    if (!canEdit && this.newRoleDefaultAccess() === 'edit') this.newRoleDefaultAccess.set('view');
+  }
+
+  isNewRoleOptionDisabled(option: AccessOption): boolean {
+    return option.value === 'edit' && !this.newRoleCanEdit();
+  }
+
+  createRole(event: SubmitEvent): void {
+    event.preventDefault();
+    if (!this.canCreateRole()) return;
+    const name = this.newRoleName().trim();
+    this.isCreating.set(true);
+    this.createError.set('');
+    this.permissionService
+      .createRole({
+        name,
+        description: this.newRoleDescription().trim(),
+        canEdit: this.newRoleCanEdit(),
+        defaultAccess: this.newRoleDefaultAccess(),
+      })
+      .subscribe({
+        next: (roleId) => {
+          this.resetNewRoleForm();
+          this.roleNotice.set(`Role ${name} created. Set its project access below.`);
+          this.selectedRoleId.set(roleId);
+          this.isAddingRole.set(false);
+          this.isCreating.set(false);
+        },
+        error: (error: unknown) => {
+          console.error('Failed to create role', error);
+          this.createError.set(
+            error instanceof HttpErrorResponse && error.status === HTTP_CONFLICT
+              ? 'A role with this name already exists. Choose a different name.'
+              : 'Could not create the role. Check the name and try again.',
+          );
+          this.isCreating.set(false);
+        },
+      });
+  }
+
+  deleteSelectedRole(): void {
+    if (!this.isAdmin() || !this.isCustomRole() || this.isDeleting()) return;
+    const { id, label } = this.selectedRole();
+    this.confirmDialog
+      .confirm({
+        title: 'Delete role?',
+        message: `Really delete ${label}? People signed in with this role lose access to every project. This cannot be undone.`,
+        confirmText: 'Delete',
+        config: { confirmColor: 'error' },
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.isDeleting.set(true);
+        this.deleteError.set('');
+        this.permissionService.deleteRole(id).subscribe({
+          next: () => {
+            this.selectedRoleId.set(FALLBACK_ROLE_ID);
+            this.roleNotice.set(`Role ${label} deleted.`);
+            this.isDeleting.set(false);
+          },
+          error: (error: unknown) => {
+            console.error('Failed to delete role', error);
+            this.deleteError.set('Could not delete the role. Try again.');
+            this.isDeleting.set(false);
+          },
+        });
+      });
+  }
+
+  private resetNewRoleForm(): void {
+    this.newRoleName.set('');
+    this.newRoleDescription.set('');
+    this.newRoleCanEdit.set(true);
+    this.newRoleDefaultAccess.set('view');
   }
 
   accessFor(projectId: string): ProjectAccess {

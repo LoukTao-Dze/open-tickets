@@ -23,6 +23,7 @@ import { environment } from '../../../environments/environment';
 import { switchMap } from 'rxjs';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
+import { isReadOnlyRole } from '../../shared/editor-roles';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
@@ -207,7 +208,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   ngOnInit() {
     this.auth.getSession().subscribe({
       next: (session) => {
-        this.isReadOnly = session.user.role === 'guest';
+        this.isReadOnly = isReadOnlyRole(session.user.role);
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Failed to resolve user role', err),

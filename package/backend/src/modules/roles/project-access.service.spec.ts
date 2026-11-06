@@ -61,4 +61,11 @@ describe('ProjectAccessService', () => {
       service.filterByProject(EnumUserRole.USER, items, projectIdOf),
     ).rejects.toBeInstanceOf(InternalServerErrorException);
   });
+
+  it('gives a custom role without a saved row no access', async () => {
+    const { service } = createService({ data: null, error: null });
+    await expect(
+      service.filterByProject('qa-reviewer', items, projectIdOf),
+    ).resolves.toEqual([]);
+  });
 });

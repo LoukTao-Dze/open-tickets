@@ -7,7 +7,7 @@ export interface AuthSession {
     user_id: string;
     username: string;
     auth_provider: 'token' | 'bypass';
-    role: 'admin' | 'user' | 'guest';
+    role: string;
   };
   expires_at: string;
 }

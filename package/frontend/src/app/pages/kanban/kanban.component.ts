@@ -20,6 +20,7 @@ import { KanbanColumn, KanbanProject, KanbanTicket } from '../../interface/kanba
 import { KanbanApiService } from '../../services/kanban-api.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
+import { isReadOnlyRole } from '../../shared/editor-roles';
 
 const ALL_PROJECTS = 'all';
 const PROJECT_NAME_MAX_LENGTH = 12;
@@ -56,7 +57,7 @@ export class KanbanComponent implements OnInit {
   ngOnInit() {
     this.auth.getSession().subscribe({
       next: (session) => {
-        this.isReadOnly = session.user.role === 'guest';
+        this.isReadOnly = isReadOnlyRole(session.user.role);
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Failed to resolve user role', err),

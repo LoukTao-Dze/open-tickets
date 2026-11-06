@@ -6,6 +6,7 @@ import { KanbanProject } from '../../interface/kanban.interface';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { ProjectApiService } from '../../services/project.service';
 import { AuthService } from '../../services/auth.service';
+import { isReadOnlyRole } from '../../shared/editor-roles';
 
 const GUEST_PROJECT_ID_PREFIX = 'guest-';
 
@@ -81,7 +82,7 @@ export class ProjectsComponent implements OnInit {
   ngOnInit(): void {
     this.auth.getSession().subscribe({
       next: (session) => {
-        this.isReadOnly = session.user.role === 'guest';
+        this.isReadOnly = isReadOnlyRole(session.user.role);
         this.cdr.markForCheck();
       },
       error: (error) => console.error('Failed to resolve user role', error),

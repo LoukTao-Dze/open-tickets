@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { EnumUserRole } from './auth.dto';
+import { ADMIN_ROLE } from './auth.constants';
 import { AuthService } from './auth.service';
 import { extractSessionId } from './session-cookie';
 
@@ -17,7 +17,7 @@ export class AdminGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const session = await this.auth.getSession(extractSessionId(request));
-    if (session.user.role !== EnumUserRole.ADMIN) {
+    if (session.user.role !== ADMIN_ROLE) {
       throw new ForbiddenException();
     }
     return true;

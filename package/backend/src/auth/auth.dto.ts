@@ -6,11 +6,18 @@ import {
   IsISO8601,
   IsNotEmpty,
   IsString,
+  Matches,
   MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
-import { MAX_TOKEN_LENGTH } from './auth.constants';
+import {
+  MAX_TOKEN_LENGTH,
+  ROLE_NAME_MAX_LENGTH,
+  ROLE_NAME_MIN_LENGTH,
+  ROLE_NAME_PATTERN,
+} from './auth.constants';
 
 export enum EnumUserRole {
   ADMIN = 'admin',
@@ -47,8 +54,11 @@ export class LoginClaims {
   @IsEnum(EnumAuthProvider)
   auth_provider!: EnumAuthProvider;
 
-  @IsEnum(EnumUserRole)
-  role!: EnumUserRole;
+  @IsString()
+  @MinLength(ROLE_NAME_MIN_LENGTH)
+  @MaxLength(ROLE_NAME_MAX_LENGTH)
+  @Matches(ROLE_NAME_PATTERN)
+  role!: string;
 }
 
 export class SessionProfile {
@@ -63,8 +73,11 @@ export class SessionProfile {
   @IsEnum(EnumAuthProvider)
   auth_provider!: EnumAuthProvider;
 
-  @IsEnum(EnumUserRole)
-  role!: EnumUserRole;
+  @IsString()
+  @MinLength(ROLE_NAME_MIN_LENGTH)
+  @MaxLength(ROLE_NAME_MAX_LENGTH)
+  @Matches(ROLE_NAME_PATTERN)
+  role!: string;
 }
 
 export class AuthSession {

@@ -13,7 +13,7 @@
 
   <div class="roles-layout">
     <nav class="role-rail" aria-label="Roles">
-      @for (role of roles; track role.id) {
+      @for (role of roles(); track role.id) {
         <button
           type="button"
           class="role-tab"
@@ -25,113 +25,245 @@
           <span class="role-summary">{{ summaryFor(role.id) }}</span>
         </button>
       }
-    </nav>
-
-    <div class="role-detail">
-      <div class="detail-head">
-        <h2>{{ selectedRole().label }}</h2>
-        <p>{{ selectedRole().description }}</p>
-      </div>
-
-      <div class="edit-switch-row">
-        <div>
-          <p class="switch-title" id="can-edit-label">Can edit</p>
-          <p class="switch-hint">
-            @if (selectedPermission().canEdit) {
-              Can add, change and delete items in projects set to Edit.
-            } @else {
-              View only. This role cannot change items.
-            }
-          </p>
-        </div>
+      @if (isAdmin()) {
         <button
           type="button"
-          role="switch"
-          class="switch"
-          aria-labelledby="can-edit-label"
-          [attr.aria-checked]="selectedPermission().canEdit"
-          [disabled]="!isEditable()"
-          (click)="toggleCanEdit()"
+          class="role-tab add-role-tab"
+          [class.is-selected]="isAddingRole()"
+          [attr.aria-pressed]="isAddingRole()"
+          (click)="openAddRole()"
         >
-          <span class="switch-thumb"></span>
+          <span class="role-name">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            Add role
+          </span>
+          <span class="role-summary">Create a custom role</span>
         </button>
-      </div>
-
-      <div class="access-head">
-        <h3>Project access</h3>
-        <p>
-          {{ summaryFor(selectedRoleId()) }}
-        </p>
-      </div>
-
-      @if (isLoading()) {
-        <p class="empty" role="status">Loading projects…</p>
-      } @else if (loadFailed()) {
-        <div class="empty" role="alert">
-          <p>Projects could not be loaded. Check your connection and try again.</p>
-          <button type="button" class="retry-button" (click)="loadProjects()">Retry</button>
-        </div>
-      } @else if (!projects().length) {
-        <p class="empty">No projects yet. Create one on the Projects page to set access.</p>
-      } @else {
-        <ul class="project-rows">
-          @for (project of projects(); track project.id) {
-            <li class="project-row">
-              <span class="project-name" [id]="'project-' + project.id">{{
-                project.project_name
-              }}</span>
-              <div
-                class="access-control"
-                role="radiogroup"
-                [attr.aria-labelledby]="'project-' + project.id"
-              >
-                @for (option of accessOptions; track option.value) {
-                  <button
-                    type="button"
-                    role="radio"
-                    class="access-option"
-                    [attr.data-access]="option.value"
-                    [attr.aria-checked]="accessFor(project.id) === option.value"
-                    [class.is-active]="accessFor(project.id) === option.value"
-                    [disabled]="isOptionDisabled(option)"
-                    (click)="setAccess(project.id, option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-              </div>
-            </li>
-          }
-        </ul>
       }
+    </nav>
 
-      @if (isAdmin()) {
-        <div class="save-bar">
-          <p class="save-status" role="status">
-            @switch (saveStatus()) {
-              @case ('saved') {
-                Changes saved.
-              }
-              @case ('failed') {
-                Could not save changes. Try again.
-              }
-              @default {
-                @if (canSave()) {
-                  You have unsaved changes.
-                }
-              }
-            }
+    @if (isAddingRole()) {
+      <form class="role-detail" (submit)="createRole($event)" novalidate>
+        <div class="detail-head">
+          <h2>Add role</h2>
+          <p>Name the role and choose what it can do. You can set access per project afterwards.</p>
+        </div>
+
+        <div class="field">
+          <label for="new-role-name">Role name</label>
+          <input
+            id="new-role-name"
+            type="text"
+            autocomplete="off"
+            [maxLength]="roleNameMaxLength"
+            [value]="newRoleName()"
+            [attr.aria-invalid]="newRoleName() && !isNewRoleNameValid() ? 'true' : null"
+            aria-describedby="new-role-name-hint"
+            (input)="setNewRoleName($event)"
+          />
+          <p class="field-hint" id="new-role-name-hint">
+            {{ roleNameMinLength }} to {{ roleNameMaxLength }} characters. Each name can be used
+            once.
           </p>
+        </div>
+
+        <div class="field">
+          <label for="new-role-description">Description (optional)</label>
+          <textarea
+            id="new-role-description"
+            rows="2"
+            [maxLength]="roleDescriptionMaxLength"
+            [value]="newRoleDescription()"
+            (input)="setNewRoleDescription($event)"
+          ></textarea>
+        </div>
+
+        <div class="edit-switch-row">
+          <div>
+            <p class="switch-title" id="new-role-can-edit-label">Can edit</p>
+            <p class="switch-hint">
+              @if (newRoleCanEdit()) {
+                Can add, change and delete items in projects set to Edit.
+              } @else {
+                View only. This role cannot change items.
+              }
+            </p>
+          </div>
           <button
             type="button"
-            class="save-button"
-            [disabled]="!canSave()"
-            (click)="savePermissions()"
+            role="switch"
+            class="switch"
+            aria-labelledby="new-role-can-edit-label"
+            [attr.aria-checked]="newRoleCanEdit()"
+            (click)="toggleNewRoleCanEdit()"
           >
-            {{ isSaving() ? 'Saving…' : 'Save changes' }}
+            <span class="switch-thumb"></span>
           </button>
         </div>
-      }
-    </div>
+
+        <div class="project-row">
+          <div>
+            <p class="switch-title" id="new-role-default-access-label">Access to every project</p>
+            <p class="switch-hint">Applies to all projects until you change it for one.</p>
+          </div>
+          <div
+            class="access-control"
+            role="radiogroup"
+            aria-labelledby="new-role-default-access-label"
+          >
+            @for (option of accessOptions; track option.value) {
+              <button
+                type="button"
+                role="radio"
+                class="access-option"
+                [attr.data-access]="option.value"
+                [attr.aria-checked]="newRoleDefaultAccess() === option.value"
+                [class.is-active]="newRoleDefaultAccess() === option.value"
+                [disabled]="isNewRoleOptionDisabled(option)"
+                (click)="newRoleDefaultAccess.set(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="save-bar">
+          <p class="save-status" role="alert">{{ createError() }}</p>
+          <button type="submit" class="save-button" [disabled]="!canCreateRole()">
+            {{ isCreating() ? 'Creating…' : 'Create role' }}
+          </button>
+        </div>
+      </form>
+    } @else {
+      <div class="role-detail">
+        @if (roleNotice()) {
+          <p class="notice is-success" role="status">
+            <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+            {{ roleNotice() }}
+          </p>
+        }
+        <div class="detail-head">
+          <div>
+            <h2>{{ selectedRole().label }}</h2>
+            <p>{{ selectedRole().description }}</p>
+          </div>
+          @if (isAdmin() && isCustomRole()) {
+            <div class="delete-role">
+              <button
+                type="button"
+                class="delete-button"
+                [disabled]="isDeleting()"
+                (click)="deleteSelectedRole()"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                {{ isDeleting() ? 'Deleting…' : 'Delete role' }}
+              </button>
+              <p class="save-status" role="alert">{{ deleteError() }}</p>
+            </div>
+          }
+        </div>
+
+        <div class="edit-switch-row">
+          <div>
+            <p class="switch-title" id="can-edit-label">Can edit</p>
+            <p class="switch-hint">
+              @if (selectedPermission().canEdit) {
+                Can add, change and delete items in projects set to Edit.
+              } @else {
+                View only. This role cannot change items.
+              }
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            class="switch"
+            aria-labelledby="can-edit-label"
+            [attr.aria-checked]="selectedPermission().canEdit"
+            [disabled]="!isEditable()"
+            (click)="toggleCanEdit()"
+          >
+            <span class="switch-thumb"></span>
+          </button>
+        </div>
+
+        <div class="access-head">
+          <h3>Project access</h3>
+          <p>
+            {{ summaryFor(selectedRoleId()) }}
+          </p>
+        </div>
+
+        @if (isLoading()) {
+          <p class="empty" role="status">Loading projects…</p>
+        } @else if (loadFailed()) {
+          <div class="empty" role="alert">
+            <p>Projects could not be loaded. Check your connection and try again.</p>
+            <button type="button" class="retry-button" (click)="loadProjects()">Retry</button>
+          </div>
+        } @else if (!projects().length) {
+          <p class="empty">No projects yet. Create one on the Projects page to set access.</p>
+        } @else {
+          <ul class="project-rows">
+            @for (project of projects(); track project.id) {
+              <li class="project-row">
+                <span class="project-name" [id]="'project-' + project.id">{{
+                  project.project_name
+                }}</span>
+                <div
+                  class="access-control"
+                  role="radiogroup"
+                  [attr.aria-labelledby]="'project-' + project.id"
+                >
+                  @for (option of accessOptions; track option.value) {
+                    <button
+                      type="button"
+                      role="radio"
+                      class="access-option"
+                      [attr.data-access]="option.value"
+                      [attr.aria-checked]="accessFor(project.id) === option.value"
+                      [class.is-active]="accessFor(project.id) === option.value"
+                      [disabled]="isOptionDisabled(option)"
+                      (click)="setAccess(project.id, option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (isAdmin()) {
+          <div class="save-bar">
+            <p class="save-status" role="status">
+              @switch (saveStatus()) {
+                @case ('saved') {
+                  Changes saved.
+                }
+                @case ('failed') {
+                  Could not save changes. Try again.
+                }
+                @default {
+                  @if (canSave()) {
+                    You have unsaved changes.
+                  }
+                }
+              }
+            </p>
+            <button
+              type="button"
+              class="save-button"
+              [disabled]="!canSave()"
+              (click)="savePermissions()"
+            >
+              {{ isSaving() ? 'Saving…' : 'Save changes' }}
+            </button>
+          </div>
+        }
+      </div>
+    }
   </div>
 </section>

@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { ADMIN_ROLE } from '../../auth/auth.constants';
 import { EnumUserRole } from '../../auth/auth.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { ProjectAccess } from './dto/update-role-permissions.dto';
@@ -13,11 +14,12 @@ interface StoredPermission {
 }
 
 // Used only when a role has no saved row yet; mirrors the migration seed.
-const FALLBACK_DEFAULT_ACCESS: Record<EnumUserRole, ProjectAccess> = {
-  [EnumUserRole.ADMIN]: 'edit',
-  [EnumUserRole.USER]: 'edit',
-  [EnumUserRole.GUEST]: 'view',
-};
+// Any other role (for example a deleted custom role) gets no access.
+const FALLBACK_DEFAULT_ACCESS = new Map<string, ProjectAccess>([
+  [EnumUserRole.ADMIN, 'edit'],
+  [EnumUserRole.USER, 'edit'],
+  [EnumUserRole.GUEST, 'view'],
+]);
 
 @Injectable()
 export class ProjectAccessService {
@@ -27,11 +29,11 @@ export class ProjectAccessService {
 
   // Removes items whose project is set to "none" for the role. Fails closed on errors.
   async filterByProject<T>(
-    role: EnumUserRole,
+    role: string,
     items: T[],
     projectIdOf: (item: T) => string | undefined,
   ): Promise<T[]> {
-    if (role === EnumUserRole.ADMIN) {
+    if (role === ADMIN_ROLE) {
       return items;
     }
     const permission = await this.loadPermission(role);
@@ -41,21 +43,19 @@ export class ProjectAccessService {
   }
 
   private accessFor(
-    role: EnumUserRole,
+    role: string,
     permission: StoredPermission | null,
     projectId?: string,
   ): ProjectAccess {
     const defaultAccess =
-      permission?.default_access ?? FALLBACK_DEFAULT_ACCESS[role];
+      permission?.default_access ?? FALLBACK_DEFAULT_ACCESS.get(role) ?? 'none';
     if (!projectId) {
       return defaultAccess;
     }
     return permission?.project_access?.[projectId] ?? defaultAccess;
   }
 
-  private async loadPermission(
-    role: EnumUserRole,
-  ): Promise<StoredPermission | null> {
+  private async loadPermission(role: string): Promise<StoredPermission | null> {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('role_permissions')
