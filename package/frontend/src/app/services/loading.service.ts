@@ -11,6 +11,8 @@ export class LoadingService {
   }
 
   close(): void {
-    this.pending.update((count) => Math.max(0, count - 1));
+    setTimeout(() => {
+      this.pending.update((count) => Math.max(0, count - 1));
+    }, 1000);
   }
 }

@@ -19,7 +19,6 @@ export class HeaderComponent {
   readonly accountTrigger = viewChild.required<ElementRef<HTMLElement>>('accountTrigger');
   readonly session = signal<AuthSession | null>(null);
   readonly showProfile = signal(false);
-  readonly isLoadingProfile = signal(false);
   readonly isLoggingOut = signal(false);
   readonly accountError = signal('');
   src = '';
@@ -37,17 +36,14 @@ export class HeaderComponent {
     this.accountTrigger().nativeElement.focus();
   }
 
-  async toggleProfile(): Promise<void> {
+  toggleProfile(): void {
     this.showProfile.update((isVisible) => !isVisible);
-    if (!this.showProfile() || this.session() || this.isLoadingProfile()) return;
-    this.isLoadingProfile.set(true);
+    if (!this.showProfile()) return;
     this.accountError.set('');
-    try {
-      this.session.set(await firstValueFrom(this.auth.getSession()));
-    } catch {
+    this.session.set(this.auth.cachedSession);
+    if (!this.session()) {
+      console.error('Unable to load profile: no cached session.');
       this.accountError.set('Unable to load profile. Close and reopen Profile to retry.');
-    } finally {
-      this.isLoadingProfile.set(false);
     }
   }
 

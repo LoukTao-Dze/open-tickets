@@ -27,7 +27,6 @@ describe('App', () => {
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
     httpTesting.expectOne(`${environment.apiBaseUrl}/api/health`).flush({});
-    httpTesting.expectOne(`${environment.apiBaseUrl}/api/auth/session`).flush(null);
 
     expect(fixture.componentInstance).toBeTruthy();
   });
@@ -38,16 +37,5 @@ describe('App', () => {
     const request = httpTesting.expectOne(`${environment.apiBaseUrl}/api/health`);
     expect(request.request.method).toBe('GET');
     request.flush({});
-    httpTesting.expectOne(`${environment.apiBaseUrl}/api/auth/session`).flush(null);
-  });
-
-  it('should request the session endpoint on startup', () => {
-    TestBed.createComponent(App);
-
-    httpTesting.expectOne(`${environment.apiBaseUrl}/api/health`).flush({});
-    const request = httpTesting.expectOne(`${environment.apiBaseUrl}/api/auth/session`);
-    expect(request.request.method).toBe('GET');
-    expect(request.request.withCredentials).toBe(true);
-    request.flush(null);
   });
 });

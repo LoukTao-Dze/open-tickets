@@ -13,13 +13,14 @@ const ACCOUNT_SESSION: AuthSession = {
 describe('HeaderComponent account options', () => {
   let fixture: ComponentFixture<HeaderComponent>;
   const auth = {
+    cachedSession: ACCOUNT_SESSION as AuthSession | null,
     getSession: vi.fn(),
     logout: vi.fn(),
   };
 
   beforeEach(async () => {
     vi.resetAllMocks();
-    auth.getSession.mockReturnValue(of(ACCOUNT_SESSION));
+    auth.cachedSession = ACCOUNT_SESSION;
     auth.logout.mockReturnValue(of(undefined));
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
@@ -42,7 +43,7 @@ describe('HeaderComponent account options', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('loads the username and role only when Profile is expanded', async () => {
+  it('reads the cached username and role without requesting a session', async () => {
     expect(auth.getSession).not.toHaveBeenCalled();
     await fixture.componentInstance.toggleProfile();
     fixture.detectChanges();
@@ -54,21 +55,23 @@ describe('HeaderComponent account options', () => {
     fixture.detectChanges();
     expect(profile.hidden).toBe(true);
     await fixture.componentInstance.toggleProfile();
-    expect(auth.getSession).toHaveBeenCalledTimes(1);
+    expect(auth.getSession).not.toHaveBeenCalled();
   });
 
   it('shows a profile failure and allows retrying', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    auth.getSession.mockReturnValueOnce(throwError(() => new Error('Offline')));
+    auth.cachedSession = null;
     await fixture.componentInstance.toggleProfile();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain(
       'Unable to load profile',
     );
     await fixture.componentInstance.toggleProfile();
+    auth.cachedSession = ACCOUNT_SESSION;
     await fixture.componentInstance.toggleProfile();
     expect(fixture.componentInstance.session()).toEqual(ACCOUNT_SESSION);
     expect(fixture.componentInstance.accountError()).toBe('');
+    expect(auth.getSession).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   });
 

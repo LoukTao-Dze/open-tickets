@@ -206,13 +206,12 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   ngOnInit() {
-    this.auth.getSession().subscribe({
-      next: (session) => {
-        this.isReadOnly = isReadOnlyRole(session.user.role);
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('Failed to resolve user role', err),
-    });
+    const session = this.auth.cachedSession;
+    if (session) {
+      this.isReadOnly = isReadOnlyRole(session.user.role);
+    } else {
+      console.error('Failed to resolve user role: no cached session.');
+    }
     this.getCanvasItem();
     this.setValuesFromLocalStorage();
   }
@@ -662,9 +661,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           return null;
         }
 
-        // const randomNumber1To3 = (): number => {
-        //   return Math.floor(Math.random() * 7) - 3;
-        // };
+        const randomNumberMinus3To3 = (): number => {
+          return Math.floor(Math.random() * 7) - 3;
+        };
         return {
           // id: this.getItemId(EnumWorkspaceItemType.STICKY_NOTE),
           projectId,
@@ -676,7 +675,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           content: '',
           bgColor: event.color.bgColor,
           textColor: event.color.textColor,
-          rotation: 0, //randomNumber1To3(),
+          rotation: randomNumberMinus3To3(),
           icon: '',
           width: STICKY_NOTE_SIZE,
           height: STICKY_NOTE_SIZE,
@@ -768,13 +767,12 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.http.post<SaveCanvasItemResponse>(SAVE_CANVAS_ITEM_ENDPOINT, itemToSave).subscribe({
       next: (res) => {
         itemToSave.id = res?.data?.id;
-        console.log('Canvas item saved successfully', res);
         setTimeout(() => {
           this.isCanvasLoading = false;
-        }, 1000);
+          this.cdr.detectChanges();
+        }, 500);
       },
       error: (err) => {
-        console.error('Failed to save canvas item', err);
         this.isCanvasLoading = false;
       },
     });

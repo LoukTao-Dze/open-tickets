@@ -18,26 +18,48 @@ import { LoadingService } from '../../services/loading.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgb(255 255 255 / 0.5);
+      background: rgb(74 74 74 / 0.5);
     }
     .loader {
-      width: fit-content;
-      font-size: 40px;
-      font-family: system-ui, sans-serif;
       font-weight: bold;
-      text-transform: uppercase;
-      color: #0000;
-      -webkit-text-stroke: 1px #000;
-      background: conic-gradient(#000 0 0) 50% / 0 100% no-repeat text;
-      animation: l4 1.5s linear infinite;
+      font-family: monospace;
+      display: inline-grid;
+      font-size: 30px;
+      color: #fff;
+    }
+    .loader:before,
+    .loader:after {
+      content: 'Loading...';
+      grid-area: 1/1;
+      -webkit-mask-size: 100% 5px, 100% 100%;
+      mask-size: 100% 5px, 100% 100%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: l35-1 1s infinite;
     }
     .loader:before {
-      content: 'Loading';
+      -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
     }
-    @keyframes l4 {
-      to {
-        background-size: 120% 100%;
-      }
+    .loader:after {
+      -webkit-mask-image: linear-gradient(#000 0 0);
+      mask-image: linear-gradient(#000 0 0);
+      animation:
+        l35-1 1s infinite,
+        l35-2 0.2s infinite cubic-bezier(0.5, 200, 0.5, -200);
+    }
+    @keyframes l35-1 {
+      0% { -webkit-mask-position: 0 20px, 0 0; mask-position: 0 20px, 0 0; }
+      20% { -webkit-mask-position: 0 8px, 0 0; mask-position: 0 8px, 0 0; }
+      40% { -webkit-mask-position: 0 100%, 0 0; mask-position: 0 100%, 0 0; }
+      60% { -webkit-mask-position: 0 3px, 0 0; mask-position: 0 3px, 0 0; }
+      80% { -webkit-mask-position: 0 15px, 0 0; mask-position: 0 15px, 0 0; }
+      100% { -webkit-mask-position: 0 0, 0 0; mask-position: 0 0, 0 0; }
+    }
+    @keyframes l35-2 {
+      100% { transform: translate(0.1px); }
     }
   `,
 })

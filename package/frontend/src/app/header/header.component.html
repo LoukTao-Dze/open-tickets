@@ -75,9 +75,6 @@
           </span>
         </button>
         <div id="account-profile" [hidden]="!showProfile()" class="px-sm py-sm">
-          @if (isLoadingProfile()) {
-            <p role="status" class="text-on-surface-variant">Loading profile...</p>
-          }
           @if (session(); as profile) {
             <dl class="flex flex-col gap-sm">
               <div>

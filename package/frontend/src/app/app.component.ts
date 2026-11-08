@@ -52,13 +52,5 @@ export class App {
         console.warn('ERROR:', err);
       },
     });
-    this.auth.getSession().subscribe({
-      next: (session) => {
-        localStorage.setItem('session', JSON.stringify(session));
-      },
-      error: (err) => {
-        console.warn('Failed to get session:', err);
-      },
-    });
   }
 }

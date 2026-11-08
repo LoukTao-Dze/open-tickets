@@ -60,6 +60,7 @@ export class ToolHubsComponent {
       icon: 'sticky_note_2',
       iconClass: 'text-[#fde68a]',
       isActive: true,
+      openTool: true,
     },
     { id: EnumWorkspaceItemType.SHAPES, icon: 'category', isActive: false, openTool: true },
     { id: EnumWorkspaceItemType.TEXT, icon: 'text_fields', isActive: true, openTool: true },

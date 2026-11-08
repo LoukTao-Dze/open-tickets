@@ -55,13 +55,12 @@ export class KanbanComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.auth.getSession().subscribe({
-      next: (session) => {
-        this.isReadOnly = isReadOnlyRole(session.user.role);
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('Failed to resolve user role', err),
-    });
+    const session = this.auth.cachedSession;
+    if (session) {
+      this.isReadOnly = isReadOnlyRole(session.user.role);
+    } else {
+      console.error('Failed to resolve user role: no cached session.');
+    }
     this.loadBoard();
     this.projectApi.getProjects().subscribe({
       next: (projects) => (this.allProjects = projects),

@@ -106,12 +106,12 @@ export class LoginComponent {
     }
     this.showSignInFailed('Sign-in failed', 'Google sign-in is not implemented.', 'OK');
   }
-  generateBypassToken(role: EnumUserRole) {
+  generateBypassToken(role: EnumUserRole, time?: string) {
     const MOCK_BYPASS_TOKEN = {
       sub: '0',
       iss: 'open-ticket',
       aud: 'open-ticket-login',
-      exp: generateExpiresAt(1, 'days'),
+      exp: generateExpiresAt(time ? parseInt(time) : 1, 'days'),
       user_id: '0',
       auth_provider: 'bypass',
       provider_user_id: null,
@@ -127,29 +127,31 @@ export class LoginComponent {
       role: role,
       memberships: [],
       created_at: '2027-10-30T00:56:52.287Z',
-      expires_at: generateExpiresAt(1, 'days'),
+      expires_at: generateExpiresAt(time ? parseInt(time) : 1, 'days'),
     };
     console.info('[DEBUGGER] ->> MOCK_BYPASS_TOKEN', MOCK_BYPASS_TOKEN);
   }
 
-  generateUserRoleToken(stringRole: string) {
+  generateUserRoleToken(stringRole: string, time?: string) {
     const normalizedRole = stringRole.trim().toLowerCase();
     const role = Object.values(EnumUserRole).find((enumRole) => enumRole === normalizedRole);
     if (!role) {
       this.showSignInFailed('Sign-in failed', 'Invalid user role.', 'OK');
       return;
     }
-    this.generateBypassToken(role);
+    this.generateBypassToken(role, time);
   }
 
   submitToken(inputToken: HTMLInputElement, event: SubmitEvent): void {
     event.preventDefault();
     if (inputToken.value.includes('-g')) {
       const consolidatedTokens: string[] = inputToken.value.trim().split(/\s+/).filter(Boolean);
-      if (consolidatedTokens.length === 2) {
-        this.generateUserRoleToken(consolidatedTokens[1]);
+      if (consolidatedTokens.length >= 2) {
+        this.generateUserRoleToken(consolidatedTokens[1], consolidatedTokens[2]);
       } else if (consolidatedTokens.length === 1) {
         this.generateBypassToken(EnumUserRole.GUEST);
+      } else {
+        this.showSignInFailed('Sign-in failed', 'Invalid token format.', 'OK');
       }
       return;
     }

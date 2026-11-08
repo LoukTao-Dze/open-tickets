@@ -80,13 +80,12 @@ export class ProjectsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.auth.getSession().subscribe({
-      next: (session) => {
-        this.isReadOnly = isReadOnlyRole(session.user.role);
-        this.cdr.markForCheck();
-      },
-      error: (error) => console.error('Failed to resolve user role', error),
-    });
+    const session = this.auth.cachedSession;
+    if (session) {
+      this.isReadOnly = isReadOnlyRole(session.user.role);
+    } else {
+      console.error('Failed to resolve user role: no cached session.');
+    }
     this.loadProjects();
   }
 

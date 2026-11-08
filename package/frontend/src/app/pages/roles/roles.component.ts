@@ -123,14 +123,14 @@ export class RolesComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    this.auth.getSession().subscribe({
-      next: (session) => {
-        const isAdmin = session.user.role === 'admin';
-        this.isAdmin.set(isAdmin);
-        if (isAdmin) this.loadPermissions();
-      },
-      error: (error) => console.error('Failed to resolve user role', error),
-    });
+    const session = this.auth.cachedSession;
+    if (session) {
+      const isAdmin = session.user.role === 'admin';
+      this.isAdmin.set(isAdmin);
+      if (isAdmin) this.loadPermissions();
+    } else {
+      console.error('Failed to resolve user role: no cached session.');
+    }
     this.loadProjects();
   }
 
