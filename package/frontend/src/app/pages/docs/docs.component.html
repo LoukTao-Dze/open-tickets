@@ -1,0 +1,96 @@
+<section class="docs-page">
+  <header class="docs-heading">
+    <div>
+      <h1>คู่มือการใช้งาน</h1>
+      <p>เอกสารสำหรับทีม Open Ticket อ่านได้ทุก role แก้ไขได้เฉพาะ admin</p>
+    </div>
+    @if (guide() && !loading()) {
+      <div class="docs-actions">
+        <button type="button" (click)="download()">
+          {{ editing() ? 'ดาวน์โหลดฉบับร่าง .md' : 'ดาวน์โหลด .md' }}
+        </button>
+        @if (isAdmin() && !editing()) {
+          <button type="button" class="docs-primary" (click)="startEditing()">แก้ไขคู่มือ</button>
+        }
+      </div>
+    }
+  </header>
+
+  @if (error()) {
+    <p class="docs-error" role="alert">{{ error() }}</p>
+  }
+  @if (notice()) {
+    <p class="docs-notice" role="status">{{ notice() }}</p>
+  }
+
+  @if (loading()) {
+    <p role="status">กำลังโหลดคู่มือ...</p>
+  } @else if (guide(); as guide) {
+    <div class="docs-file">
+      <div class="docs-file-heading">
+        <span class="docs-filename">
+          <span class="material-symbols-outlined" aria-hidden="true">description</span>
+          README.md
+        </span>
+        <span>อัปเดต {{ guide.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+      </div>
+      <div class="docs-toolbar">
+        <div class="docs-tabs" role="group" aria-label="รูปแบบแสดงเอกสาร">
+          <button
+            type="button"
+            [attr.aria-pressed]="tab() === 'preview'"
+            [class.selected]="tab() === 'preview'"
+            (click)="tab.set('preview')"
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            [attr.aria-pressed]="tab() === 'source'"
+            [class.selected]="tab() === 'source'"
+            (click)="tab.set('source')"
+          >
+            Source
+          </button>
+        </div>
+        @if (editing()) {
+          <div class="docs-actions">
+            <button type="button" (click)="cancel()" [disabled]="saving()">ยกเลิก</button>
+            <button type="button" class="docs-primary" (click)="save()" [disabled]="!canSave()">
+              {{ saving() ? 'กำลังบันทึก...' : 'บันทึกคู่มือ' }}
+            </button>
+          </div>
+        } @else {
+          <span class="docs-readonly">อ่านอย่างเดียว</span>
+        }
+      </div>
+      @if (tab() === 'preview') {
+        <article #preview class="docs-markdown" aria-label="เนื้อหาคู่มือ"></article>
+      } @else if (editing()) {
+        <div class="docs-editor">
+          <label for="guide-source">เนื้อหา Markdown</label>
+          <p id="guide-source-hint">ไม่บันทึกอัตโนมัติ สลับไป Preview เพื่อตรวจผลก่อนบันทึก</p>
+          <textarea
+            id="guide-source"
+            [value]="draft()"
+            (input)="setDraft($event)"
+            [maxLength]="maxLength"
+            [disabled]="saving()"
+            spellcheck="false"
+            aria-describedby="guide-source-hint guide-source-count"
+          ></textarea>
+          <p id="guide-source-count">
+            {{ draft().length }} / {{ maxLength }} ตัวอักษร {{ dirty() ? ' · ยังไม่บันทึก' : '' }}
+          </p>
+        </div>
+      } @else {
+        <pre class="docs-source"><code>{{ source() }}</code></pre>
+      }
+    </div>
+    @if (!editing()) {
+      <button class="docs-reload" type="button" (click)="load()">โหลดฉบับล่าสุด</button>
+    }
+  } @else {
+    <button type="button" (click)="load()">ลองโหลดใหม่</button>
+  }
+</section>

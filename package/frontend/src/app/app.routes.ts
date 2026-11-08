@@ -65,11 +65,8 @@ export const routes: Routes = [
   {
     path: 'docs',
     canActivate: [authGuard],
-    loadComponent: () =>
-      import('./pages/page-placeholder/page-placeholder.component').then(
-        (m) => m.PagePlaceholderComponent,
-      ),
-    data: { title: 'Docs' },
+    canDeactivate: [(component: { canLeave: () => Promise<boolean> }) => component.canLeave()],
+    loadComponent: () => import('./pages/docs/docs.component').then((m) => m.DocsComponent),
   },
   { path: '**', redirectTo: 'kanban' },
 ];

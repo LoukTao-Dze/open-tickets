@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import { AppModule } from '../src/app.module';
 import { getCorsOrigins } from '../src/cors-origins';
+import { configureDocsBodyParser } from '../src/modules/docs/docs-request.config';
 
 // Cached across warm Vercel invocations so we don't re-bootstrap Nest on every request.
 let cachedApp: express.Express | undefined;
@@ -16,6 +17,7 @@ async function bootstrap(): Promise<express.Express> {
     new ExpressAdapter(expressInstance),
   );
   app.setGlobalPrefix('api');
+  configureDocsBodyParser(app);
   app.enableCors({
     origin: getCorsOrigins(),
     credentials: true,

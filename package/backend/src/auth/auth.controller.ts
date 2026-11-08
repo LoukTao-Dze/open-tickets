@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Header,
   HttpCode,
@@ -13,11 +12,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
-import { getCorsOrigins } from '../cors-origins';
 import { SESSION_COOKIE } from './auth.constants';
 import { TokenLoginDto } from './auth.dto';
 import { AuthService } from './auth.service';
 import { extractSessionId } from './session-cookie';
+import { validateRequestOrigin } from './request-origin';
 
 @Controller('auth')
 @UsePipes(
@@ -42,7 +41,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     // Reject cross-origin login CSRF even when browsers can send cross-site cookies.
-    this.validateOrigin(request);
+    validateRequestOrigin(request);
     await this.auth.checkRateLimit(request.ip ?? 'unknown');
     const { sessionId, session, ttl } = await this.auth.login(body.token);
     response.cookie(SESSION_COOKIE, sessionId, this.cookieOptions(ttl));
@@ -63,16 +62,9 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     // Prevent cross-site logout; clear the cookie only after Redis confirms deletion.
-    this.validateOrigin(request);
+    validateRequestOrigin(request);
     await this.auth.logout(this.sessionId(request));
     response.clearCookie(SESSION_COOKIE, this.cookieOptions());
-  }
-
-  private validateOrigin(request: Request): void {
-    const origin = request.get('origin');
-    if (origin && !getCorsOrigins().includes(origin)) {
-      throw new ForbiddenException();
-    }
   }
 
   private sessionId(request: Request): string | undefined {

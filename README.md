@@ -85,3 +85,34 @@ This builds and starts:
 
 - [Backend README](package/backend/README.md)
 - [Frontend README](package/frontend/README.md)
+
+### In-app user guide
+
+Open **Docs** (`/docs`) after signing in to read the detailed Thai user guide.
+It renders GitHub-flavored Markdown in a README-style view, offers read-only
+source and `.md` downloads, and lets **admin only** edit, preview and publish.
+Other roles cannot edit the guide, regardless of their project `Can edit` setting.
+
+Before using this page, run
+[`012_create_documentation.sql`](package/backend/src/supabase/migrations/012_create_documentation.sql)
+in the Supabase SQL editor after existing migrations. It creates an RLS-protected
+singleton document and seeds the full guide; re-running it preserves published edits.
+The backend must use a Supabase **service-role key** (never expose it to the frontend).
+
+- `GET /api/docs`: requires a valid server-side session.
+- `PUT /api/docs`: requires an admin server-side session; body is
+  `{ "content": "<Markdown>", "updatedAt": "<timestamp from GET>" }`.
+- Empty/whitespace content and content over 100,000 characters are rejected.
+- Docs JSON requests are limited to 1 MiB; other routes retain Nest's default
+  100 KiB JSON body limit.
+- Stale updates return `409` instead of overwriting another admin's changes.
+  Download the draft, cancel editing, reload and merge it with the latest guide.
+- Failed saves preserve the draft; leaving with unsaved changes requires confirmation.
+- Saving updates Supabase, not Git. Downloads are local `.md` snapshots;
+  there is no autosave or revision history.
+
+The current token login accepts signed JWTs with `auth_provider: "bypass"` and
+copies the verified `role` claim into the server-side session. An admin token
+must be issued by trusted administration; editing an unsigned token or sending
+a role in the Docs request body does not grant access. This feature adds no
+token-issuing or role-promotion endpoint.

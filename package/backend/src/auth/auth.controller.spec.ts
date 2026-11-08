@@ -8,6 +8,7 @@ import type { Server } from 'node:http';
 import { AuthModule } from './auth.module';
 import { SessionStore } from './session-store';
 import { SupabaseService } from '../supabase/supabase.service';
+import { configureDocsBodyParser } from '../modules/docs/docs-request.config';
 import {
   JWT_AUDIENCE,
   JWT_ISSUER,
@@ -63,6 +64,7 @@ describe('Token login HTTP flow', () => {
     jwt = module.get<JwtService>(JwtService);
     app = module.createNestApplication<INestApplication<Server>>();
     app.setGlobalPrefix('api');
+    configureDocsBodyParser(app);
     await app.init();
   });
 
@@ -156,6 +158,15 @@ describe('Token login HTTP flow', () => {
       .post('/api/auth/login/token')
       .send(body ?? {})
       .expect(400);
+    expect(redis.setSession).not.toHaveBeenCalled();
+  });
+
+  it('preserves the default JSON body size limit outside docs', async () => {
+    const defaultBodyLimitBytes = 100 * 1024;
+    await request(app.getHttpServer())
+      .post('/api/auth/login/token')
+      .send({ token: 'x'.repeat(defaultBodyLimitBytes) })
+      .expect(413);
     expect(redis.setSession).not.toHaveBeenCalled();
   });
 
