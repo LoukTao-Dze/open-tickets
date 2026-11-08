@@ -21,6 +21,8 @@ import { KanbanApiService } from '../../services/kanban-api.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
+import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
+import { finalize } from 'rxjs';
 
 const ALL_PROJECTS = 'all';
 const PROJECT_NAME_MAX_LENGTH = 12;
@@ -29,7 +31,7 @@ const GUEST_TICKET_ID_PREFIX = 'guest-';
 @Component({
   selector: 'app-kanban',
   standalone: true,
-  imports: [CommonModule, CdkDropListGroup, CdkDropList, CdkDrag],
+  imports: [CommonModule, CdkDropListGroup, CdkDropList, CdkDrag, LoadingOverlayComponent],
   templateUrl: './kanban.component.html',
   styleUrls: ['./kanban.component.scss'],
 })
@@ -47,6 +49,7 @@ export class KanbanComponent implements OnInit {
   allProjects: KanbanProject[] = [];
 
   selectedProject = ALL_PROJECTS;
+  isLoading = false;
   // Deny by default: stays read-only until the server confirms a non-guest role.
   isReadOnly = true;
 
@@ -192,13 +195,20 @@ export class KanbanComponent implements OnInit {
       this.cdr.detectChanges();
       return;
     }
+    this.isLoading = true;
+    this.cdr.detectChanges();
+
     this.kanbanApi.createTicket(value).subscribe({
       next: (ticket) => {
         targetColumn.tickets.push(ticket);
         targetColumn.count = targetColumn.tickets.length;
+        this.isLoading = false;
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Failed to create ticket', err),
+      error: (err) => {
+        console.error('Failed to create ticket', err);
+        this.isLoading = false;
+      },
     });
   }
 
@@ -207,9 +217,18 @@ export class KanbanComponent implements OnInit {
       this.applyTicketUpdate(ticket, { ...ticket, ...this.buildLocalTicket(value), id: ticket.id });
       return;
     }
+    this.isLoading = true;
+    this.cdr.detectChanges();
     this.kanbanApi.updateTicket(ticket.id, value).subscribe({
-      next: (updatedTicket) => this.applyTicketUpdate(ticket, updatedTicket),
-      error: (err) => console.error('Failed to update ticket', err),
+      next: (updatedTicket) => {
+        this.applyTicketUpdate(ticket, updatedTicket);
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to update ticket', err);
+        this.isLoading = false;
+      },
     });
   }
 
@@ -271,15 +290,23 @@ export class KanbanComponent implements OnInit {
         if (!confirmed) {
           return;
         }
-
+        this.isLoading = true;
+        this.cdr.detectChanges();
         if (this.isReadOnly) {
           this.removeTicketFromColumn(ticket);
           return;
         }
 
         this.kanbanApi.deleteTicket(ticket.id).subscribe({
-          next: () => this.removeTicketFromColumn(ticket),
-          error: (err) => console.error('Failed to delete ticket', err),
+          next: () => {
+            this.removeTicketFromColumn(ticket);
+            this.isLoading = false;
+            this.cdr.detectChanges();
+          },
+          error: (err) => {
+            console.error('Failed to delete ticket', err);
+            this.isLoading = false;
+          },
         });
       });
   }

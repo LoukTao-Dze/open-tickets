@@ -1,3 +1,7 @@
+@if (isSaving() || isCreating() || isDeleting()) {
+  <app-loading-overlay></app-loading-overlay>
+}
+
 <section class="roles-page">
   <header class="page-heading">
     <h1>Roles and access</h1>

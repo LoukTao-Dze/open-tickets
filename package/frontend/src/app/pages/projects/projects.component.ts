@@ -7,6 +7,7 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog
 import { ProjectApiService } from '../../services/project.service';
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
+import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
 
 const GUEST_PROJECT_ID_PREFIX = 'guest-';
 
@@ -46,7 +47,7 @@ const PROJECT_DETAILS: Record<string, Omit<ProjectMenuItem, 'id' | 'project_name
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, LoadingOverlayComponent],
   templateUrl: './projects.component.html',
   styleUrl: './projects.component.scss',
 })

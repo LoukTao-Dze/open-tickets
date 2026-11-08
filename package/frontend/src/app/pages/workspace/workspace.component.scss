@@ -20,10 +20,6 @@
   background-size: 32px 32px;
 }
 
-.workspace-loading-overlay {
-  @apply absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-surface-container-lowest/80;
-}
-
 .workspace-viewport {
   @apply relative w-full h-full;
 }
@@ -190,42 +186,6 @@
   @apply absolute bg-on-surface rounded-xs;
   min-width: 2px;
   min-height: 2px;
-}
-
-/* HTML: <div class="loader"></div> */
-.loader {
-  width: 40px;
-  height: 26px;
-  --c: no-repeat linear-gradient(#ffffff 0 0);
-  background:
-    var(--c) 0 100%,
-    var(--c) 50% 100%,
-    var(--c) 100% 100%;
-  background-size: 8px calc(100% - 4px);
-  position: relative;
-}
-.loader:before {
-  content: '';
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ffffff;
-  left: 0;
-  top: 0;
-  animation:
-    l3-1 1.5s linear infinite alternate,
-    l3-2 0.75s cubic-bezier(0, 200, 0.8, 200) infinite;
-}
-@keyframes l3-1 {
-  100% {
-    left: calc(100% - 8px);
-  }
-}
-@keyframes l3-2 {
-  100% {
-    top: -0.1px;
-  }
 }
 
 .canvas-loading-overlay {

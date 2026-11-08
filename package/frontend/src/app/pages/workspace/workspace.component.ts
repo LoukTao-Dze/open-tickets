@@ -24,6 +24,7 @@ import { switchMap } from 'rxjs';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
+import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
@@ -81,6 +82,7 @@ interface ViewportState {
     LinkComponent,
     MarkdownComponent,
     ToolHubsComponent,
+    LoadingOverlayComponent,
   ],
   templateUrl: './workspace.component.html',
   styleUrls: ['./workspace.component.scss'],
@@ -125,6 +127,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   private dragOffset = { x: 0, y: 0 };
   private zIndexCounter = 100;
   private currentViewportState: ViewportState[] = [];
+  private isOnInit = false;
 
   focusedItem: WorkspaceCanvasItem | null = null;
   private saveWhiteboardTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -212,6 +215,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     } else {
       console.error('Failed to resolve user role: no cached session.');
     }
+    this.isOnInit = true;
     this.getCanvasItem();
     this.setValuesFromLocalStorage();
   }
@@ -230,7 +234,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   getCanvasItem() {
-    this.isLoading = true;
+    if (!this.isOnInit) {
+      this.isLoading = true;
+    }
     this.http
       .get(GET_ALL_PROJECTS_ENDPOINT)
       .pipe(
@@ -280,11 +286,16 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           this.whiteboards.forEach((board) => {
             board.items = itemsByProject.get(board.id) ?? [];
           });
-          this.isLoading = false;
+          if (!this.isOnInit) {
+            this.isLoading = false;
+          }
           this.cdr.markForCheck();
+          if (this.isOnInit) {
+            this.isOnInit = false;
+          }
         },
         error: (err) => {
-          this.isLoading = false;
+          this.isLoading = true;
           this.cdr.markForCheck();
           console.error('Failed to retrieve canvas items', err);
         },
@@ -763,6 +774,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       return;
     }
     this.isCanvasLoading = true;
+    this.cdr.detectChanges();
     const itemToSave = this.focusedItem;
     this.http.post<SaveCanvasItemResponse>(SAVE_CANVAS_ITEM_ENDPOINT, itemToSave).subscribe({
       next: (res) => {
@@ -772,7 +784,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           this.cdr.detectChanges();
         }, 500);
       },
-      error: (err) => {
+      error: () => {
         this.isCanvasLoading = false;
       },
     });

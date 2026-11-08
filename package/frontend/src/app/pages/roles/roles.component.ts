@@ -16,6 +16,7 @@ import {
   ProjectAccess,
   RolePermissionService,
 } from '../../services/role-permission.service';
+import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
 
 interface RoleDefinition {
   id: ManagedRole;
@@ -61,6 +62,7 @@ const ACCESS_OPTIONS: readonly AccessOption[] = [
 @Component({
   selector: 'app-roles',
   standalone: true,
+  imports: [LoadingOverlayComponent],
   templateUrl: './roles.component.html',
   styleUrl: './roles.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

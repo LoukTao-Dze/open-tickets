@@ -2,6 +2,7 @@
 
 :host {
   display: block;
+  position: relative;
 }
 .projects-page {
   @apply p-lg lg:p-xl max-w-7xl mx-auto text-on-surface space-y-lg;
