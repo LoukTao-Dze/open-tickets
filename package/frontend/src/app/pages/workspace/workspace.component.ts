@@ -353,6 +353,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   onDeleteItem(event: Event, item: WorkspaceCanvasItem) {
     event.stopPropagation();
+
     this.confirmDialogService
       .confirm({
         title: 'Delete Item',
@@ -376,6 +377,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       this.removeItemFromBoard(item);
       return;
     }
+    this.isCanvasLoading = true;
+    this.cdr.detectChanges();
     this.http.post(DELETE_CANVAS_ITEM_ENDPOINT, { id: item.id, type: item.type }).subscribe({
       next: () => this.removeItemFromBoard(item),
       error: (err) => {
@@ -394,6 +397,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     if (this.focusedItem === item) {
       this.focusedItem = null;
     }
+    this.isCanvasLoading = false;
+    this.cdr.detectChanges();
   }
 
   minimapItemStyle(item: WorkspaceCanvasItem) {
