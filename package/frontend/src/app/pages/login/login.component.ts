@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, switchMap } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
+import { LoadingService } from '../../services/loading.service';
 
 type LoginMethod = 'google' | 'token';
 
@@ -87,6 +88,8 @@ export class LoginComponent {
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly auth = inject(AuthService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly loading = inject(LoadingService);
+
   selectedMethod: LoginMethod = 'google';
   isTokenVisible = false;
   statusMessage = '';
@@ -130,6 +133,9 @@ export class LoginComponent {
       expires_at: generateExpiresAt(time ? parseInt(time) : 1, 'days'),
     };
     console.info('[DEBUGGER] ->> MOCK_BYPASS_TOKEN', MOCK_BYPASS_TOKEN);
+    setTimeout(() => {
+      this.loading.close();
+    }, 1000);
   }
 
   generateUserRoleToken(stringRole: string, time?: string) {
@@ -137,6 +143,9 @@ export class LoginComponent {
     const role = Object.values(EnumUserRole).find((enumRole) => enumRole === normalizedRole);
     if (!role) {
       this.showSignInFailed('Sign-in failed', 'Invalid user role.', 'OK');
+      setTimeout(() => {
+        this.loading.close();
+      }, 1000);
       return;
     }
     this.generateBypassToken(role, time);
@@ -144,6 +153,7 @@ export class LoginComponent {
 
   submitToken(inputToken: HTMLInputElement, event: SubmitEvent): void {
     event.preventDefault();
+    this.loading.open();
     if (inputToken.value.includes('-g')) {
       const consolidatedTokens: string[] = inputToken.value.trim().split(/\s+/).filter(Boolean);
       if (consolidatedTokens.length >= 2) {
@@ -171,6 +181,7 @@ export class LoginComponent {
         next: (response) => {
           console.log('Login successful', response);
           this.router.navigateByUrl('/workspace');
+          this.loading.close();
         },
         error: (error) => {
           inputToken.value = '';
@@ -185,6 +196,7 @@ export class LoginComponent {
           }
           this.showSignInFailed('Sign-in failed', this.statusMessage, 'Try again');
           this.isSubmitting = false;
+          this.loading.close();
           this.cdr.detectChanges();
         },
       });
