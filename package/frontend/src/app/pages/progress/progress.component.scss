@@ -1,0 +1,382 @@
+@reference '../../../tailwind.css';
+
+:host {
+  display: block;
+}
+
+.progress-page {
+  @apply max-w-7xl mx-auto p-lg lg:p-xl text-on-surface space-y-lg;
+}
+
+.page-heading {
+  @apply flex items-end justify-between gap-md;
+}
+
+.eyebrow {
+  @apply text-label-caps text-primary uppercase tracking-wider mb-xs;
+}
+
+.page-heading h1 {
+  @apply text-headline-lg font-headline-lg font-bold tracking-tight mb-xs;
+}
+
+.page-heading > div > p:last-child {
+  @apply text-body-sm text-on-surface-variant;
+}
+
+.board-link {
+  @apply inline-flex min-h-11 items-center justify-center gap-sm px-md py-sm border border-outline-variant rounded-lg text-body-sm font-semibold text-primary hover:bg-surface-container-highest;
+}
+
+.progress-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter;
+}
+
+.progress-card {
+  @apply min-w-0 bg-surface-container border border-outline-variant rounded-xl p-lg;
+}
+
+.progress-card:hover,
+.progress-card.is-selected {
+  @apply border-primary/60;
+}
+
+.progress-card-trigger {
+  @apply block w-full p-0 text-left cursor-pointer;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.progress-card-trigger:focus-visible {
+  @apply outline outline-2 outline-primary outline-offset-2;
+}
+
+.project-heading {
+  @apply flex items-start gap-md;
+}
+
+.project-icon {
+  @apply w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary;
+  font-size: 20px;
+}
+
+.project-copy {
+  @apply min-w-0 flex-1;
+}
+
+.project-name {
+  @apply block text-headline-md font-headline-md font-bold break-words;
+}
+
+.project-description {
+  @apply block text-body-sm text-on-surface-variant mt-xs;
+}
+
+.project-status {
+  @apply shrink-0 px-sm py-xs rounded bg-surface-container-highest text-label-caps text-on-surface-variant;
+}
+
+.progress-summary {
+  @apply flex items-baseline justify-between gap-sm mt-lg;
+}
+
+.progress-summary strong {
+  @apply text-2xl font-code-md text-on-surface;
+}
+
+.progress-summary span {
+  @apply text-body-sm text-on-surface-variant text-right;
+}
+
+.progress-bar {
+  @apply block w-full h-2 overflow-hidden rounded-full mt-sm;
+  appearance: none;
+  border: 0;
+  background: var(--color-surface-container-highest);
+}
+
+.progress-bar::-webkit-progress-bar {
+  border-radius: 9999px;
+  background: var(--color-surface-container-highest);
+}
+
+.progress-bar::-webkit-progress-value {
+  border-radius: 9999px;
+  background: var(--color-primary-container);
+}
+
+.progress-bar::-moz-progress-bar {
+  border-radius: 9999px;
+  background: var(--color-primary-container);
+}
+
+.card-action {
+  @apply flex items-center justify-between gap-sm mt-lg text-label-caps text-primary;
+}
+
+.card-action .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.project-detail {
+  @apply bg-surface-container border border-outline-variant rounded-xl p-lg space-y-xl;
+}
+
+.detail-heading {
+  @apply flex items-end justify-between gap-md;
+}
+
+.detail-heading h2 {
+  @apply text-headline-lg font-headline-lg font-bold tracking-tight;
+}
+
+.task-statuses h3,
+.logs-title h3 {
+  @apply text-headline-md font-headline-md font-bold;
+}
+
+.status-grid {
+  @apply grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-sm mt-md;
+}
+
+.status-count {
+  @apply min-w-0 min-h-20 flex flex-col justify-between gap-sm bg-surface-container-lowest border border-outline-variant rounded-lg p-md;
+}
+
+.status-count span {
+  @apply text-body-sm text-on-surface-variant;
+}
+
+.status-count strong {
+  @apply text-xl font-code-md text-on-surface;
+}
+
+.daily-logs {
+  @apply border-t border-outline-variant pt-xl;
+}
+
+.logs-heading,
+.composer-footer,
+.entry-heading {
+  @apply flex items-center justify-between gap-md;
+}
+
+.logs-title > p:last-child,
+.composer-title p,
+.logs-empty p {
+  @apply text-body-sm text-on-surface-variant mt-xs;
+}
+
+.log-total,
+.read-only-note {
+  @apply flex items-center gap-sm px-md py-sm rounded-lg bg-surface-container-lowest;
+}
+
+.log-total {
+  @apply shrink-0 border border-outline-variant;
+}
+
+.log-total strong {
+  @apply text-xl font-code-md text-primary;
+}
+
+.log-total span,
+.date-field > span,
+.details-field > span,
+.character-count {
+  @apply text-label-caps text-on-surface-variant;
+}
+
+.log-composer {
+  @apply mt-lg p-lg rounded-xl border border-primary/20 bg-primary/5;
+}
+
+.composer-heading,
+.composer-title,
+.log-day-heading,
+.entry-author {
+  @apply flex items-center gap-sm;
+}
+
+.composer-heading {
+  @apply justify-between;
+}
+
+.composer-title > .material-symbols-outlined,
+.day-marker {
+  @apply w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-primary/10 text-primary;
+}
+
+.composer-title h4,
+.log-day-heading h4,
+.logs-empty h4 {
+  @apply text-body-sm font-bold text-on-surface;
+}
+
+.composer-title p {
+  @apply mt-0.5;
+}
+
+.date-field {
+  @apply min-w-44 grid gap-xs;
+}
+
+.date-field input,
+.details-field textarea {
+  @apply w-full border border-outline-variant rounded-lg bg-surface-container-lowest px-md py-sm text-body-sm text-on-surface outline-none focus:border-primary;
+}
+
+.date-field input {
+  min-height: 44px;
+}
+
+.details-field {
+  @apply block mt-md;
+}
+
+.details-field textarea {
+  @apply block mt-xs resize-y;
+}
+
+.composer-footer {
+  @apply mt-md;
+}
+
+.save-log-button {
+  @apply inline-flex min-h-11 items-center justify-center gap-xs px-lg py-sm rounded-lg bg-primary-container text-on-primary-container font-bold hover:brightness-110 disabled:opacity-60;
+}
+
+.read-only-note {
+  @apply mt-lg text-body-sm text-on-surface-variant;
+}
+
+.logs-state {
+  @apply text-body-sm text-on-surface-variant mt-lg;
+}
+
+.logs-loading,
+.log-day-heading {
+  @apply flex items-center gap-sm;
+}
+
+.day-marker {
+  @apply rounded-full;
+}
+
+.day-count {
+  @apply ml-auto px-sm py-xs rounded-full bg-surface-container-highest text-label-caps text-on-surface-variant;
+}
+
+.log-timeline {
+  @apply mt-xl space-y-xl;
+}
+
+.day-entries {
+  @apply ml-4 pl-6 border-l-2 border-outline-variant space-y-sm mt-sm;
+}
+
+.log-entry {
+  @apply bg-surface-container-lowest border border-outline-variant rounded-xl p-md;
+}
+
+.entry-author {
+  @apply min-w-0 flex-wrap text-label-caps text-on-surface-variant;
+}
+
+.entry-author time {
+  @apply ml-xs opacity-70;
+}
+
+.delete-log-button {
+  @apply inline-flex min-h-11 shrink-0 items-center gap-xs px-sm rounded-lg text-error hover:bg-error/10 disabled:opacity-60;
+}
+
+.log-entry > p {
+  @apply mt-sm text-body-sm text-on-surface whitespace-pre-wrap break-words;
+}
+
+.logs-empty {
+  @apply flex flex-col items-center text-center mt-lg p-xl rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest;
+}
+
+.logs-empty h4 {
+  @apply mt-sm;
+}
+
+.logs-error {
+  @apply flex flex-wrap items-center justify-between gap-sm mt-md text-body-sm text-error;
+}
+
+.page-state,
+.empty-state {
+  @apply rounded-xl border border-outline-variant bg-surface-container p-xl text-body-sm text-on-surface-variant;
+}
+
+.error-state {
+  @apply border-error/40;
+}
+
+.retry-button,
+.empty-state a {
+  @apply inline-flex min-h-11 items-center justify-center mt-md px-md py-sm rounded-lg bg-primary-container text-on-primary-container font-semibold hover:brightness-110;
+}
+
+.empty-state {
+  @apply flex flex-col items-center text-center;
+}
+
+.empty-state > .material-symbols-outlined {
+  @apply text-primary text-3xl;
+}
+
+.empty-state h2 {
+  @apply mt-md text-headline-md font-headline-md font-bold text-on-surface;
+}
+
+.empty-state p {
+  @apply mt-xs;
+}
+
+@media (max-width: 640px) {
+  .page-heading {
+    @apply items-start flex-col;
+  }
+
+  .board-link {
+    @apply w-full;
+  }
+
+  .progress-card {
+    @apply p-md;
+  }
+
+  .project-detail {
+    @apply p-md;
+  }
+
+  .detail-heading {
+    @apply items-start flex-col;
+  }
+
+  .composer-heading,
+  .composer-footer {
+    @apply flex-col;
+  }
+
+  .date-field {
+    @apply w-full;
+  }
+
+  .save-log-button {
+    @apply w-full;
+  }
+
+  .day-entries {
+    @apply ml-4 pl-4;
+  }
+
+  .day-count {
+    @apply text-[10px];
+  }
+}

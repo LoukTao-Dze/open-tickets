@@ -124,6 +124,141 @@ describe('ProjectsService', () => {
     });
   });
 
+  describe('progress logs', () => {
+    const projectLookup = (data: unknown) => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({ data, error: null }),
+        }),
+      }),
+    });
+
+    it('returns project logs ordered by day and creation time', async () => {
+      const row = {
+        id: 'log-1',
+        project_id: 'p1',
+        log_date: '2026-11-10',
+        details: 'Reviewed scope',
+        created_by: 'developer',
+        created_at: '2026-11-10T09:00:00.000Z',
+      };
+      const orderByCreatedAt = jest
+        .fn()
+        .mockResolvedValue({ data: [row], error: null });
+      const orderByDate = jest
+        .fn()
+        .mockReturnValue({ order: orderByCreatedAt });
+      const eq = jest.fn().mockReturnValue({ order: orderByDate });
+      const select = jest.fn().mockReturnValue({ eq });
+      client.from
+        .mockReturnValueOnce(projectLookup({ id: 'p1' }))
+        .mockReturnValueOnce({ select });
+
+      await expect(service.getProgressLogs('p1')).resolves.toEqual({
+        data: [
+          {
+            id: 'log-1',
+            projectId: 'p1',
+            date: '2026-11-10',
+            details: 'Reviewed scope',
+            createdBy: 'developer',
+            createdAt: '2026-11-10T09:00:00.000Z',
+          },
+        ],
+      });
+      expect(eq).toHaveBeenCalledWith('project_id', 'p1');
+      expect(orderByDate).toHaveBeenCalledWith('log_date', {
+        ascending: false,
+      });
+      expect(orderByCreatedAt).toHaveBeenCalledWith('created_at', {
+        ascending: false,
+      });
+    });
+
+    it('persists a dated project log with the authenticated author', async () => {
+      const row = {
+        id: 'log-2',
+        project_id: 'p1',
+        log_date: '2026-11-10',
+        details: 'Completed implementation',
+        created_by: 'developer',
+        created_at: '2026-11-10T10:00:00.000Z',
+      };
+      const insert = jest.fn().mockReturnValue({
+        select: () => ({
+          single: () => Promise.resolve({ data: row, error: null }),
+        }),
+      });
+      client.from
+        .mockReturnValueOnce(projectLookup({ id: 'p1' }))
+        .mockReturnValueOnce({ insert });
+
+      await expect(
+        service.createProgressLog(
+          'p1',
+          row.log_date,
+          row.details,
+          row.created_by,
+        ),
+      ).resolves.toEqual({
+        message: 'Progress log created',
+        data: {
+          id: 'log-2',
+          projectId: 'p1',
+          date: '2026-11-10',
+          details: 'Completed implementation',
+          createdBy: 'developer',
+          createdAt: '2026-11-10T10:00:00.000Z',
+        },
+      });
+      expect(insert).toHaveBeenCalledWith({
+        project_id: 'p1',
+        log_date: row.log_date,
+        details: row.details,
+        created_by: row.created_by,
+      });
+    });
+
+    it('deletes a log only when it belongs to the project', async () => {
+      const eqLogId = jest.fn().mockReturnValue({
+        select: () => ({
+          maybeSingle: () =>
+            Promise.resolve({ data: { id: 'log-1' }, error: null }),
+        }),
+      });
+      const eqProjectId = jest.fn().mockReturnValue({ eq: eqLogId });
+      const deleteLog = jest.fn().mockReturnValue({ eq: eqProjectId });
+      client.from
+        .mockReturnValueOnce(projectLookup({ id: 'p1' }))
+        .mockReturnValueOnce({ delete: deleteLog });
+
+      await expect(service.deleteProgressLog('p1', 'log-1')).resolves.toEqual({
+        message: 'Progress log deleted',
+        data: { id: 'log-1' },
+      });
+      expect(eqProjectId).toHaveBeenCalledWith('project_id', 'p1');
+      expect(eqLogId).toHaveBeenCalledWith('id', 'log-1');
+    });
+
+    it('returns not found when the log does not belong to the project', async () => {
+      const eqLogId = jest.fn().mockReturnValue({
+        select: () => ({
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        }),
+      });
+      const eqProjectId = jest.fn().mockReturnValue({ eq: eqLogId });
+      client.from
+        .mockReturnValueOnce(projectLookup({ id: 'p1' }))
+        .mockReturnValueOnce({
+          delete: () => ({ eq: eqProjectId }),
+        });
+
+      await expect(service.deleteProgressLog('p1', 'log-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('deleteProject', () => {
     const mockExistingLookup = (data: unknown) => ({
       select: () => ({

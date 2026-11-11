@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -9,6 +10,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { ProjectAccess } from './dto/update-role-permissions.dto';
 
 interface StoredPermission {
+  can_edit?: boolean;
   default_access: ProjectAccess;
   project_access: Record<string, ProjectAccess> | null;
 }
@@ -20,6 +22,11 @@ const FALLBACK_DEFAULT_ACCESS = new Map<string, ProjectAccess>([
   [EnumUserRole.USER, 'edit'],
   [EnumUserRole.GUEST, 'view'],
 ]);
+const ACCESS_LEVEL: Record<ProjectAccess, number> = {
+  none: 0,
+  view: 1,
+  edit: 2,
+};
 
 @Injectable()
 export class ProjectAccessService {
@@ -40,6 +47,36 @@ export class ProjectAccessService {
     return items.filter(
       (item) => this.accessFor(role, permission, projectIdOf(item)) !== 'none',
     );
+  }
+
+  async assertProjectAccess(
+    role: string,
+    projectId: string,
+    requiredAccess: Exclude<ProjectAccess, 'none'>,
+  ): Promise<Exclude<ProjectAccess, 'none'>> {
+    const access = await this.getProjectAccess(role, projectId);
+    if (
+      access === 'none' ||
+      ACCESS_LEVEL[access] < ACCESS_LEVEL[requiredAccess]
+    ) {
+      throw new ForbiddenException();
+    }
+    return access;
+  }
+
+  async getProjectAccess(
+    role: string,
+    projectId: string,
+  ): Promise<ProjectAccess> {
+    if (role === ADMIN_ROLE) {
+      return 'edit';
+    }
+
+    const permission = await this.loadPermission(role);
+    const access = this.accessFor(role, permission, projectId);
+    return permission?.can_edit === false && access === 'edit'
+      ? 'view'
+      : access;
   }
 
   private accessFor(

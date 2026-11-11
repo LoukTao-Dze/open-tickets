@@ -1,4 +1,7 @@
-import { InternalServerErrorException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { EnumUserRole } from '../../auth/auth.dto';
 import { ProjectAccessService } from './project-access.service';
 
@@ -67,5 +70,45 @@ describe('ProjectAccessService', () => {
     await expect(
       service.filterByProject('qa-reviewer', items, projectIdOf),
     ).resolves.toEqual([]);
+  });
+
+  it('allows editing a project when the role has edit access', async () => {
+    const { service } = createService({
+      data: { can_edit: true, default_access: 'edit', project_access: {} },
+      error: null,
+    });
+
+    await expect(
+      service.assertProjectAccess(EnumUserRole.USER, 'p1', 'edit'),
+    ).resolves.toBe('edit');
+  });
+
+  it('downgrades edit access to view when the role cannot edit', async () => {
+    const { service } = createService({
+      data: { can_edit: false, default_access: 'edit', project_access: {} },
+      error: null,
+    });
+
+    await expect(
+      service.assertProjectAccess(EnumUserRole.USER, 'p1', 'view'),
+    ).resolves.toBe('view');
+    await expect(
+      service.assertProjectAccess(EnumUserRole.USER, 'p1', 'edit'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects project access set to none', async () => {
+    const { service } = createService({
+      data: {
+        can_edit: true,
+        default_access: 'view',
+        project_access: { p1: 'none' },
+      },
+      error: null,
+    });
+
+    await expect(
+      service.assertProjectAccess(EnumUserRole.USER, 'p1', 'view'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

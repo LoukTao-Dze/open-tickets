@@ -18,6 +18,34 @@ export class ProjectApiService {
       .pipe(map((response) => response.data));
   }
 
+  getProgressLogs(projectId: string): Observable<ProjectProgressLogsResponse> {
+    return this.httpClient
+      .get<ApiResponse<{ logs: ProjectProgressLog[]; canEdit: boolean }>>(
+        `${this.baseUrl}/${encodeURIComponent(projectId)}/progress-logs`,
+      )
+      .pipe(map((response) => response.data));
+  }
+
+  createProgressLog(
+    projectId: string,
+    payload: CreateProjectProgressLog,
+  ): Observable<ProjectProgressLog> {
+    return this.httpClient
+      .post<ApiResponse<ProjectProgressLog>>(
+        `${this.baseUrl}/${encodeURIComponent(projectId)}/progress-logs`,
+        payload,
+      )
+      .pipe(map((response) => response.data));
+  }
+
+  deleteProgressLog(projectId: string, logId: string): Observable<{ id: string }> {
+    return this.httpClient
+      .delete<ApiResponse<{ id: string }>>(
+        `${this.baseUrl}/${encodeURIComponent(projectId)}/progress-logs/${encodeURIComponent(logId)}`,
+      )
+      .pipe(map((response) => response.data));
+  }
+
   createProject(payload: KanbanProjectPayload): Observable<KanbanProject> {
     return this.httpClient
       .post<ApiResponse<KanbanProject>>(`${this.baseUrl}/projects`, payload)
@@ -35,4 +63,23 @@ export class ProjectApiService {
       .delete<ApiResponse<{ id: string }>>(`${this.baseUrl}/delete/${id}`)
       .pipe(map((response) => response.data));
   }
+}
+
+export interface ProjectProgressLog {
+  id: string;
+  projectId: string;
+  date: string;
+  details: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ProjectProgressLogsResponse {
+  logs: ProjectProgressLog[];
+  canEdit: boolean;
+}
+
+export interface CreateProjectProgressLog {
+  date: string;
+  details: string;
 }

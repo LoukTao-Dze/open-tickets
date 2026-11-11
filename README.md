@@ -99,6 +99,11 @@ in the Supabase SQL editor after existing migrations. It creates an RLS-protecte
 singleton document and seeds the full guide; re-running it preserves published edits.
 The backend must use a Supabase **service-role key** (never expose it to the frontend).
 
+For project status counts and persistent daily notes, also run
+[`013_create_project_progress_logs.sql`](package/backend/src/supabase/migrations/013_create_project_progress_logs.sql)
+in the Supabase SQL editor. Progress logs are scoped to a project, ordered by date,
+and writable only by sessions with edit access to that project.
+
 - `GET /api/docs`: requires a valid server-side session.
 - `PUT /api/docs`: requires an admin server-side session; body is
   `{ "content": "<Markdown>", "updatedAt": "<timestamp from GET>" }`.

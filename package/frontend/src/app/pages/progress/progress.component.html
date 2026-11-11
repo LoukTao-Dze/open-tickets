@@ -1,0 +1,228 @@
+<section class="progress-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">PROJECT DELIVERY</p>
+      <h1>Project progress</h1>
+      <p>Progress is based on tasks marked Done in the Kanban board.</p>
+    </div>
+    <a class="board-link" routerLink="/kanban">
+      <span class="material-symbols-outlined" aria-hidden="true">view_kanban</span>
+      View Kanban board
+    </a>
+  </header>
+
+  <p class="page-state" role="status" *ngIf="loading">Loading project progress...</p>
+
+  <div class="page-state error-state" role="alert" *ngIf="!loading && errorMessage">
+    <p>{{ errorMessage }}</p>
+    <button type="button" class="retry-button" (click)="loadProgress()">Try again</button>
+  </div>
+
+  <div class="empty-state" *ngIf="!loading && !errorMessage && !projects.length">
+    <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+    <h2>No projects to report</h2>
+    <p>Create a project to see its task progress here.</p>
+    <a routerLink="/projects">Manage projects</a>
+  </div>
+
+  <div class="progress-grid" *ngIf="!loading && !errorMessage && projects.length">
+    @if (!selectedProject) {
+      <article
+        class="progress-card"
+        *ngFor="let item of projects"
+        [class.is-selected]="selectedProjectId === item.project.id"
+      >
+        <button
+          class="progress-card-trigger"
+          type="button"
+          (click)="selectProject(item.project.id)"
+          [attr.aria-expanded]="selectedProjectId === item.project.id"
+          [attr.aria-controls]="
+            selectedProjectId === item.project.id ? 'project-detail-' + item.project.id : null
+          "
+        >
+          <span class="project-heading">
+            <span class="project-icon material-symbols-outlined" aria-hidden="true"
+              >folder_open</span
+            >
+            <span class="project-copy">
+              <span class="project-name" role="heading" aria-level="2">{{
+                item.project.project_name
+              }}</span>
+              <span class="project-description" *ngIf="item.project.description">
+                {{ item.project.description }}
+              </span>
+            </span>
+            <span class="project-status" *ngIf="item.project.status">{{
+              item.project.status
+            }}</span>
+          </span>
+
+          <span class="progress-summary">
+            <strong>{{ item.percent }}%</strong>
+            <span *ngIf="item.totalTasks; else noTasks">
+              {{ item.completedTasks }} of {{ item.totalTasks }} tasks done
+            </span>
+            <ng-template #noTasks><span>No tasks yet</span></ng-template>
+          </span>
+
+          <progress
+            class="progress-bar"
+            [value]="item.percent"
+            max="100"
+            [attr.aria-label]="item.project.project_name + ' progress'"
+          >
+            {{ item.percent }}%
+          </progress>
+          <span class="card-action">
+            {{ selectedProjectId === item.project.id ? 'Hide details' : 'View details' }}
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+          </span>
+        </button>
+      </article>
+    }
+  </div>
+
+  <section
+    class="project-detail"
+    *ngIf="selectedProject as item"
+    [id]="'project-detail-' + item.project.id"
+    aria-labelledby="detail-title"
+  >
+    <div class="detail-heading">
+      <div (click)="backToProjects()" class="back-button" [style.cursor]="'pointer'">
+        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        <p class="eyebrow">PROJECT DETAILS</p>
+        <h2 id="detail-title">{{ item.project.project_name }}</h2>
+      </div>
+      <a class="board-link" routerLink="/kanban">Open Kanban board</a>
+    </div>
+
+    <section class="task-statuses" aria-labelledby="task-status-title">
+      <h3 id="task-status-title">Tasks by status</h3>
+      <div class="status-grid">
+        <div class="status-count" *ngFor="let column of columns">
+          <span>{{ column.name }}</span>
+          <strong>{{ item.counts[column.id] }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="daily-logs" aria-labelledby="daily-logs-title">
+      <header class="logs-heading">
+        <div class="logs-title">
+          <p class="eyebrow">PROJECT JOURNAL</p>
+          <h3 id="daily-logs-title">Daily logs</h3>
+          <p>A dated record of the work, decisions, and next steps.</p>
+        </div>
+        <div class="log-total" *ngIf="!logsLoading" aria-label="Total daily log entries">
+          <strong>{{ logs.length }}</strong>
+          <span>{{ logs.length === 1 ? 'entry' : 'entries' }}</span>
+        </div>
+      </header>
+
+      <form class="log-composer" *ngIf="canEditLogs" (ngSubmit)="saveLog()">
+        <div class="composer-heading">
+          <div class="composer-title">
+            <span class="material-symbols-outlined" aria-hidden="true">edit_note</span>
+            <div>
+              <h4>New update</h4>
+              <p>Write a short note for the project journal.</p>
+            </div>
+          </div>
+          <label class="date-field">
+            <span>Log date</span>
+            <input
+              type="date"
+              name="logDate"
+              [(ngModel)]="logDate"
+              required
+              [disabled]="savingLog"
+            />
+          </label>
+        </div>
+        <label class="details-field">
+          <span>Daily details</span>
+          <textarea
+            name="logDetails"
+            [(ngModel)]="logDetails"
+            rows="3"
+            maxlength="2000"
+            required
+            [disabled]="savingLog"
+            placeholder="What changed or was completed today?"
+          ></textarea>
+        </label>
+        <div class="composer-footer">
+          <span class="character-count">{{ logDetails.length }} / 2000</span>
+          <button
+            class="save-log-button"
+            type="submit"
+            [disabled]="savingLog || !logDetails.trim()"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            {{ savingLog ? 'Saving update...' : 'Add to journal' }}
+          </button>
+        </div>
+      </form>
+      <p class="read-only-note" *ngIf="projectAccessLoaded && !canEditLogs && !logsLoading">
+        <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+        You have view access to this project. Daily logs are read-only.
+      </p>
+
+      <p class="logs-state logs-loading" role="status" *ngIf="logsLoading">
+        <span class="material-symbols-outlined" aria-hidden="true">progress_activity</span>
+        Loading project journal...
+      </p>
+      <div class="logs-error" role="alert" *ngIf="logsError">
+        <span>{{ logsError }}</span>
+        <button type="button" class="retry-button" (click)="reloadLogs()">Reload logs</button>
+      </div>
+      <div class="log-timeline" *ngIf="!logsLoading && logGroups.length">
+        <section class="log-day" *ngFor="let group of logGroups">
+          <header class="log-day-heading">
+            <span class="day-marker material-symbols-outlined" aria-hidden="true">event</span>
+            <h4>
+              <time [attr.datetime]="group.date">{{ group.date | date: 'longDate' : 'UTC' }}</time>
+            </h4>
+            <span class="day-count"
+              >{{ group.logs.length }} {{ group.logs.length === 1 ? 'update' : 'updates' }}</span
+            >
+          </header>
+          <div class="day-entries">
+            <article class="log-entry" *ngFor="let log of group.logs">
+              <div class="entry-heading">
+                <div class="entry-author">
+                  <span class="author-icon material-symbols-outlined" aria-hidden="true"
+                    >person</span
+                  >
+                  <span>{{ log.createdBy }}</span>
+                  <time [attr.datetime]="log.createdAt">{{
+                    log.createdAt | date: 'shortTime'
+                  }}</time>
+                </div>
+                <button
+                  *ngIf="canEditLogs"
+                  class="delete-log-button"
+                  type="button"
+                  (click)="deleteLog(log)"
+                  [disabled]="deletingLogId !== null"
+                  [attr.aria-label]="'Delete log from ' + group.date"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  {{ deletingLogId === log.id ? 'Deleting...' : 'Delete' }}
+                </button>
+              </div>
+              <p>{{ log.details }}</p>
+            </article>
+          </div>
+        </section>
+      </div>
+      <div class="logs-empty" *ngIf="!logsLoading && !logs.length">
+        <span class="material-symbols-outlined" aria-hidden="true">history</span>
+        <h4>No updates yet</h4>
+        <p>Project notes will appear here, grouped by date.</p>
+      </div>
+    </section>
+  </section>
+</section>

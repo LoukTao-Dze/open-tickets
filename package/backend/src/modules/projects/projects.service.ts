@@ -20,6 +20,15 @@ interface ProjectRow {
   status?: string;
 }
 
+interface ProgressLogRow {
+  id: string;
+  project_id: string;
+  log_date: string;
+  details: string;
+  created_by: string;
+  created_at: string;
+}
+
 @Injectable()
 export class ProjectsService {
   constructor(private readonly supabaseService: SupabaseService) {}
@@ -51,6 +60,101 @@ export class ProjectsService {
       });
     }
   }
+
+  async getProgressLogs(projectId: string) {
+    await this.assertProjectExists(projectId);
+
+    try {
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('project_progress_logs')
+        .select('id, project_id, log_date, details, created_by, created_at')
+        .eq('project_id', projectId)
+        .order('log_date', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) {
+        throw error;
+      }
+
+      return {
+        data: (data ?? []).map((log) =>
+          this.mapProgressLogRow(log as ProgressLogRow),
+        ),
+      };
+    } catch (err: unknown) {
+      throw this.createProjectPersistenceException(
+        'load progress logs for',
+        err,
+      );
+    }
+  }
+
+  async createProgressLog(
+    projectId: string,
+    logDate: string,
+    details: string,
+    createdBy: string,
+  ) {
+    await this.assertProjectExists(projectId);
+
+    try {
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('project_progress_logs')
+        .insert({
+          project_id: projectId,
+          log_date: logDate,
+          details,
+          created_by: createdBy,
+        })
+        .select('id, project_id, log_date, details, created_by, created_at')
+        .single();
+      if (error) {
+        throw error;
+      }
+
+      return {
+        message: 'Progress log created',
+        data: this.mapProgressLogRow(data as ProgressLogRow),
+      };
+    } catch (err: unknown) {
+      throw this.createProjectPersistenceException(
+        'create progress log for',
+        err,
+      );
+    }
+  }
+
+  async deleteProgressLog(projectId: string, logId: string) {
+    await this.assertProjectExists(projectId);
+
+    let deletedLogId: string | null;
+    try {
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('project_progress_logs')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('id', logId)
+        .select('id')
+        .maybeSingle();
+      if (error) {
+        throw error;
+      }
+      deletedLogId = data?.id ?? null;
+    } catch (err: unknown) {
+      throw this.createProjectPersistenceException(
+        'delete progress log for',
+        err,
+      );
+    }
+
+    if (!deletedLogId) {
+      throw new NotFoundException(`Progress log ${logId} not found`);
+    }
+    return { message: 'Progress log deleted', data: { id: deletedLogId } };
+  }
+
   async createProject(dto: CreateProjectDto) {
     try {
       const { data, error } = await this.supabaseService
@@ -160,7 +264,7 @@ export class ProjectsService {
     }
     return 'Unknown error';
   }
-  private async assertProjectExists(id: string): Promise<void> {
+  async assertProjectExists(id: string): Promise<void> {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('projects')
@@ -178,6 +282,17 @@ export class ProjectsService {
     if (!data) {
       throw new NotFoundException(`Project ${id} not found`);
     }
+  }
+
+  private mapProgressLogRow(log: ProgressLogRow) {
+    return {
+      id: log.id,
+      projectId: log.project_id,
+      date: log.log_date,
+      details: log.details,
+      createdBy: log.created_by,
+      createdAt: log.created_at,
+    };
   }
 
   private mapProjectRow(project: ProjectRow) {

@@ -4,17 +4,25 @@ import { ProjectsService } from './projects.service';
 import { SessionGuard } from '../../auth/session.guard';
 import { EnumUserRole } from '../../auth/auth.dto';
 import { ProjectAccessService } from '../roles/project-access.service';
+import type { Request } from 'express';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('ProjectsController', () => {
   let controller: ProjectsController;
   const projectsService = {
     getProjects: jest.fn(),
+    getProgressLogs: jest.fn(),
+    createProgressLog: jest.fn(),
+    deleteProgressLog: jest.fn(),
     createProject: jest.fn(),
     updateProject: jest.fn(),
     deleteProject: jest.fn(),
   };
 
-  const projectAccess = { filterByProject: jest.fn() };
+  const projectAccess = {
+    filterByProject: jest.fn(),
+    assertProjectAccess: jest.fn(),
+  };
   const session = {
     user: { role: EnumUserRole.USER },
   } as Parameters<ProjectsController['getProjects']>[0];
@@ -47,11 +55,83 @@ describe('ProjectsController', () => {
     await expect(controller.getProjects(session)).resolves.toEqual({
       data: [{ id: 'p1' }],
     });
+
     expect(projectAccess.filterByProject).toHaveBeenCalledWith(
       EnumUserRole.USER,
       projects,
       expect.any(Function),
     );
+  });
+
+  it('returns project logs and their edit permission', async () => {
+    const logs = [{ id: 'log-1', details: 'Reviewed scope' }];
+    projectAccess.assertProjectAccess.mockResolvedValue('edit');
+    projectsService.getProgressLogs.mockResolvedValue({ data: logs });
+
+    await expect(controller.getProgressLogs('p1', session)).resolves.toEqual({
+      data: { logs, canEdit: true },
+    });
+    expect(projectAccess.assertProjectAccess).toHaveBeenCalledWith(
+      EnumUserRole.USER,
+      'p1',
+      'view',
+    );
+    expect(projectsService.getProgressLogs).toHaveBeenCalledWith('p1');
+  });
+
+  it('creates a project log with the authenticated username', async () => {
+    const body = { date: '2026-11-10', details: 'Completed implementation' };
+    const request = { get: jest.fn().mockReturnValue(undefined) } as Request;
+    const authenticatedSession = {
+      user: { ...session.user, username: 'developer' },
+    } as Parameters<ProjectsController['createProgressLog']>[2];
+    projectAccess.assertProjectAccess.mockResolvedValue('edit');
+    projectsService.createProgressLog.mockResolvedValue({
+      data: { id: 'log-1' },
+    });
+
+    await expect(
+      controller.createProgressLog('p1', body, authenticatedSession, request),
+    ).resolves.toEqual({ data: { id: 'log-1' } });
+    expect(projectsService.createProgressLog).toHaveBeenCalledWith(
+      'p1',
+      body.date,
+      body.details,
+      'developer',
+    );
+  });
+
+  it('deletes a project log after checking edit access', async () => {
+    const request = { get: jest.fn().mockReturnValue(undefined) } as Request;
+    projectAccess.assertProjectAccess.mockResolvedValue('edit');
+    projectsService.deleteProgressLog.mockResolvedValue({
+      data: { id: 'log-1' },
+    });
+
+    await expect(
+      controller.deleteProgressLog('p1', 'log-1', session, request),
+    ).resolves.toEqual({ data: { id: 'log-1' } });
+    expect(projectAccess.assertProjectAccess).toHaveBeenCalledWith(
+      EnumUserRole.USER,
+      'p1',
+      'edit',
+    );
+    expect(projectsService.deleteProgressLog).toHaveBeenCalledWith(
+      'p1',
+      'log-1',
+    );
+  });
+
+  it('does not delete a project log without edit access', async () => {
+    const request = { get: jest.fn().mockReturnValue(undefined) } as Request;
+    projectAccess.assertProjectAccess.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      controller.deleteProgressLog('p1', 'log-1', session, request),
+    ).rejects.toThrow(ForbiddenException);
+    expect(projectsService.deleteProgressLog).not.toHaveBeenCalled();
   });
 
   it('should delegate createProject to the service', () => {
