@@ -146,7 +146,7 @@ export class ProgressComponent implements OnInit {
         },
         error: (error: unknown) => {
           console.error('Failed to save project progress log', error);
-          this.logsError = 'The daily log could not be saved. Try again.';
+          this.logsError = 'The project log could not be saved. Try again.';
         },
       });
   }
@@ -166,8 +166,8 @@ export class ProgressComponent implements OnInit {
 
     this.confirmDialog
       .confirm({
-        title: 'Delete daily log?',
-        message: 'This daily log will be permanently deleted. This cannot be undone.',
+        title: 'Delete project log?',
+        message: 'This project log will be permanently deleted. This cannot be undone.',
         confirmText: 'Delete',
         config: { confirmColor: 'error' },
       })
@@ -192,7 +192,7 @@ export class ProgressComponent implements OnInit {
             },
             error: (error: unknown) => {
               console.error('Failed to delete project progress log', error);
-              this.logsError = 'The daily log could not be deleted. Try again.';
+              this.logsError = 'The project log could not be deleted. Try again.';
             },
           });
       });
@@ -221,7 +221,7 @@ export class ProgressComponent implements OnInit {
         error: (error: unknown) => {
           console.error('Failed to load project progress logs', error);
           if (this.selectedProjectId === projectId) {
-            this.logsError = 'Daily logs could not be loaded. Try again.';
+            this.logsError = 'Project logs could not be loaded. Try again.';
           }
         },
       });

@@ -108,14 +108,14 @@
       </div>
     </section>
 
-    <section class="daily-logs" aria-labelledby="daily-logs-title">
+    <section class="project-logs" aria-labelledby="project-logs-title">
       <header class="logs-heading">
         <div class="logs-title">
           <p class="eyebrow">PROJECT JOURNAL</p>
-          <h3 id="daily-logs-title">Daily logs</h3>
+          <h3 id="project-logs-title">Project logs</h3>
           <p>A dated record of the work, decisions, and next steps.</p>
         </div>
-        <div class="log-total" *ngIf="!logsLoading" aria-label="Total daily log entries">
+        <div class="log-total" *ngIf="!logsLoading" aria-label="Total project log entries">
           <strong>{{ logs.length }}</strong>
           <span>{{ logs.length === 1 ? 'entry' : 'entries' }}</span>
         </div>
@@ -167,7 +167,7 @@
       </form>
       <p class="read-only-note" *ngIf="projectAccessLoaded && !canEditLogs && !logsLoading">
         <span class="material-symbols-outlined" aria-hidden="true">lock</span>
-        You have view access to this project. Daily logs are read-only.
+        You have view access to this project. Project logs are read-only.
       </p>
 
       <p class="logs-state logs-loading" role="status" *ngIf="logsLoading">
