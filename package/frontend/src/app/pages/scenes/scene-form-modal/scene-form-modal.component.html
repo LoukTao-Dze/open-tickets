@@ -1,0 +1,132 @@
+<form class="modal-panel" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-header">
+    <div>
+      <h2 id="scene-modal-title">{{ isEditMode ? 'Edit scene' : 'New scene' }}</h2>
+      <p>Scene number and test are required. Add the details your team needs.</p>
+    </div>
+    <button
+      type="button"
+      class="modal-close"
+      aria-label="Close"
+      [disabled]="saving"
+      (click)="cancel()"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+  </div>
+
+  <div class="form-grid">
+    <label class="wide-field">
+      <span>Test suite <span class="required">Required</span></span>
+      <select formControlName="suiteId">
+        <option value="">Choose a test suite</option>
+        <option *ngFor="let suite of suites" [value]="suite.id">{{ suite.name }}</option>
+      </select>
+      <span
+        class="field-error"
+        *ngIf="form.controls.suiteId.touched && form.controls.suiteId.invalid"
+      >
+        Choose a test suite.
+      </span>
+    </label>
+
+    <label>
+      <span>Scene no. <span class="required">Required</span></span>
+      <input
+        formControlName="sceneNo"
+        maxlength="80"
+        placeholder="e.g. SC-01"
+        [attr.aria-invalid]="form.controls.sceneNo.touched && form.controls.sceneNo.invalid"
+        aria-describedby="scene-number-error"
+      />
+      <span
+        class="field-error"
+        id="scene-number-error"
+        *ngIf="form.controls.sceneNo.touched && form.controls.sceneNo.invalid"
+        >Enter a scene number.</span
+      >
+    </label>
+
+    <label>
+      <span>Status</span>
+      <select formControlName="status">
+        <option *ngFor="let status of statuses" [value]="status.value">{{ status.label }}</option>
+      </select>
+    </label>
+
+    <label class="wide-field">
+      <span>Test <span class="required">Required</span></span>
+      <input
+        formControlName="test"
+        maxlength="240"
+        placeholder="What are you testing?"
+        [attr.aria-invalid]="form.controls.test.touched && form.controls.test.invalid"
+        aria-describedby="scene-test-error"
+      />
+      <span
+        class="field-error"
+        id="scene-test-error"
+        *ngIf="form.controls.test.touched && form.controls.test.invalid"
+        >Enter a test.</span
+      >
+    </label>
+
+    <label>
+      <span>Details (Issue)</span>
+      <textarea
+        formControlName="detailsIssue"
+        rows="3"
+        maxlength="2000"
+        placeholder="Describe the issue or context"
+      ></textarea>
+    </label>
+    <label>
+      <span>Expected result</span>
+      <textarea
+        formControlName="expectedResult"
+        rows="3"
+        maxlength="2000"
+        placeholder="What should happen?"
+      ></textarea>
+    </label>
+    <label>
+      <span>Action</span>
+      <textarea
+        formControlName="action"
+        rows="3"
+        maxlength="2000"
+        placeholder="Steps to perform"
+      ></textarea>
+    </label>
+    <label>
+      <span>Data test</span>
+      <textarea
+        formControlName="dataTest"
+        rows="3"
+        maxlength="2000"
+        placeholder="Inputs or test data"
+      ></textarea>
+    </label>
+    <label class="wide-field">
+      <span>Remark</span>
+      <textarea
+        formControlName="remark"
+        rows="2"
+        maxlength="2000"
+        placeholder="Anything else to note"
+        [disabled]="saving"
+      ></textarea>
+    </label>
+  </div>
+
+  <p class="field-error" role="alert" *ngIf="error">{{ error }}</p>
+
+  <div class="modal-actions">
+    <button type="button" class="secondary-button" [disabled]="saving" (click)="cancel()">
+      Cancel
+    </button>
+    <button type="submit" class="primary-button" [disabled]="saving">
+      {{ saving ? 'Saving...' : 'Save scene' }}
+    </button>
+  </div>
+</form>

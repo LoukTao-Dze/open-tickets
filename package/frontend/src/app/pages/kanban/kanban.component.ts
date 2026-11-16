@@ -23,6 +23,7 @@ import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
 import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
 import { finalize } from 'rxjs';
+import { ActivatedRoute } from '@angular/router';
 
 const ALL_PROJECTS = 'all';
 const PROJECT_NAME_MAX_LENGTH = 12;
@@ -43,6 +44,7 @@ export class KanbanComponent implements OnInit {
     private confirmDialog: ConfirmDialogService,
     private projectApi: ProjectApiService,
     private auth: AuthService,
+    private route: ActivatedRoute,
   ) {}
 
   columns: KanbanColumn[] = [];
@@ -52,12 +54,17 @@ export class KanbanComponent implements OnInit {
   isLoading = false;
   // Deny by default: stays read-only until the server confirms a non-guest role.
   isReadOnly = true;
+  linkError = '';
+  private boardLoaded = false;
+  private projectsLoaded = false;
+  private pendingTicketId: string | null = null;
 
   get projects(): KanbanProject[] {
     return this.allProjects;
   }
 
   ngOnInit() {
+    this.pendingTicketId = this.route.snapshot.queryParamMap.get('ticket');
     const session = this.auth.cachedSession;
     if (session) {
       this.isReadOnly = isReadOnlyRole(session.user.role);
@@ -66,8 +73,18 @@ export class KanbanComponent implements OnInit {
     }
     this.loadBoard();
     this.projectApi.getProjects().subscribe({
-      next: (projects) => (this.allProjects = projects),
-      error: (err) => console.error('Failed to load projects', err),
+      next: (projects) => {
+        this.allProjects = projects;
+        this.projectsLoaded = true;
+        this.openLinkedTicket();
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Failed to load projects', err);
+        if (this.pendingTicketId)
+          this.linkError = 'Could not load the linked card. Reload and try again.';
+        this.cdr.markForCheck();
+      },
     });
   }
 
@@ -75,10 +92,31 @@ export class KanbanComponent implements OnInit {
     this.kanbanApi.getBoard().subscribe({
       next: (columns) => {
         this.columns = columns;
+        this.boardLoaded = true;
+        this.openLinkedTicket();
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Failed to load kanban board', err),
+      error: (err) => {
+        console.error('Failed to load kanban board', err);
+        if (this.pendingTicketId)
+          this.linkError = 'Could not load the linked card. Reload and try again.';
+        this.cdr.markForCheck();
+      },
     });
+  }
+
+  private openLinkedTicket(): void {
+    if (!this.pendingTicketId || !this.boardLoaded || !this.projectsLoaded) return;
+    const ticket = this.columns
+      .flatMap((column) => column.tickets)
+      .find((item) => item.id === this.pendingTicketId);
+    this.pendingTicketId = null;
+    if (!ticket) {
+      this.linkError = 'This card was deleted or is not available to you.';
+      return;
+    }
+    this.selectedProject = ticket.project.id;
+    this.openEditTicketModal(ticket);
   }
 
   visibleTickets(column: KanbanColumn): KanbanTicket[] {

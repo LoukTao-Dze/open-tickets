@@ -1,0 +1,121 @@
+<form class="modal-panel" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-header">
+    <h2 id="suite-modal-title">{{ isEditMode ? 'Edit test suite' : 'New test suite' }}</h2>
+    <button
+      type="button"
+      class="modal-close"
+      aria-label="Close"
+      [disabled]="saving"
+      (click)="cancel()"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+  </div>
+
+  <div class="modal-fields">
+    <label class="form-field" *ngIf="isEditMode">
+      <span class="form-label">Project</span>
+      <select
+        formControlName="projectId"
+        [attr.disabled]="saving || loadingTickets ? '' : null"
+        (change)="loadTickets()"
+      >
+        <option *ngFor="let project of projects" [value]="project.id">
+          {{ project.project_name }}
+        </option>
+      </select>
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Suite name <span class="required">Required</span></span>
+      <input
+        formControlName="name"
+        maxlength="240"
+        placeholder="e.g. Checkout regression"
+        [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
+        aria-describedby="suite-name-error"
+      />
+      <span
+        class="field-error"
+        id="suite-name-error"
+        *ngIf="form.controls.name.touched && form.controls.name.invalid"
+        >Enter a suite name.</span
+      >
+    </label>
+
+    <label class="form-field">
+      <span class="form-label">Description</span>
+      <textarea
+        formControlName="description"
+        rows="4"
+        maxlength="2000"
+        placeholder="What does this suite cover?"
+      ></textarea>
+    </label>
+
+    <fieldset class="ticket-references">
+      <legend>Kanban cards</legend>
+      <p class="ticket-help">Choose any cards related to this suite.</p>
+      <p role="status" *ngIf="loadingTickets">Loading Kanban cards...</p>
+      <div class="ticket-error" role="alert" *ngIf="ticketError">
+        {{ ticketError }}
+        <button type="button" class="secondary-button" (click)="loadTickets()">Try again</button>
+      </div>
+      <p role="status" *ngIf="!loadingTickets && !ticketError && unavailableTicketIds.length">
+        Remove cards unavailable in this project before saving.
+      </p>
+      <p *ngIf="!loadingTickets && !ticketError && !availableTickets.length">
+        No Kanban cards in this project.
+      </p>
+      <div class="ticket-options" *ngIf="!loadingTickets && !ticketError">
+        <label
+          class="ticket-option unavailable-ticket"
+          *ngFor="let ticketId of unavailableTicketIds"
+        >
+          <input
+            type="checkbox"
+            [checked]="true"
+            [disabled]="saving"
+            (change)="toggleTicket(ticketId, false)"
+          />
+          <span class="ticket-copy">
+            <span class="ticket-id">{{ ticketId }}</span>
+            <span class="ticket-title">No longer available — uncheck to remove</span>
+          </span>
+        </label>
+        <label
+          class="ticket-option"
+          *ngFor="let ticket of availableTickets"
+          [class.is-selected]="selectedTicketIds.includes(ticket.id)"
+        >
+          <input
+            #ticketCheckbox
+            type="checkbox"
+            [checked]="selectedTicketIds.includes(ticket.id)"
+            [disabled]="saving"
+            (change)="toggleTicket(ticket.id, ticketCheckbox.checked)"
+          />
+          <span class="ticket-copy">
+            <span class="ticket-id">{{ ticket.id }}</span>
+            <span class="ticket-title">{{ ticket.title }}</span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
+  </div>
+
+  <p class="field-error" role="alert" *ngIf="error">{{ error }}</p>
+
+  <div class="modal-actions">
+    <button type="button" class="secondary-button" [disabled]="saving" (click)="cancel()">
+      Cancel
+    </button>
+    <button
+      type="submit"
+      class="primary-button"
+      [disabled]="saving || loadingTickets || !!ticketError || unavailableTicketIds.length > 0"
+    >
+      {{ saving ? 'Saving...' : 'Save suite' }}
+    </button>
+  </div>
+</form>

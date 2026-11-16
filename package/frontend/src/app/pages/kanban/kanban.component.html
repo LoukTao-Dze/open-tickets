@@ -2,6 +2,8 @@
   <app-loading-overlay></app-loading-overlay>
 }
 
+<p role="alert" *ngIf="linkError">{{ linkError }}</p>
+
 <div class="kanban-toolbar">
   <span class="material-symbols-outlined kanban-toolbar-icon">filter_list</span>
   <select

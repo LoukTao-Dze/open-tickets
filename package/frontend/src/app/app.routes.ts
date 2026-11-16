@@ -31,6 +31,12 @@ export const routes: Routes = [
       import('./pages/progress/progress.component').then((m) => m.ProgressComponent),
   },
   {
+    path: 'scenes',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/scenes/scenes.component').then((m) => m.ScenesComponent),
+  },
+  {
     path: 'workspace',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -45,9 +45,11 @@ export class KanbanApiService {
 
   constructor(private readonly httpClient: HttpClient) {}
 
-  getBoard(): Observable<KanbanColumn[]> {
+  getBoard(projectId?: string): Observable<KanbanColumn[]> {
     return this.httpClient
-      .get<ApiResponse<KanbanColumn[]>>(`${this.baseUrl}/board`)
+      .get<ApiResponse<KanbanColumn[]>>(`${this.baseUrl}/board`, {
+        params: projectId ? { projectId } : {},
+      })
       .pipe(map((response) => response.data));
   }
 

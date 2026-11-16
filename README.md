@@ -104,6 +104,53 @@ For project status counts and persistent daily notes, also run
 in the Supabase SQL editor. Progress logs are scoped to a project, ordered by date,
 and writable only by sessions with edit access to that project.
 
+### Test scenes
+
+Run [`015_scene_tracking.sql`](package/backend/src/supabase/migrations/015_scene_tracking.sql)
+in the Supabase SQL editor. It creates the scene table if needed and adds a status
+to existing scenes without changing their details. The backend requires a
+service-role key. Then run
+[`016_create_test_suites.sql`](package/backend/src/supabase/migrations/016_create_test_suites.sql),
+[`017_suite_scene_activity.sql`](package/backend/src/supabase/migrations/017_suite_scene_activity.sql),
+[`018_add_test_suite_description.sql`](package/backend/src/supabase/migrations/018_add_test_suite_description.sql),
+[`019_scene_kanban_references.sql`](package/backend/src/supabase/migrations/019_scene_kanban_references.sql),
+[`020_move_kanban_references_to_suites.sql`](package/backend/src/supabase/migrations/020_move_kanban_references_to_suites.sql),
+[`021_move_test_suites_between_projects.sql`](package/backend/src/supabase/migrations/021_move_test_suites_between_projects.sql),
+[`022_fix_move_test_suite_ambiguity.sql`](package/backend/src/supabase/migrations/022_fix_move_test_suite_ambiguity.sql),
+and [`023_fix_move_test_suite_parameter_reference.sql`](package/backend/src/supabase/migrations/023_fix_move_test_suite_parameter_reference.sql)
+once, before deploying the suite-aware backend and frontend.
+In **Test scenes** (`/scenes`), select a project, then choose a test suite from
+the list to view its scenes and status percentages. Use **All suites** to return
+to the list. Each project can have multiple suites, and each suite can have
+multiple scenes. Users with project edit access can create, edit (name and
+description) and delete suites, and add, edit, or delete scenes; view access
+remains read-only. Suites are created and edited in a modal.
+Suites can reference multiple Kanban cards from the same project. Add or remove
+cards when creating or editing a suite, then open a reference from the suite.
+Deleting a card or moving it to another project removes its suite references.
+Migration 020 combines the references from each suite's scenes without duplicates.
+Migration 021 enables moving a suite and its scenes to another project; replace
+or remove Kanban references that do not exist in the destination project.
+If an unassigned scene has references, assign it to a suite before running the migration;
+the migration stops without changing data otherwise.
+The suite list shows the description, status percentages, creation date, and the last scene change.
+Scene activity before migration 017 is not available, so its date is shown as
+not recorded until a scene is added, changed, moved, or deleted.
+New scenes require a suite in the same project. Edit a scene's **Test suite**
+field to move it. Existing scenes remain in **Scenes awaiting a suite** until
+manually assigned; no default suite is created and no scene details are changed.
+Only empty suites can be deleted; the API returns `409` if scenes remain,
+including scenes added concurrently. Percentages are rounded to whole numbers
+and use only scenes in the selected suite (or the awaiting list) as the denominator.
+
+- `GET /api/projects/:projectId/scenes` returns `{ data: { scenes, suites, canEdit } }`.
+- `DELETE /api/projects/:projectId/scenes/:sceneId` deletes a scene.
+- `POST /api/projects/:projectId/test-suites` creates a suite with `{ name, description?, kanbanTicketIds? }`.
+- `PUT /api/projects/:projectId/test-suites/:suiteId` updates a suite with `{ name, description?, kanbanTicketIds? }`;
+  omitted optional fields are left unchanged.
+- `DELETE /api/projects/:projectId/test-suites/:suiteId` deletes an empty suite.
+- Scene create/update bodies now require `suiteId`; status-only updates are unchanged.
+
 - `GET /api/docs`: requires a valid server-side session.
 - `PUT /api/docs`: requires an admin server-side session; body is
   `{ "content": "<Markdown>", "updatedAt": "<timestamp from GET>" }`.

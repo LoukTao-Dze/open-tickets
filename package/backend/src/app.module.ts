@@ -10,6 +10,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { DocsModule } from './modules/docs/docs.module';
+import { ScenesModule } from './modules/scenes/scenes.module';
 //TODO: Uncomment these modules when ready to use Discord functionality
 // import { DiscordModule } from './modules/discord/discord.module';
 // import { MessageModule } from './modules/message/message.module';
@@ -28,6 +29,7 @@ import { DocsModule } from './modules/docs/docs.module';
     ProjectsModule,
     RolesModule,
     DocsModule,
+    ScenesModule,
     //TODO: Uncomment these modules when ready to use Discord functionality
     // DiscordModule,
     // MessageModule,

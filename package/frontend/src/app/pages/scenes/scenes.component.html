@@ -1,0 +1,367 @@
+<main class="scene-page">
+  <header class="page-header">
+    <div>
+      <h1>Test scenes</h1>
+      <p class="intro">Group test scenes into suites within each project.</p>
+    </div>
+    <div class="header-actions" *ngIf="canEdit && !contextLocked">
+      <button class="secondary-button" type="button" (click)="openSuiteModal()">Add suite</button>
+      <button class="primary-button" type="button" *ngIf="selectedSuite" (click)="openSceneModal()">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        Add scene
+      </button>
+    </div>
+  </header>
+
+  <p class="notice" role="status" *ngIf="loadingProjects">Loading projects...</p>
+  <div class="notice error" role="alert" *ngIf="error">
+    <span>{{ error }}</span>
+    <button
+      type="button"
+      *ngIf="!contextLocked"
+      (click)="projectId ? loadScenes() : loadProjects()"
+    >
+      Try again
+    </button>
+  </div>
+  <div class="notice" *ngIf="!loadingProjects && !error && !projects.length">
+    <h2>No projects available</h2>
+    <p>Create a project or ask for access to start tracking test scenes.</p>
+    <a routerLink="/projects">View projects</a>
+  </div>
+
+  <ng-container *ngIf="projects.length">
+    <div class="project-bar">
+      <label for="scene-project">Project: </label>
+      <select
+        id="scene-project"
+        [(ngModel)]="projectId"
+        (ngModelChange)="loadScenes()"
+        [disabled]="contextLocked"
+        (change)="onChangeProject($event)"
+      >
+        <option *ngFor="let project of projects" [value]="project.id">
+          {{ project.project_name }}
+        </option>
+      </select>
+    </div>
+
+    <p class="notice" role="status" *ngIf="loadingScenes">Loading scenes...</p>
+    <ng-container *ngIf="!loadingScenes && (!error || suites.length || scenes.length)">
+      <section
+        class="suite-list"
+        *ngIf="suiteId === null && (suites.length || unassignedCount)"
+        aria-labelledby="suite-list-title"
+      >
+        <div class="list-heading">
+          <div>
+            <h2 id="suite-list-title">Test suites</h2>
+            <p>Choose a suite to view its scenes.</p>
+          </div>
+        </div>
+        <button
+          class="suite-row"
+          type="button"
+          *ngFor="let suite of suites"
+          [disabled]="contextLocked"
+          (click)="selectSuite(suite.id)"
+        >
+          <span class="suite-info">
+            <span class="suite-heading">
+              <strong class="suite-name">{{ suite.name }}</strong>
+              <span
+                >{{ suiteSceneCount(suite.id) }}
+                {{ suiteSceneCount(suite.id) === 1 ? 'scene' : 'scenes' }}</span
+              >
+            </span>
+            <span class="suite-description" *ngIf="suite.description">{{ suite.description }}</span>
+            <span class="suite-statuses">
+              <span
+                class="suite-status"
+                *ngFor="let status of statuses"
+                [attr.data-status]="status.value"
+              >
+                <span class="suite-status-line">
+                  <span>{{ status.label }}</span>
+                  <strong>{{ suiteStatusPercent(suite.id, status.value) }}%</strong>
+                </span>
+                <progress
+                  [value]="suiteStatusPercent(suite.id, status.value)"
+                  max="100"
+                  aria-hidden="true"
+                ></progress>
+              </span>
+            </span>
+            <span class="suite-meta">
+              <span>Created {{ suite.createdAt | date: 'mediumDate' }}</span>
+              <span
+                >Last update
+                {{
+                  suite.lastSceneUpdateAt
+                    ? (suite.lastSceneUpdateAt | date: 'medium')
+                    : 'Not recorded'
+                }}</span
+              >
+            </span>
+          </span>
+          <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        </button>
+        <button
+          class="suite-row"
+          type="button"
+          *ngIf="unassignedCount"
+          [disabled]="contextLocked"
+          (click)="selectSuite('')"
+        >
+          <strong class="suite-name">Scenes awaiting a suite</strong>
+          <span>{{ unassignedCount }} {{ unassignedCount === 1 ? 'scene' : 'scenes' }}</span>
+          <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        </button>
+      </section>
+
+      <div class="suite-bar" *ngIf="suiteId !== null">
+        <button
+          type="button"
+          class="secondary-button"
+          [disabled]="contextLocked"
+          (click)="selectSuite(null)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+          All suites
+        </button>
+        <div class="suite-actions" *ngIf="selectedSuite && canEdit">
+          <button
+            type="button"
+            class="secondary-button"
+            [disabled]="contextLocked"
+            (click)="openSuiteModal(selectedSuite)"
+          >
+            Edit suite
+          </button>
+          <button
+            type="button"
+            class="secondary-button"
+            [disabled]="contextLocked"
+            (click)="deleteSuite()"
+          >
+            Delete suite
+          </button>
+        </div>
+      </div>
+
+      <div class="notice" *ngIf="!suites.length && !error">
+        <h2>No test suites yet</h2>
+        <p>
+          {{
+            canEdit
+              ? 'Create a suite to group new scenes. Existing scenes can be assigned when you edit them.'
+              : 'Suites will appear here when they are added.'
+          }}
+        </p>
+        <button
+          type="button"
+          class="secondary-button"
+          *ngIf="canEdit && !contextLocked"
+          (click)="openSuiteModal()"
+        >
+          Add suite
+        </button>
+      </div>
+
+      <div class="notice" *ngIf="suiteId === '' && unassignedCount">
+        <h2>Scenes awaiting a suite</h2>
+        <p>
+          {{
+            canEdit
+              ? 'Edit each scene and choose a test suite to assign it. No scenes have been moved automatically.'
+              : 'These existing scenes have not been assigned to a suite yet.'
+          }}
+        </p>
+      </div>
+
+      <ng-container *ngIf="suiteId !== null">
+        <section class="summary" aria-label="Test scene summary">
+          <div class="summary-total">
+            <span>Total scenes</span><strong>{{ visibleScenes.length }}</strong>
+          </div>
+          <div
+            class="summary-status"
+            *ngFor="let status of statuses"
+            [attr.data-status]="status.value"
+          >
+            <div class="summary-line">
+              <span>{{ status.label }}</span
+              ><strong>{{ percent(status.value) }}%</strong>
+            </div>
+            <progress
+              [value]="percent(status.value)"
+              max="100"
+              [attr.aria-label]="status.label + ' ' + count(status.value) + ' scenes'"
+            ></progress>
+            <small>{{ count(status.value) }} of {{ visibleScenes.length }} scenes</small>
+          </div>
+        </section>
+
+        <section class="scene-list" aria-labelledby="scene-list-title">
+          <div class="list-heading">
+            <div>
+              <h2 id="scene-list-title">{{ selectedSuite?.name ?? 'Scenes awaiting a suite' }}</h2>
+              <p class="suite-description" *ngIf="selectedSuite?.description">
+                {{ selectedSuite?.description || '' }}
+              </p>
+              <p>Open a scene to see its test details.</p>
+            </div>
+            <span *ngIf="!canEdit">View only</span>
+          </div>
+          <div class="suite-references" *ngIf="selectedSuite as suite">
+            <strong>Kanban cards</strong>
+            <span *ngIf="!suite.kanbanTicketIds.length">No referenced cards</span>
+            <a
+              *ngFor="let ticketId of suite.kanbanTicketIds"
+              [routerLink]="['/kanban']"
+              [queryParams]="{ ticket: ticketId }"
+              >{{ ticketId }}</a
+            >
+          </div>
+          <div class="empty-scenes" *ngIf="!visibleScenes.length">
+            <span class="material-symbols-outlined" aria-hidden="true">fact_check</span>
+            <h3>No scenes yet</h3>
+            <p>
+              {{
+                canEdit
+                  ? 'Add a scene to start tracking this suite.'
+                  : 'Scenes will appear here when they are added.'
+              }}
+            </p>
+            <button
+              *ngIf="canEdit && selectedSuite && !contextLocked"
+              type="button"
+              class="secondary-button"
+              (click)="openSceneModal()"
+            >
+              Add a scene
+            </button>
+          </div>
+          <details class="scene-item" *ngFor="let scene of visibleScenes; trackBy: trackScene">
+            <summary>
+              <span class="scene-number">{{ scene.sceneNo }}</span>
+              <strong class="scene-title">{{ scene.test }}</strong>
+              <span class="status-badge" [attr.data-status]="scene.status">
+                {{
+                  scene.status === 'pass'
+                    ? 'Pass'
+                    : scene.status === 'in-progress'
+                      ? 'In progress'
+                      : 'Not started'
+                }}
+              </span>
+              <span class="material-symbols-outlined expand-icon" aria-hidden="true"
+                >expand_more</span
+              >
+            </summary>
+            <div class="scene-details">
+              <div class="status-picker" *ngIf="canEdit">
+                <span class="status-picker-label" [id]="'status-label-' + scene.id">Status</span>
+                <div
+                  class="status-options"
+                  role="group"
+                  [attr.aria-labelledby]="'status-label-' + scene.id"
+                >
+                  <button
+                    type="button"
+                    *ngFor="let status of statuses"
+                    [attr.data-status]="status.value"
+                    [class.is-active]="selectedStatus(scene) === status.value"
+                    [attr.aria-pressed]="selectedStatus(scene) === status.value"
+                    [disabled]="statusSavingId !== null || suiteSaving || deletingSceneId !== null"
+                    (click)="chooseStatus(scene, status.value)"
+                  >
+                    {{ status.label }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="primary-button update-status"
+                  [disabled]="
+                    !hasPendingStatus(scene) ||
+                    statusSavingId !== null ||
+                    suiteSaving ||
+                    deletingSceneId !== null
+                  "
+                  (click)="updateStatus(scene)"
+                >
+                  {{ statusSavingId === scene.id ? 'Updating...' : 'Update status' }}
+                </button>
+                <span
+                  class="status-saving"
+                  *ngIf="hasPendingStatus(scene) && statusSavingId === null"
+                  >Change not saved yet.</span
+                >
+              </div>
+              <dl class="detail-grid">
+                <div class="detail-field">
+                  <dt>
+                    <span class="material-symbols-outlined" aria-hidden="true">subject</span>
+                    Details (Issue)
+                  </dt>
+                  <dd [class.is-empty]="!scene.detailsIssue">{{ scene.detailsIssue || '—' }}</dd>
+                </div>
+                <div class="detail-field">
+                  <dt>
+                    <span class="material-symbols-outlined" aria-hidden="true">task_alt</span>
+                    Expected result
+                  </dt>
+                  <dd [class.is-empty]="!scene.expectedResult">
+                    {{ scene.expectedResult || '—' }}
+                  </dd>
+                </div>
+                <div class="detail-field">
+                  <dt>
+                    <span class="material-symbols-outlined" aria-hidden="true">checklist</span>
+                    Action
+                  </dt>
+                  <dd [class.is-empty]="!scene.action">{{ scene.action || '—' }}</dd>
+                </div>
+                <div class="detail-field">
+                  <dt>
+                    <span class="material-symbols-outlined" aria-hidden="true">database</span>
+                    Data test
+                  </dt>
+                  <dd [class.is-empty]="!scene.dataTest">{{ scene.dataTest || '—' }}</dd>
+                </div>
+                <div class="detail-field detail-remark">
+                  <dt>
+                    <span class="material-symbols-outlined" aria-hidden="true">notes</span>
+                    Remark
+                  </dt>
+                  <dd [class.is-empty]="!scene.remark">{{ scene.remark || '—' }}</dd>
+                </div>
+              </dl>
+              <div class="detail-actions" *ngIf="canEdit">
+                <button
+                  type="button"
+                  class="secondary-button"
+                  *ngIf="suites.length"
+                  [disabled]="contextLocked"
+                  (click)="openSceneModal(scene)"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                  Edit scene
+                </button>
+                <button
+                  type="button"
+                  class="secondary-button"
+                  [disabled]="contextLocked"
+                  (click)="confirmSceneDelete(scene)"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  Delete scene
+                </button>
+              </div>
+            </div>
+          </details>
+        </section>
+      </ng-container>
+    </ng-container>
+  </ng-container>
+</main>
