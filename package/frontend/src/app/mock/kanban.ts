@@ -39,6 +39,7 @@ export const MOCK_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'todo',
     name: 'To Do',
+    color: '#8b919d',
     count: 4,
     status: 'active',
     tickets: [],
@@ -46,6 +47,7 @@ export const MOCK_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'in-progress',
     name: 'In Progress',
+    color: '#a2c9ff',
     count: 2,
     status: 'active',
     tickets: [],
@@ -53,6 +55,7 @@ export const MOCK_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'ready-to-test',
     name: 'Ready to Test',
+    color: '#7bdb80',
     count: 1,
     status: 'active',
     tickets: [],
@@ -60,6 +63,7 @@ export const MOCK_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'test-in-progress',
     name: 'Test In Progress',
+    color: '#fabc45',
     count: 3,
     status: 'hide',
     tickets: [],
@@ -67,6 +71,7 @@ export const MOCK_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'test-fail',
     name: 'Test Fail',
+    color: '#ffb4ab',
     count: 1,
     status: 'active',
     tickets: [],
@@ -74,6 +79,7 @@ export const MOCK_KANBAN_COLUMNS: KanbanColumn[] = [
   {
     id: 'done',
     name: 'Done',
+    color: '#007124',
     count: 142,
     status: 'active',
     tickets: [],

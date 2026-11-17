@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import {
   KanbanColumnId,
+  KanbanColumn,
   KanbanMeta,
   KanbanPriority,
   KanbanProject,
@@ -26,6 +27,7 @@ export interface TicketFormValue {
 
 export interface TicketFormModalData {
   projects: KanbanProject[];
+  columns: KanbanColumn[];
   action: TicketFormModalAction;
   ticket?: KanbanTicket;
 }
@@ -49,6 +51,7 @@ export class TicketFormModalComponent {
   readonly taskTypes = ['Feature', 'Bug', 'Chore', 'Improvement'];
   readonly jobTypes = ['Frontend', 'Backend', 'DevOps', 'QA', 'Design'];
   readonly projects: KanbanProject[];
+  readonly columns: KanbanColumn[];
   readonly isEditMode: boolean;
   readonly TICKET_META_ITEMS: KanbanMeta[] = [
     { icon: 'schedule', label: 'New' },
@@ -70,10 +73,13 @@ export class TicketFormModalComponent {
     @Optional() @Inject(MAT_DIALOG_DATA) data: TicketFormModalData | null,
   ) {
     this.projects = data?.projects ?? [];
+    this.columns = data?.columns ?? [];
     const ticket = data?.ticket;
     this.isEditMode = data?.action === TicketFormModalAction.EDIT;
     this.form = this.fb.group({
-      columnId: this.fb.control<KanbanColumnId>(ticket?.columnId ?? 'todo', [Validators.required]),
+      columnId: this.fb.control<KanbanColumnId>(ticket?.columnId ?? this.columns[0]?.id ?? '', [
+        Validators.required,
+      ]),
       title: this.fb.control(ticket?.title ?? '', [Validators.required, Validators.maxLength(300)]),
       detail: this.fb.control(ticket?.detail ?? '', [Validators.maxLength(2000)]),
       priority: this.fb.control<KanbanPriority>(ticket?.priority ?? 'Low', [Validators.required]),

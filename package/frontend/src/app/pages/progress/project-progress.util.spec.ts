@@ -22,6 +22,18 @@ describe('groupProgressLogsByDate', () => {
 });
 
 describe('calculateProjectProgress', () => {
+  it('counts custom lanes as incomplete tasks without producing NaN counts', () => {
+    const project = createProject('project');
+    const [progress] = calculateProjectProgress(
+      [project],
+      [createColumn('custom-lane', [createTicket('task', project)])],
+    );
+    expect(progress.totalTasks).toBe(1);
+    expect(progress.completedTasks).toBe(0);
+    expect(progress.counts['custom-lane']).toBe(1);
+    expect(progress.percent).toBe(0);
+  });
+
   it('calculates the completed share for each project and reports empty projects as zero', () => {
     const firstProject = createProject('first');
     const secondProject = createProject('second');
@@ -127,7 +139,7 @@ function createTicket(id: string, project: KanbanProject): KanbanTicket {
 }
 
 function createColumn(id: KanbanColumn['id'], tickets: KanbanTicket[]): KanbanColumn {
-  return { id, name: id, count: tickets.length, status: id, tickets };
+  return { id, name: id, color: '#123abc', count: tickets.length, status: id, tickets };
 }
 
 function createLog(id: string, date: string): ProjectProgressLog {

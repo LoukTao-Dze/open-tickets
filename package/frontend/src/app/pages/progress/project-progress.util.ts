@@ -60,7 +60,7 @@ export function calculateProjectProgress(
       }
 
       counts.total += 1;
-      counts.counts[column.id] += 1;
+      counts.counts[column.id] = (counts.counts[column.id] ?? 0) + 1;
       if (column.id === 'done') {
         counts.completed += 1;
       }

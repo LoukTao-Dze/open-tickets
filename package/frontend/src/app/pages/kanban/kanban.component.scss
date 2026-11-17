@@ -5,7 +5,7 @@
 }
 
 .kanban-toolbar {
-  @apply flex items-center gap-xs px-xl pt-md pb-sm;
+  @apply flex items-center gap-sm px-xl pt-md pb-sm;
 }
 
 .kanban-toolbar-icon {
@@ -34,7 +34,7 @@
 }
 
 .column-header-left {
-  @apply flex items-center gap-sm;
+  @apply flex items-center gap-sm min-w-0;
 }
 
 .column-dot {
@@ -42,7 +42,7 @@
 }
 
 .column-name {
-  @apply text-label-caps font-label-caps text-on-surface;
+  @apply text-label-caps font-label-caps text-on-surface truncate;
 }
 
 .column-count {
@@ -50,7 +50,75 @@
 }
 
 .column-menu {
-  @apply text-on-surface-variant cursor-pointer;
+  @apply text-on-surface-variant hover:bg-surface-container-high;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.lane-button {
+  @apply bg-surface-container-high text-on-surface hover:bg-surface-container-highest;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease,
+    transform 150ms ease;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}
+
+.lane-add {
+  @apply bg-primary/10 text-primary hover:bg-primary/20;
+}
+
+.lane-reorder {
+  margin-left: auto;
+}
+
+.lane-button:disabled,
+.column-menu:disabled,
+.kanban-fab:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.lane-button:focus-visible,
+.column-menu:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-button,
+  .column-menu {
+    transition: none;
+  }
+
+  .lane-button:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .ticket-list {
@@ -159,44 +227,13 @@
   @apply fixed bottom-xl right-xl w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50;
 }
 
-/* Column accents */
-.kanban-column--in-progress {
-  .column-header {
-    @apply border-primary;
-  }
-  .column-dot {
-    @apply bg-primary shadow-[0_0_8px_#58a6ff];
-  }
-}
-
-.kanban-column--ready-to-test {
-  .column-header {
-    @apply border-secondary;
-  }
-  .column-dot {
-    @apply bg-secondary shadow-[0_0_8px_#7bdb80];
-  }
-}
-
 .kanban-column--test-in-progress {
-  .column-header {
-    @apply border-tertiary;
-  }
-  .column-dot {
-    @apply bg-tertiary shadow-[0_0_8px_#fabc45];
-  }
   .ticket-card {
     @apply border-l-4 border-l-tertiary;
   }
 }
 
 .kanban-column--test-fail {
-  .column-header {
-    @apply border-error;
-  }
-  .column-dot {
-    @apply bg-error shadow-[0_0_8px_#ffb4ab];
-  }
   .column-count {
     @apply bg-error-container/20 text-error border border-error/30;
   }
@@ -209,12 +246,6 @@
 }
 
 .kanban-column--done {
-  .column-header {
-    @apply border-secondary-container;
-  }
-  .column-dot {
-    @apply bg-secondary-container;
-  }
   .ticket-list {
     @apply opacity-70;
   }

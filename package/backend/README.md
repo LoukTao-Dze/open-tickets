@@ -48,8 +48,10 @@ CORS_ORIGINS=http://localhost:9998,http://localhost:4200
 ```
 
 Set `USE_REDIS=false` to store sessions and login-attempt counters in Supabase
-(tables `auth_sessions` / `auth_login_attempts`, migration
-`009_create_auth_session_tables.sql`) instead of Redis. `REDIS_URL` is then not
+(tables `auth_sessions` / `auth_login_attempts`; see
+[`baseline/006_auth.sql`](src/supabase/migrations/baseline/006_auth.sql) for a
+new database or [`legacy/009_create_auth_session_tables.sql`](src/supabase/migrations/legacy/009_create_auth_session_tables.sql)
+for an existing one) instead of Redis. `REDIS_URL` is then not
 used. Each session row holds `session_id` (SHA-256 hash of the cookie ID), `session`,
 `ttl`, `auth_provider`, `expires_at`, `create_date` and `update_date`; logging in
 again with the same `session_id` updates the row. Any other value (or unset) keeps Redis.

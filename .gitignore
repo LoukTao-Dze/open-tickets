@@ -60,3 +60,7 @@ Thumbs.db
 # .agents/skills/caveman
 # .agents/skills/ponytail
 # My Skills: end
+
+# Documentation and GitHub instructions
+/docs/architecture.md
+/.github/copilot-instructions.md

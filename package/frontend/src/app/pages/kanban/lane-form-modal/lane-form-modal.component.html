@@ -1,0 +1,104 @@
+<form
+  class="lane-editor"
+  [formGroup]="columnForm"
+  (ngSubmit)="saveColumn()"
+  [attr.aria-busy]="isLoading"
+>
+  <div class="lane-dialog-header">
+    <div>
+      <h2 id="lane-dialog-title">{{ editingColumn ? 'Edit lane' : 'Add lane' }}</h2>
+      <p id="lane-dialog-description">Lanes are shared across all projects.</p>
+    </div>
+    <button
+      class="lane-close"
+      type="button"
+      aria-label="Close lane dialog"
+      [disabled]="isLoading"
+      (click)="closeColumnDialog()"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+  </div>
+  <div class="lane-fields">
+    <label class="lane-name-field">
+      <span>Lane name</span>
+      <input
+        class="lane-name-input"
+        formControlName="name"
+        maxlength="80"
+        autocomplete="off"
+        placeholder="e.g. In review"
+        [attr.aria-invalid]="columnForm.controls.name.touched && columnForm.controls.name.invalid"
+        aria-describedby="lane-name-error"
+      />
+      @if (columnForm.controls.name.touched && columnForm.controls.name.invalid) {
+        <span class="lane-error" id="lane-name-error"
+          >Enter a lane name of 1 to 80 characters.</span
+        >
+      }
+    </label>
+    <div class="lane-color-field">
+      <label for="lane-color">Lane color</label>
+      <div class="lane-color-control">
+        <input
+          class="lane-color-swatch"
+          type="color"
+          aria-label="Pick lane color"
+          [value]="swatchColor"
+          [disabled]="isLoading"
+          (input)="pickSwatchColor($event)"
+        />
+        <input
+          id="lane-color"
+          class="lane-color-hex"
+          type="text"
+          formControlName="color"
+          maxlength="7"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="#8b919d"
+          [attr.aria-invalid]="
+            columnForm.controls.color.touched && columnForm.controls.color.invalid
+          "
+          aria-describedby="lane-color-error"
+        />
+      </div>
+      @if (columnForm.controls.color.touched && columnForm.controls.color.invalid) {
+        <span class="lane-error" id="lane-color-error">Enter a hex color such as #8b919d.</span>
+      }
+    </div>
+  </div>
+  <p class="lane-error" role="alert" *ngIf="columnError">{{ columnError }}</p>
+  @if (editingColumn?.tickets?.length) {
+    <p class="lane-hint" id="lane-delete-hint">
+      Move or delete all cards before deleting this lane.
+    </p>
+  }
+  <div class="lane-actions">
+    @if (editingColumn) {
+      <button
+        class="lane-button lane-delete"
+        type="button"
+        [disabled]="isLoading || editingColumn.tickets.length > 0"
+        [attr.aria-describedby]="editingColumn.tickets.length ? 'lane-delete-hint' : null"
+        (click)="deleteColumn(editingColumn)"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+        Delete lane
+      </button>
+    }
+    <div class="lane-primary-actions">
+      <button
+        class="lane-button lane-cancel"
+        type="button"
+        [disabled]="isLoading"
+        (click)="closeColumnDialog()"
+      >
+        Cancel
+      </button>
+      <button class="lane-button lane-save" type="submit" [disabled]="isLoading">
+        {{ isLoading ? 'Please wait...' : editingColumn ? 'Save changes' : 'Create lane' }}
+      </button>
+    </div>
+  </div>
+</form>

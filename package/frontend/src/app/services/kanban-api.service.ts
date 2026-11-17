@@ -25,6 +25,11 @@ export interface KanbanTicketPayload {
   meta?: KanbanMeta[];
 }
 
+export interface KanbanColumnPayload {
+  name: string;
+  color: string;
+}
+
 export interface KanbanProjectPayload {
   name: string;
   description?: string;
@@ -50,6 +55,30 @@ export class KanbanApiService {
       .get<ApiResponse<KanbanColumn[]>>(`${this.baseUrl}/board`, {
         params: projectId ? { projectId } : {},
       })
+      .pipe(map((response) => response.data));
+  }
+
+  createColumn(payload: KanbanColumnPayload): Observable<KanbanColumn> {
+    return this.httpClient
+      .post<ApiResponse<KanbanColumn>>(`${this.baseUrl}/columns`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  updateColumn(id: string, payload: KanbanColumnPayload): Observable<KanbanColumn> {
+    return this.httpClient
+      .put<ApiResponse<KanbanColumn>>(`${this.baseUrl}/columns/${encodeURIComponent(id)}`, payload)
+      .pipe(map((response) => response.data));
+  }
+
+  reorderColumns(columnIds: string[]): Observable<{ columnIds: string[] }> {
+    return this.httpClient
+      .put<ApiResponse<{ columnIds: string[] }>>(`${this.baseUrl}/columns/order`, { columnIds })
+      .pipe(map((response) => response.data));
+  }
+
+  deleteColumn(id: string): Observable<{ id: string }> {
+    return this.httpClient
+      .delete<ApiResponse<{ id: string }>>(`${this.baseUrl}/columns/${encodeURIComponent(id)}`)
       .pipe(map((response) => response.data));
   }
 

@@ -1,0 +1,196 @@
+@reference '../../../../tailwind.css';
+
+:host {
+  display: contents;
+}
+
+.order-editor {
+  @apply border border-outline-variant bg-surface-container text-on-surface;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  border-radius: 20px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  p {
+    @apply text-on-surface-variant;
+    margin: 0;
+  }
+}
+
+.order-close,
+.order-step {
+  @apply text-on-surface-variant hover:bg-surface-container-highest;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.order-close {
+  width: 44px;
+  height: 44px;
+}
+
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.order-row {
+  @apply bg-surface-container-high border border-outline-variant text-on-surface;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 8px 0 4px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.order-handle {
+  @apply text-on-surface-variant;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 36px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.order-dot {
+  @apply bg-outline;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.order-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-steps {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.order-step {
+  width: 36px;
+  height: 36px;
+}
+
+.order-row.cdk-drag-preview {
+  @apply shadow-lg;
+  cursor: grabbing;
+}
+
+.order-row.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+.order-row.cdk-drag-animating,
+.order-list.cdk-drop-list-dragging .order-row:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.order-error {
+  @apply text-error;
+  margin: 0;
+}
+
+.order-actions {
+  @apply border-t border-outline-variant;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 20px;
+}
+
+.order-button {
+  @apply bg-surface-container-high text-on-surface hover:bg-surface-container-highest;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.order-cancel {
+  background: transparent;
+}
+
+.order-save {
+  @apply bg-primary text-on-primary;
+
+  &:hover:not(:disabled) {
+    @apply bg-primary;
+    opacity: 0.9;
+  }
+}
+
+.order-button:disabled,
+.order-close:disabled,
+.order-step:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.order-button:focus-visible,
+.order-close:focus-visible,
+.order-step:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-button,
+  .order-close,
+  .order-step,
+  .order-row.cdk-drag-animating,
+  .order-list.cdk-drop-list-dragging .order-row:not(.cdk-drag-placeholder) {
+    transition: none;
+  }
+}

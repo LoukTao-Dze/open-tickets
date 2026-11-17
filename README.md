@@ -83,8 +83,59 @@ This builds and starts:
 
 ## Project docs
 
+- [Architecture](docs/architecture.md)
 - [Backend README](package/backend/README.md)
 - [Frontend README](package/frontend/README.md)
+
+### Database setup
+
+For a new, empty Supabase database, run the SQL files in
+[`baseline/`](package/backend/src/supabase/migrations/baseline/) in numerical order.
+They describe the current schema and include the existing seed data.
+
+For an existing database, do **not** run the baseline as an upgrade. Continue
+with only the unapplied files in
+[`legacy/`](package/backend/src/supabase/migrations/legacy/) in numerical order.
+These original migrations preserve the data conversion and upgrade steps.
+Back up the database before upgrading.
+
+The backend `.gitignore` excludes SQL files by default. The Kanban lane
+migrations below have explicit exceptions so they are included in Git.
+
+### Kanban lanes
+
+Lanes are shared across all projects. Users with the existing `admin` or `user`
+editor role can **Add lane**, or use a lane's **more** button to open its
+management modal and rename it, choose its color, or delete it after confirmation.
+Cancel, close, or press Escape to dismiss the modal without saving; dismissal
+is disabled while a save or deletion is pending. Names contain 1–80 characters; colors are stored
+as six-digit hex values in Supabase. New lanes appear at the end of the board.
+The ticket form lists the current lanes, including newly created ones.
+
+A lane can only be deleted when it has no cards across **all** projects.
+The database blocks deletion even if a card is hidden by a project filter,
+inaccessible to the caller, or added concurrently. An empty board can have new
+lanes added before creating tickets. Progress continues to count only the
+original `done` lane as completed; renaming it does not change this behavior.
+
+Before deploying, run
+[`legacy/024_manage_kanban_lanes.sql`](package/backend/src/supabase/migrations/legacy/024_manage_kanban_lanes.sql)
+once for an existing database. New databases use
+[`baseline/011_manage_kanban_lanes.sql`](package/backend/src/supabase/migrations/baseline/011_manage_kanban_lanes.sql)
+after the earlier baseline files. Do not apply both copies to the same database.
+The migration preserves cards and lane IDs, seeds existing lane colors/order,
+and removes the fixed-ID restriction.
+
+- `GET /api/kanban/board` includes each lane's `color`.
+- `POST /api/kanban/columns` creates a lane with `{ name, color }`.
+- `PUT /api/kanban/columns/:id` updates its `{ name, color }`.
+- `PUT /api/kanban/columns/order` saves the lane order from `{ columnIds }`, which
+  must list every current lane exactly once; a stale list returns `409`. It writes
+  each lane's existing `position`, so it needs no migration.
+- `DELETE /api/kanban/columns/:id` deletes an empty lane; returns `409` if cards remain.
+- Lane mutations require a server-side session with the `admin` or `user` role.
+- Ticket create/update/move bodies accept dynamic `columnId` values; the database
+  still requires the destination lane to exist.
 
 ### In-app user guide
 
@@ -93,32 +144,17 @@ It renders GitHub-flavored Markdown in a README-style view, offers read-only
 source and `.md` downloads, and lets **admin only** edit, preview and publish.
 Other roles cannot edit the guide, regardless of their project `Can edit` setting.
 
-Before using this page, run
-[`012_create_documentation.sql`](package/backend/src/supabase/migrations/012_create_documentation.sql)
-in the Supabase SQL editor after existing migrations. It creates an RLS-protected
+The documentation migration creates an RLS-protected
 singleton document and seeds the full guide; re-running it preserves published edits.
 The backend must use a Supabase **service-role key** (never expose it to the frontend).
 
-For project status counts and persistent daily notes, also run
-[`013_create_project_progress_logs.sql`](package/backend/src/supabase/migrations/013_create_project_progress_logs.sql)
-in the Supabase SQL editor. Progress logs are scoped to a project, ordered by date,
+Progress logs are scoped to a project, ordered by date,
 and writable only by sessions with edit access to that project.
 
 ### Test scenes
 
-Run [`015_scene_tracking.sql`](package/backend/src/supabase/migrations/015_scene_tracking.sql)
-in the Supabase SQL editor. It creates the scene table if needed and adds a status
-to existing scenes without changing their details. The backend requires a
-service-role key. Then run
-[`016_create_test_suites.sql`](package/backend/src/supabase/migrations/016_create_test_suites.sql),
-[`017_suite_scene_activity.sql`](package/backend/src/supabase/migrations/017_suite_scene_activity.sql),
-[`018_add_test_suite_description.sql`](package/backend/src/supabase/migrations/018_add_test_suite_description.sql),
-[`019_scene_kanban_references.sql`](package/backend/src/supabase/migrations/019_scene_kanban_references.sql),
-[`020_move_kanban_references_to_suites.sql`](package/backend/src/supabase/migrations/020_move_kanban_references_to_suites.sql),
-[`021_move_test_suites_between_projects.sql`](package/backend/src/supabase/migrations/021_move_test_suites_between_projects.sql),
-[`022_fix_move_test_suite_ambiguity.sql`](package/backend/src/supabase/migrations/022_fix_move_test_suite_ambiguity.sql),
-and [`023_fix_move_test_suite_parameter_reference.sql`](package/backend/src/supabase/migrations/023_fix_move_test_suite_parameter_reference.sql)
-once, before deploying the suite-aware backend and frontend.
+Complete the database setup above before deploying the suite-aware backend and
+frontend. The backend requires a service-role key.
 In **Test scenes** (`/scenes`), select a project, then choose a test suite from
 the list to view its scenes and status percentages. Use **All suites** to return
 to the list. Each project can have multiple suites, and each suite can have

@@ -1,7 +1,6 @@
 export type KanbanPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
-export type KanbanColumnId =
-  'todo' | 'in-progress' | 'ready-to-test' | 'test-in-progress' | 'test-fail' | 'done';
+export type KanbanColumnId = string;
 
 export interface KanbanMeta {
   icon: string;
@@ -40,6 +39,7 @@ export interface KanbanTicket {
 export interface KanbanColumn {
   id: KanbanColumnId;
   name: string;
+  color: string;
   count: number;
   status: string;
   tickets: KanbanTicket[];

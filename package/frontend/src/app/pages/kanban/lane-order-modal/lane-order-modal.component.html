@@ -1,0 +1,79 @@
+<div class="order-editor" [attr.aria-busy]="isLoading">
+  <div class="order-header">
+    <div>
+      <h2 id="lane-order-title">Reorder lanes</h2>
+      <p id="lane-order-description">
+        Drag lanes into the order you want, from left to right on the board.
+      </p>
+    </div>
+    <button
+      class="order-close"
+      type="button"
+      aria-label="Close reorder dialog"
+      [disabled]="isLoading"
+      (click)="closeDialog()"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+  </div>
+
+  <ul
+    class="order-list"
+    cdkDropList
+    [cdkDropListData]="lanes"
+    [cdkDropListDisabled]="isLoading"
+    aria-labelledby="lane-order-title"
+    (cdkDropListDropped)="onLaneDropped($event)"
+  >
+    @for (lane of lanes; track lane.id; let index = $index; let first = $first; let last = $last) {
+      <li class="order-row" cdkDrag>
+        <span class="order-handle" cdkDragHandle aria-hidden="true">
+          <span class="material-symbols-outlined">drag_indicator</span>
+        </span>
+        <span class="order-dot" [style.background-color]="lane.color"></span>
+        <span class="order-name" [title]="lane.name">{{ lane.name }}</span>
+        <span class="order-steps">
+          <button
+            type="button"
+            class="order-step"
+            [attr.aria-label]="'Move ' + lane.name + ' earlier'"
+            [disabled]="isLoading || first"
+            (click)="moveLane(index, -1)"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_up</span>
+          </button>
+          <button
+            type="button"
+            class="order-step"
+            [attr.aria-label]="'Move ' + lane.name + ' later'"
+            [disabled]="isLoading || last"
+            (click)="moveLane(index, 1)"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
+          </button>
+        </span>
+      </li>
+    }
+  </ul>
+
+  <p class="order-error" role="alert" *ngIf="orderError">{{ orderError }}</p>
+
+  <div class="order-actions">
+    <button
+      class="order-button order-cancel"
+      type="button"
+      [disabled]="isLoading"
+      (click)="closeDialog()"
+    >
+      Cancel
+    </button>
+    <button
+      class="order-button order-save"
+      type="button"
+      [disabled]="isLoading || !hasChanges"
+      (click)="saveOrder()"
+    >
+      {{ isLoading ? 'Please wait...' : 'Save order' }}
+    </button>
+  </div>
+</div>

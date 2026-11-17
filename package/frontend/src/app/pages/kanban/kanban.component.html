@@ -17,6 +17,26 @@
       {{ project.project_name }}
     </option>
   </select>
+  <button
+    *ngIf="!isReadOnly"
+    class="lane-button lane-reorder"
+    type="button"
+    [disabled]="isLoading || columns.length < 2"
+    (click)="openReorderLanes()"
+  >
+    <span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span>
+    Reorder lanes
+  </button>
+  <button
+    *ngIf="!isReadOnly"
+    class="lane-button lane-add"
+    type="button"
+    [disabled]="isLoading"
+    (click)="editColumn()"
+  >
+    <span class="material-symbols-outlined" aria-hidden="true">add</span>
+    Add lane
+  </button>
 </div>
 
 <div class="kanban-board" cdkDropListGroup>
@@ -25,13 +45,26 @@
     [ngClass]="'kanban-column--' + column.id"
     *ngFor="let column of columns"
   >
-    <div class="column-header">
+    <div class="column-header" [style.border-bottom-color]="column.color">
       <div class="column-header-left">
-        <span class="column-dot"></span>
-        <span class="column-name">{{ column.name }}</span>
+        <span
+          class="column-dot"
+          [style.background-color]="column.color"
+          [style.box-shadow]="'0 0 8px ' + column.color"
+        ></span>
+        <span class="column-name" [title]="column.name">{{ column.name }}</span>
         <span class="column-count">{{ visibleTickets(column).length }}</span>
       </div>
-      <span class="material-symbols-outlined column-menu">more_horiz</span>
+      <button
+        *ngIf="!isReadOnly"
+        type="button"
+        class="column-menu"
+        [attr.aria-label]="'Edit lane ' + column.name"
+        [disabled]="isLoading"
+        (click)="editColumn(column)"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+      </button>
     </div>
 
     <div
@@ -97,6 +130,12 @@
   </div>
 </div>
 
-<button class="kanban-fab" type="button" aria-label="New ticket" (click)="openAddTicketModal()">
+<button
+  class="kanban-fab"
+  type="button"
+  aria-label="New ticket"
+  [disabled]="columns.length === 0"
+  (click)="openAddTicketModal()"
+>
   <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">add</span>
 </button>

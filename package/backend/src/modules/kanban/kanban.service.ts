@@ -1,12 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
+import { ColumnDto } from './dto/column.dto';
 
 const TICKET_ID_PREFIX = 'DS';
 const DEFAULT_ASSIGNEE_AVATAR_URL =
@@ -15,14 +19,15 @@ const DEFAULT_TICKET_META: { icon: string; label: string }[] = [
   { icon: 'schedule', label: 'New' },
 ];
 
-const KANBAN_COLUMN_ORDER = [
-  'todo',
-  'in-progress',
-  'ready-to-test',
-  'test-in-progress',
-  'test-fail',
-  'done',
-];
+const FOREIGN_KEY_VIOLATION = '23503';
+const COLUMN_FIELDS = 'id, name, color, status';
+
+interface ColumnRow {
+  id: string;
+  name: string;
+  color: string;
+  status: string;
+}
 
 interface TicketRow {
   id: string;
@@ -56,7 +61,84 @@ interface ProjectRow {
 
 @Injectable()
 export class KanbanService {
+  private readonly logger = new Logger(KanbanService.name);
+
   constructor(private readonly supabaseService: SupabaseService) {}
+
+  async createColumn(dto: ColumnDto) {
+    const { data: column, error } = await this.supabaseService
+      .getClient()
+      .from('kanban_columns')
+      .insert({ id: randomUUID(), name: dto.name, color: dto.color })
+      .select(COLUMN_FIELDS)
+      .single<ColumnRow>();
+    if (error) this.failColumnOperation('create lane', error.code);
+    return { data: { ...column, count: 0, tickets: [] } };
+  }
+
+  async updateColumn(id: string, dto: ColumnDto) {
+    const { data: column, error } = await this.supabaseService
+      .getClient()
+      .from('kanban_columns')
+      .update({ name: dto.name, color: dto.color })
+      .eq('id', id)
+      .select(COLUMN_FIELDS)
+      .maybeSingle<ColumnRow>();
+    if (error) this.failColumnOperation('update lane', error.code);
+    if (!column) throw new NotFoundException('Lane not found');
+    return { data: { ...column, count: 0, tickets: [] } };
+  }
+
+  async reorderColumns(columnIds: string[]) {
+    const client = this.supabaseService.getClient();
+    const { data: lanes, error } = await client
+      .from('kanban_columns')
+      .select('id');
+    if (error) this.failColumnOperation('read lanes', error.code);
+    const existingIds = new Set((lanes ?? []).map((lane) => lane.id as string));
+    // The caller must send every current lane once; a stale list is rejected.
+    if (
+      columnIds.length !== existingIds.size ||
+      columnIds.some((id) => !existingIds.has(id))
+    )
+      throw new ConflictException(
+        'The lane list changed. Reload the board and try again.',
+      );
+    // shortcut: one update per lane, not a single transaction; move to an RPC if lane counts grow.
+    const results = await Promise.all(
+      columnIds.map((id, index) =>
+        client
+          .from('kanban_columns')
+          .update({ position: index + 1 })
+          .eq('id', id),
+      ),
+    );
+    const failed = results.find((result) => result.error);
+    if (failed?.error)
+      this.failColumnOperation('reorder lanes', failed.error.code);
+    return { data: { columnIds } };
+  }
+
+  async deleteColumn(id: string) {
+    // The RESTRICT foreign key also blocks hidden cards and concurrent inserts.
+    const { data: column, error } = await this.supabaseService
+      .getClient()
+      .from('kanban_columns')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle<{ id: string }>();
+    if (error?.code === FOREIGN_KEY_VIOLATION)
+      throw new ConflictException('Move or delete all cards before deleting this lane.');
+    if (error) this.failColumnOperation('delete lane', error.code);
+    if (!column) throw new NotFoundException('Lane not found');
+    return { data: { id } };
+  }
+
+  private failColumnOperation(operation: string, code: string): never {
+    this.logger.error(`Failed to ${operation} (${code})`);
+    throw new InternalServerErrorException(`Failed to ${operation}`);
+  }
 
   async getBoard(projectId?: string) {
     try {
@@ -64,7 +146,10 @@ export class KanbanService {
 
       const { data: columns, error: columnsError } = await client
         .from('kanban_columns')
-        .select('*');
+        .select(COLUMN_FIELDS)
+        .order('position', { ascending: true })
+        .order('id', { ascending: true })
+        .returns<ColumnRow[]>();
       if (columnsError) {
         throw columnsError;
       }
@@ -86,21 +171,14 @@ export class KanbanService {
         this.mapTicketRow(row as TicketRow),
       );
 
-      const orderedColumns = (columns ?? [])
-        .slice()
-        .sort(
-          (a, b) =>
-            KANBAN_COLUMN_ORDER.indexOf(a.id) -
-            KANBAN_COLUMN_ORDER.indexOf(b.id),
-        );
-
-      const data = orderedColumns.map((column) => {
+      const data = (columns ?? []).map((column: ColumnRow) => {
         const columnTickets = mappedTickets.filter(
           (ticket) => ticket.columnId === column.id,
         );
         return {
           id: column.id,
           name: column.name,
+          color: column.color,
           status: column.status,
           count: columnTickets.length,
           tickets: columnTickets,

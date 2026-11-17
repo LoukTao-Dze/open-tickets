@@ -1,7 +1,3 @@
-import { IsIn } from 'class-validator';
-import { KANBAN_COLUMN_IDS } from './create-ticket.dto';
+import { ColumnIdDto } from './column.dto';
 
-export class MoveTicketDto {
-  @IsIn(KANBAN_COLUMN_IDS)
-  columnId: string;
-}
+export class MoveTicketDto extends ColumnIdDto {}

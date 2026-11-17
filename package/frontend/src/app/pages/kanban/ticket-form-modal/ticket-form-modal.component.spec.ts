@@ -8,6 +8,7 @@ import {
 } from './ticket-form-modal.component';
 
 const REQUIRED_FIELDS = [
+  ['columnId', 'Lane'],
   ['title', 'Title'],
   ['priority', 'Priority'],
   ['projectId', 'Project'],
@@ -28,6 +29,16 @@ describe('TicketFormModalComponent validation', () => {
   const close = vi.fn();
   const dialogData: TicketFormModalData = {
     projects: [{ id: 'project-1', project_name: 'Project' }],
+    columns: [
+      {
+        id: 'custom-lane',
+        name: 'Review',
+        color: '#123abc',
+        status: 'active',
+        count: 0,
+        tickets: [],
+      },
+    ],
     action: TicketFormModalAction.ADD,
   };
 
@@ -49,6 +60,13 @@ describe('TicketFormModalComponent validation', () => {
     expect(view.querySelector('[aria-invalid="true"]')).toBeNull();
     expect(view.querySelector('#title-error')?.textContent?.trim()).toBe('');
     expect(view.querySelector('#assigneeAlt-error')?.textContent?.trim()).toBe('');
+  });
+
+  it('uses the first available lane when the original todo lane no longer exists', () => {
+    expect(fixture.componentInstance.form.get('columnId')?.value).toBe('custom-lane');
+    expect(view.querySelector('select[formControlName="columnId"] option')?.textContent).toContain(
+      'Review',
+    );
   });
 
   it.each(REQUIRED_FIELDS)('shows a required error for %s after blur', (field, label) => {
@@ -85,7 +103,9 @@ describe('TicketFormModalComponent validation', () => {
       fixture.detectChanges();
 
       expect(view.querySelector(`#${field}-error`)?.textContent?.trim()).toBe('');
-      expect(view.querySelector(`[formControlName="${field}"]`)?.matches('.ng-invalid')).toBe(false);
+      expect(view.querySelector(`[formControlName="${field}"]`)?.matches('.ng-invalid')).toBe(
+        false,
+      );
       expect(view.querySelector(`[formControlName="${field}"]`)?.getAttribute('aria-invalid')).toBe(
         'false',
       );
@@ -99,7 +119,9 @@ describe('TicketFormModalComponent validation', () => {
 
     expect(close).not.toHaveBeenCalled();
     expect(view.querySelector('#title-error')?.textContent).toContain('Title is required.');
-    expect(view.querySelector('#assigneeAlt-error')?.textContent).toContain('Assignee is required.');
+    expect(view.querySelector('#assigneeAlt-error')?.textContent).toContain(
+      'Assignee is required.',
+    );
 
     fixture.componentInstance.form.patchValue({ title: 'Ticket', assigneeAlt: 'Assignee' });
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -134,7 +156,9 @@ describe('TicketFormModalComponent validation', () => {
     emptyFixture.detectChanges();
     const emptyView: HTMLElement = emptyFixture.nativeElement;
 
-    expect(emptyView.querySelector('#projectId-error')?.textContent).toContain('Project is required.');
+    expect(emptyView.querySelector('#projectId-error')?.textContent).toContain(
+      'Project is required.',
+    );
     expect(close).not.toHaveBeenCalled();
   });
 });

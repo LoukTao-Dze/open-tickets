@@ -8,15 +8,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-
-export const KANBAN_COLUMN_IDS = [
-  'todo',
-  'in-progress',
-  'ready-to-test',
-  'test-in-progress',
-  'test-fail',
-  'done',
-] as const;
+import { ColumnIdDto } from './column.dto';
 
 export const KANBAN_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
 
@@ -29,10 +21,7 @@ export class TicketMetaDto {
   label: string;
 }
 
-export class CreateTicketDto {
-  @IsIn(KANBAN_COLUMN_IDS)
-  columnId: string;
-
+export class CreateTicketDto extends ColumnIdDto {
   @IsString()
   @MaxLength(300)
   title: string;

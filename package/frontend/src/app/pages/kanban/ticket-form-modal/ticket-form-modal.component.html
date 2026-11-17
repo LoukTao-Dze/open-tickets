@@ -9,6 +9,20 @@
   <form class="modal-form" [formGroup]="form" (ngSubmit)="onSubmit()">
     <div class="modal-fields">
       <label class="form-field">
+        <span class="form-label">Lane</span>
+        <select
+          class="form-input"
+          formControlName="columnId"
+          [attr.aria-invalid]="form.get('columnId')?.touched && form.get('columnId')?.invalid"
+          aria-describedby="columnId-error"
+        >
+          <option *ngFor="let column of columns" [value]="column.id">{{ column.name }}</option>
+        </select>
+        <ng-container
+          *ngTemplateOutlet="validationError; context: { $implicit: 'columnId', label: 'Lane' }"
+        ></ng-container>
+      </label>
+      <label class="form-field">
         <span class="form-label">Title</span>
         <textarea
           class="form-input form-textarea"

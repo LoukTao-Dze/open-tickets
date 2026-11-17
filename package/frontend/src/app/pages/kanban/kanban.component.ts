@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProjectApiService } from '../../services/project.service';
 import {
@@ -9,7 +9,7 @@ import {
   moveItemInArray,
   transferArrayItem,
 } from '@angular/cdk/drag-drop';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   TicketFormModalAction,
   TicketFormModalComponent,
@@ -22,12 +22,23 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
 import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
-import { finalize } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
+import {
+  LaneFormModalAction,
+  LaneFormModalComponent,
+  LaneFormModalData,
+  LaneFormModalResult,
+} from './lane-form-modal/lane-form-modal.component';
+import {
+  LaneOrderModalComponent,
+  LaneOrderModalData,
+} from './lane-order-modal/lane-order-modal.component';
 
 const ALL_PROJECTS = 'all';
 const PROJECT_NAME_MAX_LENGTH = 12;
 const GUEST_TICKET_ID_PREFIX = 'guest-';
+const LANE_DIALOG_WIDTH = '440px';
+const LANE_DIALOG_MAX_WIDTH = 'calc(100vw - 32px)';
 
 @Component({
   selector: 'app-kanban',
@@ -36,7 +47,7 @@ const GUEST_TICKET_ID_PREFIX = 'guest-';
   templateUrl: './kanban.component.html',
   styleUrls: ['./kanban.component.scss'],
 })
-export class KanbanComponent implements OnInit {
+export class KanbanComponent implements OnInit, OnDestroy {
   constructor(
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
@@ -55,12 +66,17 @@ export class KanbanComponent implements OnInit {
   // Deny by default: stays read-only until the server confirms a non-guest role.
   isReadOnly = true;
   linkError = '';
+  private columnDialog: MatDialogRef<unknown> | null = null;
   private boardLoaded = false;
   private projectsLoaded = false;
   private pendingTicketId: string | null = null;
 
   get projects(): KanbanProject[] {
     return this.allProjects;
+  }
+
+  ngOnDestroy(): void {
+    this.columnDialog?.close();
   }
 
   ngOnInit() {
@@ -85,6 +101,58 @@ export class KanbanComponent implements OnInit {
           this.linkError = 'Could not load the linked card. Reload and try again.';
         this.cdr.markForCheck();
       },
+    });
+  }
+  editColumn(column: KanbanColumn | null = null): void {
+    if (this.isReadOnly || this.isLoading || this.columnDialog) return;
+    const dialogRef = this.dialog.open<
+      LaneFormModalComponent,
+      LaneFormModalData,
+      LaneFormModalResult
+    >(LaneFormModalComponent, {
+      panelClass: 'app-dialog-panel',
+      width: LANE_DIALOG_WIDTH,
+      maxWidth: LANE_DIALOG_MAX_WIDTH,
+      autoFocus: 'input[formControlName="name"]',
+      ariaLabelledBy: 'lane-dialog-title',
+      ariaDescribedBy: 'lane-dialog-description',
+      data: { column, isReadOnly: this.isReadOnly },
+    });
+    this.columnDialog = dialogRef;
+    dialogRef.afterClosed().subscribe((change) => {
+      if (this.columnDialog === dialogRef) this.columnDialog = null;
+      if (change?.action === LaneFormModalAction.SAVED) {
+        const existing = this.columns.find((item) => item.id === change.column.id);
+        if (existing) {
+          existing.name = change.column.name;
+          existing.color = change.column.color;
+        } else {
+          this.columns = [...this.columns, change.column];
+        }
+      } else if (change?.action === LaneFormModalAction.DELETED) {
+        this.columns = this.columns.filter((item) => item.id !== change.id);
+      }
+      this.cdr.markForCheck();
+    });
+  }
+
+  openReorderLanes(): void {
+    if (this.isReadOnly || this.isLoading || this.columnDialog || this.columns.length < 2) return;
+    const dialogRef = this.dialog.open<LaneOrderModalComponent, LaneOrderModalData, boolean>(
+      LaneOrderModalComponent,
+      {
+        panelClass: 'app-dialog-panel',
+        width: LANE_DIALOG_WIDTH,
+        maxWidth: LANE_DIALOG_MAX_WIDTH,
+        ariaLabelledBy: 'lane-order-title',
+        ariaDescribedBy: 'lane-order-description',
+        data: { columns: this.columns, isReadOnly: this.isReadOnly },
+      },
+    );
+    this.columnDialog = dialogRef;
+    dialogRef.afterClosed().subscribe((saved) => {
+      if (this.columnDialog === dialogRef) this.columnDialog = null;
+      if (saved) this.loadBoard();
     });
   }
 
@@ -192,7 +260,7 @@ export class KanbanComponent implements OnInit {
       width: '480px',
       maxWidth: '90vw',
       autoFocus: 'first-heading',
-      data: { projects: this.projects, action: TicketFormModalAction.ADD },
+      data: { projects: this.projects, columns: this.columns, action: TicketFormModalAction.ADD },
     });
 
     dialogRef.afterClosed().subscribe((value) => {
@@ -212,7 +280,12 @@ export class KanbanComponent implements OnInit {
       width: '480px',
       maxWidth: '90vw',
       autoFocus: 'first-heading',
-      data: { projects: this.projects, action: TicketFormModalAction.EDIT, ticket },
+      data: {
+        projects: this.projects,
+        columns: this.columns,
+        action: TicketFormModalAction.EDIT,
+        ticket,
+      },
     });
 
     dialogRef.afterClosed().subscribe((value) => {
