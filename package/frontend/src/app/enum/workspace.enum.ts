@@ -7,6 +7,7 @@ export enum EnumWorkspaceItemType {
   MARKDOWN = 'markdown',
   SHAPES = 'shapes',
   SELECT = 'select',
+  HAND = 'hand',
   PEN = 'pen',
   UNDO = 'undo',
   REDO = 'redo',

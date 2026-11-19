@@ -6,10 +6,15 @@
 
 .tool-hubs {
   @apply absolute top-md left-1/2 -translate-x-1/2 flex items-center bg-surface-container-high/80 backdrop-blur-md border border-outline-variant p-xs rounded-full shadow-2xl gap-xs z-50;
+  max-width: calc(100% - 2rem);
+  width: max-content;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .tool-btn {
   @apply w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors;
+  flex-shrink: 0;
 
   &.tool-btn--active {
     @apply bg-primary text-on-primary;

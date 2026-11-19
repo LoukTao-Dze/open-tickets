@@ -9,6 +9,14 @@ export interface CanvasItemBase {
   x: number;
   y: number;
   zIndex: number;
+  groupId?: number | null;
+}
+
+export interface WorkspaceGroup {
+  id: number;
+  name: string;
+  project_id: string;
+  color: string;
 }
 
 export interface StickyNoteItem extends CanvasItemBase {
@@ -71,12 +79,7 @@ export interface MarkdownItem extends CanvasItemBase {
 }
 
 export type WorkspaceCanvasItem =
-  | StickyNoteItem
-  | UploadedImageItem
-  | CodeSnippetItem
-  | TextItem
-  | LinkItem
-  | MarkdownItem;
+  StickyNoteItem | UploadedImageItem | CodeSnippetItem | TextItem | LinkItem | MarkdownItem;
 
 export interface Whiteboard {
   id: string;

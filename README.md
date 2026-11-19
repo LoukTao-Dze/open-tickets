@@ -137,6 +137,61 @@ and removes the fixed-ID restriction.
 - Ticket create/update/move bodies accept dynamic `columnId` values; the database
   still requires the destination lane to exist.
 
+### Workspace selection and groups
+
+Item fields save immediately when they lose focus, including when tabbing between
+fields. Changes are saved for the item being edited, not the next selected item.
+Read-only users do not persist edits. Failed saves show an error on the board;
+keep the board open and leave the field again to retry.
+
+Use **Selection** in the tool hub to drag a rectangle around items. Only fully
+enclosed items are selected; selecting a grouped item includes its whole group.
+Use **Pan board** (the hand) to move the viewport. Trackpad pan and pinch zoom
+continue to work in either mode.
+
+The selection toolbar can **Group** or **Delete** the selected items. Group names
+are optional (maximum 80 characters); blank names become `Group-<group ID>`.
+IDs increase across all boards and may have gaps. Drag the group label, border,
+empty space inside its frame, or a non-editable part of a grouped item to move all
+its members in either Selection or Pan board mode. Drag outside groups to pan in
+Pan board mode. Groups and positions
+persist across refreshes. Deletion requires confirmation and cannot be undone.
+Group creation, group movement, and bulk deletion are transactional.
+
+Select one group to **Edit group** (name and border/label color) or **Ungroup**.
+Saving a blank name resets it to `Group-<group ID>`. Cancel discards name/color
+drafts. Ungroup removes only the group; all items keep their content and positions
+and become individually movable. Successful ungrouping clears the selection and
+switches to Selection mode, so each item can be dragged separately immediately.
+A failed operation leaves the current group and interaction mode intact.
+
+Before deploying, run
+[`025_workspace_groups.sql`](package/backend/src/supabase/migrations/025_workspace_groups.sql)
+**once**, after the existing baseline or legacy migrations, for both new and
+existing databases. It adds `canvas_groups`, item `group_id` columns, and
+project-scoped RPC functions. The backend's `SUPABASE_KEY` must be a server-only
+service-role key; these functions are not callable by anonymous/authenticated
+Supabase clients.
+
+Then run
+[`026_workspace_group_colors.sql`](package/backend/src/supabase/migrations/026_workspace_group_colors.sql)
+once to add group colors. Existing groups retain their previous border color.
+If migration 025 has already been applied, run only 026; do not rerun 025.
+
+- `GET /api/canvas/groups?projectId=...` returns `{ data, canEdit }`.
+- `POST /api/canvas/groups` accepts `{ projectId, items: [{ id, type }], name? }`.
+- `POST /api/canvas/groups/move` accepts `{ projectId, groupId, dx, dy }`.
+- `POST /api/canvas/groups/update` accepts `{ projectId, groupId, name, color }`;
+  `color` must be a six-digit hex value (for example `#a2c9ff`).
+- `POST /api/canvas/groups/ungroup` accepts `{ projectId, groupId }` and returns
+  `{ groupId }`. Group foreign keys are cleared atomically without deleting items.
+- `POST /api/canvas/delete-canvas-items` accepts `{ projectId, items: [{ id, type }] }`
+  and returns `{ deletedCount }`. An item outside the project or a stale selection
+  returns `409` without partially deleting items.
+- All new routes require a session and project access; mutations require edit access.
+  Selection mutations share a per-user limit of 120 requests per minute, using
+  the configured Redis/database rate-limit store.
+
 ### In-app user guide
 
 Open **Docs** (`/docs`) after signing in to read the detailed Thai user guide.

@@ -1,5 +1,7 @@
 <main
   class="workspace-main"
+  [class.selection-mode]="interactionTool === EnumWorkspaceItemType.SELECT"
+  [attr.aria-busy]="isSelectionBusy"
   #viewport
   (pointerdown)="onCanvasMouseDown($event)"
   (wheel)="onWheelZoom($event)"
@@ -49,27 +51,54 @@
 
   <div class="workspace-viewport">
     <div class="canvas-items" [style.transform]="canvasTransform">
+      @for (frame of groupFrames; track frame.group.id) {
+        <div
+          class="group-frame"
+          [style.left.px]="frame.x"
+          [style.top.px]="frame.y"
+          [style.width.px]="frame.width"
+          [style.height.px]="frame.height"
+          [style.--item-control-scale]="1 / zoom"
+          [style.--group-color]="frame.group.color"
+          (pointerdown)="onGroupMouseDown($event, frame.group)"
+        >
+          <button
+            type="button"
+            class="group-label"
+            [attr.aria-label]="'Select or drag group ' + frame.group.name"
+            (pointerdown)="onGroupMouseDown($event, frame.group)"
+            (click)="selectGroup(frame.group)"
+          >
+            {{ frame.group.name }}
+          </button>
+        </div>
+      }
       <ng-container *ngFor="let item of canvasList; trackBy: trackByItemId">
         <div
           class="canvas-item"
           [class.is-dragging]="isDragging(item)"
           [class.is-focused]="isFocused(item)"
+          [class.is-selected]="selectedItems.includes(item)"
           [style.left.px]="item.x"
           [style.top.px]="item.y"
           [style.zIndex]="item.zIndex"
           (pointerdown)="onItemMouseDown($event, item)"
+          (focusout)="onItemFocusOut(item)"
         >
-          <button
-            type="button"
-            class="item-delete-btn"
-            aria-label="Delete item"
-            [style.--item-control-scale]="1 / zoom"
-            [style.zIndex]="item.zIndex + 1"
-            (pointerdown)="$event.stopPropagation()"
-            (click)="onDeleteItem($event, item)"
-          >
-            <span class="material-symbols-outlined">delete</span>
-          </button>
+          @if (!isReadOnly) {
+            <button
+              type="button"
+              class="item-delete-btn"
+              aria-label="Delete item"
+              [disabled]="isSelectionBusy"
+              [style.--item-control-scale]="1 / zoom"
+              [style.zIndex]="item.zIndex + 1"
+              (pointerdown)="$event.stopPropagation()"
+              (click)="onDeleteItem($event, item)"
+            >
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          }
 
           @switch (item.type) {
             @case (EnumWorkspaceItemType.STICKY_NOTE) {
@@ -103,10 +132,104 @@
           }
         </div>
       </ng-container>
+      @if (selectionBounds; as bounds) {
+        <div
+          class="selection-rectangle"
+          [style.left.px]="bounds.x"
+          [style.top.px]="bounds.y"
+          [style.width.px]="bounds.width"
+          [style.height.px]="bounds.height"
+        ></div>
+      }
     </div>
   </div>
 
-  <app-tool-hubs (insertItem)="onInsertItem($event)"></app-tool-hubs>
+  <app-tool-hubs
+    [interactionTool]="interactionTool"
+    (interactionToolChange)="changeInteractionTool($event)"
+    (insertItem)="onInsertItem($event)"
+  ></app-tool-hubs>
+
+  @if (selectedItems.length && !selectionBounds) {
+    <div
+      class="selection-actions"
+      role="toolbar"
+      aria-label="Selected items"
+      (pointerdown)="$event.stopPropagation()"
+    >
+      <span aria-live="polite">{{ selectedItems.length }} selected</span>
+      @if (!isReadOnly) {
+        @if (isNamingGroup) {
+          <form (ngSubmit)="editingGroup ? updateGroup() : createGroup()" class="group-name-form">
+            <label class="sr-only" for="group-name">Group name (optional)</label>
+            <input
+              id="group-name"
+              name="groupName"
+              [(ngModel)]="groupName"
+              maxlength="80"
+              placeholder="Group name (optional)"
+              [disabled]="isSelectionBusy"
+            />
+            @if (editingGroup) {
+              <input
+                #groupColorInput
+                type="color"
+                name="groupColor"
+                [value]="groupColor"
+                (input)="groupColor = groupColorInput.value"
+                aria-label="Group color"
+                title="Group color"
+                [disabled]="isSelectionBusy"
+              />
+            }
+            <button type="submit" [disabled]="isSelectionBusy">
+              {{ editingGroup ? 'Save group' : 'Create group' }}
+            </button>
+            <button type="button" (click)="cancelGroupEditor()" [disabled]="isSelectionBusy">
+              Cancel
+            </button>
+          </form>
+        } @else {
+          @if (selectedGroup; as group) {
+            <button type="button" (click)="editGroup(group)" [disabled]="isSelectionBusy">
+              <span class="material-symbols-outlined" aria-hidden="true">edit</span>Edit group
+            </button>
+            <button type="button" (click)="ungroup(group)" [disabled]="isSelectionBusy">
+              <span class="material-symbols-outlined" aria-hidden="true">link_off</span>Ungroup
+            </button>
+          } @else {
+            <button type="button" (click)="isNamingGroup = true" [disabled]="isSelectionBusy">
+              <span class="material-symbols-outlined" aria-hidden="true">workspaces</span>Group
+            </button>
+          }
+        }
+        <button
+          type="button"
+          class="selection-delete"
+          (click)="deleteSelectedItems()"
+          [disabled]="isSelectionBusy"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">delete</span>Delete
+        </button>
+      }
+      <button
+        type="button"
+        aria-label="Clear selection"
+        (click)="clearSelection()"
+        [disabled]="isSelectionBusy"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  }
+  @if (actionError) {
+    <div class="workspace-action-error" role="alert" (pointerdown)="$event.stopPropagation()">
+      {{ actionError }}
+      <button type="button" aria-label="Dismiss error" (click)="actionError = ''">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  }
 
   <div class="bottom-right-controls">
     <!-- <div class="presence-row">

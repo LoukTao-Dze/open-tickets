@@ -12,6 +12,10 @@
   &:active {
     cursor: grabbing;
   }
+
+  &.selection-mode {
+    cursor: crosshair;
+  }
 }
 
 .canvas-grid {
@@ -41,9 +45,87 @@
     outline-offset: 2px;
   }
 
+  &.is-selected {
+    outline: 2px solid var(--mat-sys-primary, #a2c9ff);
+    outline-offset: 4px;
+  }
+
   &:hover .item-delete-btn {
     @apply opacity-100 pointer-events-auto;
   }
+}
+
+.selection-rectangle {
+  @apply absolute border border-primary bg-primary/10 pointer-events-none;
+  z-index: 2147483647;
+}
+
+.group-frame {
+  @apply absolute border-2 border-outline-variant rounded-lg cursor-grab;
+  border-color: var(--group-color);
+}
+
+.group-label {
+  @apply absolute left-0 top-0 px-3 py-1 bg-surface-container-high border border-outline-variant rounded-md text-on-surface text-sm pointer-events-auto cursor-grab;
+  transform: translateY(-100%) scale(var(--item-control-scale, 1));
+  transform-origin: bottom left;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-color: var(--group-color);
+}
+
+.selection-actions {
+  @apply absolute z-50 flex items-center justify-center flex-wrap gap-2 border border-outline-variant rounded-xl bg-surface-container-high text-on-surface px-3 py-2 shadow-2xl text-sm;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  cursor: default;
+
+  @media (max-width: 767px) {
+    top: 8rem;
+  }
+
+  button {
+    @apply flex items-center gap-1 px-2 py-1 rounded-md hover:bg-surface-variant;
+  }
+
+  .selection-delete {
+    @apply text-error;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  input {
+    @apply bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1;
+    width: 12rem;
+    max-width: 100%;
+  }
+
+  input[type='color'] {
+    width: 2.5rem;
+    height: 2rem;
+    padding: 2px;
+    cursor: pointer;
+  }
+}
+
+.group-name-form {
+  @apply flex items-center justify-center flex-wrap gap-2;
+}
+
+.workspace-action-error {
+  @apply absolute z-50 flex items-center gap-2 bg-surface-container-high border border-error text-error rounded-lg p-3 text-sm;
+  top: 10rem;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 2rem);
 }
 
 .item-delete-btn {

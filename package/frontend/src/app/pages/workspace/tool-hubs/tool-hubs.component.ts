@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EnumWorkspaceItemType } from '../../../enum/workspace.enum';
 import {
@@ -45,13 +45,15 @@ const INSERTABLE_TOOL_TYPES: ReadonlySet<EnumWorkspaceItemType> = new Set([
 })
 export class ToolHubsComponent {
   @Output() insertItem = new EventEmitter<InsertToolEvent>();
+  @Input() interactionTool = EnumWorkspaceItemType.HAND;
+  @Output() interactionToolChange = new EventEmitter<EnumWorkspaceItemType>();
 
   readonly EnumWorkspaceItemType = EnumWorkspaceItemType;
   readonly stickyNoteColorOptions = STICKY_NOTE_COLOR_OPTIONS;
 
   readonly primaryTools: ToolHubsButton[] = [
-    { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: true, openTool: false },
-    { id: EnumWorkspaceItemType.PEN, icon: 'edit', isActive: false, openTool: false },
+    { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: true, openTool: true },
+    { id: EnumWorkspaceItemType.HAND, icon: 'pan_tool', isActive: true, openTool: true },
   ];
 
   readonly insertTools: ToolHubsButton[] = [
@@ -80,6 +82,8 @@ export class ToolHubsComponent {
 
   selectTool(id: EnumWorkspaceItemType) {
     this.activeToolId = id;
+    this.isStickyNoteColorPickerOpen = false;
+    this.interactionToolChange.emit(id);
   }
 
   onInsertToolClick(tool: ToolHubsButton) {

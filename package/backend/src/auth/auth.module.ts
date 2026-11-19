@@ -28,6 +28,6 @@ const sessionStoreProvider = {
   imports: [JwtModule.register({}), SupabaseModule],
   controllers: [AuthController],
   providers: [AuthService, AdminGuard, SessionGuard, sessionStoreProvider],
-  exports: [AuthService, AdminGuard, SessionGuard],
+  exports: [AuthService, AdminGuard, SessionGuard, SessionStore],
 })
 export class AuthModule {}

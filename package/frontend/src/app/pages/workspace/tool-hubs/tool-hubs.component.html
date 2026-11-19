@@ -1,10 +1,13 @@
-<div class="tool-hubs">
+<div class="tool-hubs" (pointerdown)="$event.stopPropagation()">
   @for (tool of primaryTools; track $index) {
     @if (tool.openTool) {
       <button
         type="button"
         class="tool-btn"
-        [class.tool-btn--active]="activeToolId === tool.id"
+        [class.tool-btn--active]="interactionTool === tool.id"
+        [attr.aria-label]="tool.id === EnumWorkspaceItemType.SELECT ? 'Selection' : 'Pan board'"
+        [attr.aria-pressed]="interactionTool === tool.id"
+        [title]="tool.id === EnumWorkspaceItemType.SELECT ? 'Selection' : 'Pan board'"
         (click)="selectTool(tool.id)"
       >
         <span class="material-symbols-outlined">{{ tool.icon }}</span>
@@ -45,7 +48,6 @@
     }
   }
 
-  <div class="tool-divider"></div>
   @for (tool of historyTools; track $index) {
     @if (tool.openTool) {
       <button

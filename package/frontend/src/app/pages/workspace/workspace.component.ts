@@ -9,6 +9,7 @@ import {
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { StickyNoteComponent } from './sticky-note/sticky-note.component';
 import { UploadedImageComponent } from './uploaded-image/uploaded-image.component';
@@ -18,9 +19,13 @@ import { LinkComponent } from './link/link.component';
 import { MarkdownComponent } from './markdown/markdown.component';
 import { ToolHubsComponent, InsertToolEvent } from './tool-hubs/tool-hubs.component';
 import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
-import { Whiteboard, WorkspaceCanvasItem } from '../../interface/workspace.interface';
+import {
+  Whiteboard,
+  WorkspaceCanvasItem,
+  WorkspaceGroup,
+} from '../../interface/workspace.interface';
 import { environment } from '../../../environments/environment';
-import { switchMap } from 'rxjs';
+import { firstValueFrom, forkJoin, switchMap } from 'rxjs';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
@@ -51,7 +56,10 @@ const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
 const SAVE_WHITEBOARD_DELAY_MS = 500;
 const SAVE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/save-canvas-item`;
 const GET_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/get-canvas-item`;
-const DELETE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/delete-canvas-item`;
+const DELETE_CANVAS_ITEMS_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/delete-canvas-items`;
+const CANVAS_GROUPS_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/groups`;
+const GROUP_PADDING = 24;
+const DEFAULT_GROUP_COLOR = '#414752';
 const GET_ALL_PROJECTS_ENDPOINT = `${environment.apiBaseUrl}/api/projects`;
 const DEFAULT_MARKDOWN_WIDTH = 360;
 const DEFAULT_MARKDOWN_HEIGHT = 280;
@@ -70,11 +78,22 @@ interface ViewportState {
   panY: number;
 }
 
+interface CanvasPoint {
+  x: number;
+  y: number;
+}
+
+interface CanvasBounds extends CanvasPoint {
+  width: number;
+  height: number;
+}
+
 @Component({
   selector: 'app-workspace',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     StickyNoteComponent,
     UploadedImageComponent,
     CodeSnippetComponent,
@@ -112,6 +131,24 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   isLoading = false;
   isCanvasLoading = false;
   canvasItemResponse: WorkspaceCanvasItem[] = [];
+  interactionTool = EnumWorkspaceItemType.HAND;
+  groups: WorkspaceGroup[] = [];
+  selectedItems: WorkspaceCanvasItem[] = [];
+  selectionBounds: CanvasBounds | null = null;
+  isNamingGroup = false;
+  groupName = '';
+  groupColor = DEFAULT_GROUP_COLOR;
+  editingGroup: WorkspaceGroup | null = null;
+  isSelectionBusy = false;
+  actionError = '';
+  private selectionStart: CanvasPoint | null = null;
+  private groupDrag: {
+    group: WorkspaceGroup;
+    start: CanvasPoint;
+    positions: { item: WorkspaceCanvasItem; x: number; y: number }[];
+  } | null = null;
+  private pendingSaveItem: WorkspaceCanvasItem | null = null;
+  private readonly pendingItemSaves = new Map<WorkspaceCanvasItem, Promise<void>>();
 
   private isPanning = false;
   private panStartScreen = { x: 0, y: 0 };
@@ -266,14 +303,23 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             projects[0]?.id ??
             '';
           this.applyViewportState(this.selectedWhiteboardId);
-          return this.http.get(GET_CANVAS_ITEM_ENDPOINT, {
-            params: { projectId: this.selectedWhiteboardId },
+          const params = { projectId: this.selectedWhiteboardId };
+          return forkJoin({
+            items: this.http.get<{ data: WorkspaceCanvasItem[] }>(GET_CANVAS_ITEM_ENDPOINT, {
+              params,
+            }),
+            groups: this.http.get<{ data: WorkspaceGroup[]; canEdit: boolean }>(
+              CANVAS_GROUPS_ENDPOINT,
+              { params },
+            ),
           });
         }),
       )
       .subscribe({
         next: (res) => {
-          const items = (res as any)?.data as WorkspaceCanvasItem[];
+          const items = res.items.data;
+          this.groups = res.groups.data;
+          this.isReadOnly = !res.groups.canEdit;
           this.canvasItemResponse = items;
           const itemsByProject = new Map<string, typeof items>();
 
@@ -295,9 +341,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
           }
         },
         error: (err) => {
-          this.isLoading = true;
-          this.cdr.markForCheck();
-          console.error('Failed to retrieve canvas items', err);
+          this.isLoading = false;
+          this.reportActionError('Failed to load workspace. Reload the page to try again.', err);
         },
       });
   }
@@ -311,10 +356,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   trackByItemId(index: number, item: WorkspaceCanvasItem): number | string {
-    return item?.id ?? index;
+    return `${item.type}:${item.id ?? index}`;
   }
 
   onWhiteboardChange(id: string) {
+    if (this.isSelectionBusy) return;
+    this.clearSelection();
+    this.groups = [];
     this.selectedWhiteboardId = id;
     localStorage.setItem('selectedWhiteboardId', this.selectedWhiteboardId);
     this.activeItem = null;
@@ -340,6 +388,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   onInsertItem(event: InsertToolEvent) {
+    if (this.isReadOnly || this.isSelectionBusy) return;
+    this.clearSelection();
+    this.interactionTool = EnumWorkspaceItemType.SELECT;
     const newItem = this.createItemForInsert(event);
     this.focusedItem = newItem;
     if (!newItem) {
@@ -353,52 +404,342 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   onDeleteItem(event: Event, item: WorkspaceCanvasItem) {
     event.stopPropagation();
-
-    this.confirmDialogService
-      .confirm({
-        title: 'Delete Item',
-        message: 'Are you sure you want to delete this item?',
-        cancelText: 'Cancel',
-        confirmText: 'Delete',
-        config: {
-          disableClose: false,
-          confirmColor: 'error',
-          cancelColor: 'neutral',
-        },
-      })
-      .subscribe((confirmed) => {
-        if (!confirmed) return;
-        this.deleteItem(item);
-      });
+    void this.confirmDeleteItems([item]);
   }
 
-  deleteItem(item: WorkspaceCanvasItem) {
-    if (this.isReadOnly || !item.id) {
-      this.removeItemFromBoard(item);
-      return;
+  private async deleteItems(items: WorkspaceCanvasItem[]) {
+    const board = this.activeWhiteboard;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      await this.prepareSelection(items);
+      const response = await firstValueFrom(
+        this.http.post<{ deletedCount: number }>(DELETE_CANVAS_ITEMS_ENDPOINT, {
+          projectId: board.id,
+          items: this.itemReferences(items),
+        }),
+      );
+      if (response.deletedCount !== items.length) throw new Error('Unexpected deleted item count');
+      board.items = board.items.filter((item) => !items.includes(item));
+      if (this.focusedItem && items.includes(this.focusedItem)) this.focusedItem = null;
+      this.clearSelection();
+    } catch (error) {
+      this.reportActionError('Failed to delete items. Reload the board and try again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
     }
-    this.isCanvasLoading = true;
-    this.cdr.detectChanges();
-    this.http.post(DELETE_CANVAS_ITEM_ENDPOINT, { id: item.id, type: item.type }).subscribe({
-      next: () => this.removeItemFromBoard(item),
-      error: (err) => {
-        console.error('Failed to delete canvas item', err);
-      },
+  }
+
+  deleteSelectedItems() {
+    return this.confirmDeleteItems([...this.selectedItems]);
+  }
+
+  private async confirmDeleteItems(items: WorkspaceCanvasItem[]) {
+    if (this.isReadOnly || this.isSelectionBusy || !items.length) return;
+    this.isSelectionBusy = true;
+    try {
+      const confirmed = await firstValueFrom(
+        this.confirmDialogService.confirm({
+          title: 'Delete items',
+          message: `Delete ${items.length} selected item(s)? This cannot be undone.`,
+          cancelText: 'Cancel',
+          confirmText: 'Delete',
+          config: { disableClose: false, confirmColor: 'error', cancelColor: 'neutral' },
+        }),
+      );
+      if (confirmed) await this.deleteItems(items);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  changeInteractionTool(tool: EnumWorkspaceItemType) {
+    if (this.isSelectionBusy) return;
+    this.interactionTool = tool;
+    this.clearSelection();
+    this.focusedItem = null;
+  }
+
+  clearSelection() {
+    if (this.groupDrag) {
+      this.restoreGroupPositions(this.groupDrag.positions);
+      this.groupDrag = null;
+    }
+    this.selectedItems = [];
+    this.selectionStart = null;
+    this.selectionBounds = null;
+    this.cancelGroupEditor();
+  }
+
+  cancelGroupEditor() {
+    this.isNamingGroup = false;
+    this.groupName = '';
+    this.groupColor = DEFAULT_GROUP_COLOR;
+    this.editingGroup = null;
+  }
+
+  get selectedGroup(): WorkspaceGroup | null {
+    const groupId = this.selectedItems[0]?.groupId;
+    if (!groupId || !this.selectedItems.every((item) => item.groupId === groupId)) return null;
+    return this.groups.find((group) => group.id === groupId) ?? null;
+  }
+
+  editGroup(group: WorkspaceGroup) {
+    if (this.isReadOnly || this.isSelectionBusy) return;
+    this.editingGroup = group;
+    this.groupName = group.name;
+    this.groupColor = group.color;
+    this.isNamingGroup = true;
+  }
+
+  async updateGroup() {
+    const group = this.editingGroup;
+    if (this.isReadOnly || this.isSelectionBusy || !group) return;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      const { data } = await firstValueFrom(
+        this.http.post<{ data: WorkspaceGroup }>(`${CANVAS_GROUPS_ENDPOINT}/update`, {
+          projectId: group.project_id,
+          groupId: group.id,
+          name: this.groupName.trim(),
+          color: this.groupColor,
+        }),
+      );
+      this.groups = this.groups.map((candidate) => (candidate.id === data.id ? data : candidate));
+      this.cancelGroupEditor();
+    } catch (error) {
+      this.reportActionError('Failed to update group. Try saving again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  async ungroup(group: WorkspaceGroup) {
+    if (this.isReadOnly || this.isSelectionBusy) return;
+    const board = this.activeWhiteboard;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      await this.flushItemSaves();
+      const response = await firstValueFrom(
+        this.http.post<{ groupId: number }>(`${CANVAS_GROUPS_ENDPOINT}/ungroup`, {
+          projectId: group.project_id,
+          groupId: group.id,
+        }),
+      );
+      if (response.groupId !== group.id) throw new Error('Unexpected ungrouped group ID');
+      for (const item of board.items) {
+        if (item.groupId === group.id) item.groupId = null;
+      }
+      this.groups = this.groups.filter((candidate) => candidate.id !== group.id);
+      this.interactionTool = EnumWorkspaceItemType.SELECT;
+      this.clearSelection();
+    } catch (error) {
+      this.reportActionError('Failed to ungroup items. Reload the board and try again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private updateSelection(point: CanvasPoint) {
+    if (!this.selectionStart) return;
+    const bounds = {
+      x: Math.min(this.selectionStart.x, point.x),
+      y: Math.min(this.selectionStart.y, point.y),
+      width: Math.abs(point.x - this.selectionStart.x),
+      height: Math.abs(point.y - this.selectionStart.y),
+    };
+    this.selectionBounds = bounds;
+    const enclosed = this.canvasList.filter(
+      (item) =>
+        item.x >= bounds.x &&
+        item.y >= bounds.y &&
+        item.x + item.width <= bounds.x + bounds.width &&
+        item.y + item.height <= bounds.y + bounds.height,
+    );
+    const groupIds = new Set(enclosed.map((item) => item.groupId).filter(Boolean));
+    this.selectedItems = this.canvasList.filter(
+      (item) => enclosed.includes(item) || (item.groupId && groupIds.has(item.groupId)),
+    );
+  }
+
+  get groupFrames() {
+    return this.groups.flatMap((group) => {
+      const members = this.canvasList.filter((item) => item.groupId === group.id);
+      if (!members.length) return [];
+      const x = Math.min(...members.map((item) => item.x)) - GROUP_PADDING;
+      const y = Math.min(...members.map((item) => item.y)) - GROUP_PADDING;
+      return [
+        {
+          group,
+          x,
+          y,
+          width: Math.max(...members.map((item) => item.x + item.width)) - x + GROUP_PADDING,
+          height: Math.max(...members.map((item) => item.y + item.height)) - y + GROUP_PADDING,
+        },
+      ];
     });
   }
 
-  private removeItemFromBoard(item: WorkspaceCanvasItem) {
-    const board = this.activeWhiteboard;
-    board.items = board.items.filter((candidate) => candidate !== item);
+  async createGroup() {
+    if (this.isReadOnly || this.isSelectionBusy || !this.selectedItems.length) return;
+    const items = [...this.selectedItems];
+    const name = this.groupName.trim();
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      await this.prepareSelection(items);
+      const response = await firstValueFrom(
+        this.http.post<{ data: WorkspaceGroup }>(CANVAS_GROUPS_ENDPOINT, {
+          projectId: this.activeWhiteboard.id,
+          items: this.itemReferences(items),
+          name,
+        }),
+      );
+      for (const item of items) item.groupId = response.data.id;
+      this.groups.push(response.data);
+      this.cancelGroupEditor();
+    } catch (error) {
+      this.reportActionError('Failed to group items. Reload the board and try again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
+  }
 
-    if (this.activeItem === item) {
-      this.activeItem = null;
+  onGroupMouseDown(event: PointerEvent, group: WorkspaceGroup) {
+    event.stopPropagation();
+    if (this.isSelectionBusy || event.button !== 0) return;
+    if (event.pointerType === 'touch' && this.trackTouchPointer(event)) return;
+    this.blurItemEditor();
+    event.preventDefault();
+    this.focusedItem = null;
+    this.clearSelection();
+    this.selectedItems = this.canvasList.filter((item) => item.groupId === group.id);
+    if (this.isReadOnly) return;
+    this.groupDrag = {
+      group,
+      start: this.screenToCanvasPoint(event.clientX, event.clientY),
+      positions: this.selectedItems.map((item) => ({ item, x: item.x, y: item.y })),
+    };
+  }
+
+  private async finishGroupDrag(cancelled = false) {
+    const drag = this.groupDrag;
+    this.groupDrag = null;
+    if (!drag?.positions.length) return;
+    const first = drag.positions[0];
+    const dx = first.item.x - first.x;
+    const dy = first.item.y - first.y;
+    if (!dx && !dy) return;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      if (cancelled) return;
+      await this.flushItemSaves(drag.positions);
+      await firstValueFrom(
+        this.http.post(`${CANVAS_GROUPS_ENDPOINT}/move`, {
+          projectId: drag.group.project_id,
+          groupId: drag.group.id,
+          dx,
+          dy,
+        }),
+      );
+    } catch (error) {
+      this.restoreGroupPositions(drag.positions);
+      this.reportActionError('Failed to move group. Reload the board and try again.', error);
+    } finally {
+      if (cancelled) this.restoreGroupPositions(drag.positions);
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
     }
-    if (this.focusedItem === item) {
-      this.focusedItem = null;
+  }
+
+  private restoreGroupPositions(positions: { item: WorkspaceCanvasItem; x: number; y: number }[]) {
+    for (const position of positions) {
+      position.item.x = position.x;
+      position.item.y = position.y;
     }
-    this.isCanvasLoading = false;
-    this.cdr.detectChanges();
+  }
+
+  private itemReferences(items: WorkspaceCanvasItem[]) {
+    return items.map((item) => ({ id: item.id, type: item.type }));
+  }
+
+  private async prepareSelection(items: WorkspaceCanvasItem[]) {
+    await this.flushItemSaves();
+    await Promise.all(items.filter((item) => !item.id).map((item) => this.persistItem(item)));
+  }
+
+  private async flushItemSaves(
+    positions: { item: WorkspaceCanvasItem; x: number; y: number }[] = [],
+  ) {
+    const pending = this.pendingSaveItem;
+    this.cancelPendingWhiteboardSave();
+    await Promise.all(this.pendingItemSaves.values());
+    if (pending) {
+      const position = positions.find((entry) => entry.item === pending);
+      await this.persistItem(pending, position);
+    }
+  }
+
+  onItemFocusOut(item: WorkspaceCanvasItem) {
+    if (this.pendingSaveItem === item) this.cancelPendingWhiteboardSave();
+    const position = this.groupDrag?.positions.find((entry) => entry.item === item);
+    void this.onSaveWhiteboard(item, position);
+  }
+
+  private blurItemEditor() {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && activeElement.closest('.canvas-item')) {
+      activeElement.blur();
+    }
+  }
+
+  private async persistItem(item: WorkspaceCanvasItem, position?: CanvasPoint) {
+    const previous = this.pendingItemSaves.get(item);
+    const payload = { ...item, ...(position ? { x: position.x, y: position.y } : {}) };
+    const request = (async () => {
+      if (previous) await previous;
+      const response = await firstValueFrom(
+        this.http.post<SaveCanvasItemResponse>(SAVE_CANVAS_ITEM_ENDPOINT, {
+          ...payload,
+          id: item.id,
+        }),
+      );
+      if (!Number.isSafeInteger(response.data.id) || response.data.id <= 0) {
+        throw new Error('Invalid saved canvas item id');
+      }
+      item.id = response.data.id;
+    })();
+    this.pendingItemSaves.set(item, request);
+    try {
+      await request;
+    } finally {
+      if (this.pendingItemSaves.get(item) === request) this.pendingItemSaves.delete(item);
+    }
+  }
+
+  private reportActionError(message: string, error: unknown) {
+    console.error(message, error);
+    this.actionError ||= message;
+    this.cdr.markForCheck();
+  }
+
+  selectGroup(group: WorkspaceGroup) {
+    if (
+      this.isSelectionBusy ||
+      this.groupDrag ||
+      this.interactionTool !== EnumWorkspaceItemType.SELECT
+    )
+      return;
+    this.clearSelection();
+    this.selectedItems = this.canvasList.filter((item) => item.groupId === group.id);
   }
 
   minimapItemStyle(item: WorkspaceCanvasItem) {
@@ -428,13 +769,22 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   }
 
   onCanvasMouseDown(event: PointerEvent) {
+    if (this.isSelectionBusy) return;
     if (event.pointerType === 'touch' && this.trackTouchPointer(event)) {
       return;
     }
     if (event.button !== 0) {
       return;
     }
+    this.blurItemEditor();
     this.focusedItem = null;
+    this.clearSelection();
+    if (this.interactionTool === EnumWorkspaceItemType.SELECT) {
+      event.preventDefault();
+      this.selectionStart = this.screenToCanvasPoint(event.clientX, event.clientY);
+      this.selectionBounds = { ...this.selectionStart, width: 0, height: 0 };
+      return;
+    }
     this.isPanning = true;
     this.panStartScreen = { x: event.clientX, y: event.clientY };
     this.panStartOffset = { x: this.panX, y: this.panY };
@@ -442,6 +792,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   onItemMouseDown(event: PointerEvent, item: WorkspaceCanvasItem) {
     event.stopPropagation();
+    if (this.isSelectionBusy) return;
     if (event.pointerType === 'touch' && this.trackTouchPointer(event)) {
       return;
     }
@@ -453,7 +804,22 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     if (target?.closest('button, select, a, .resize-handle, .item-delete-btn')) {
       return;
     }
+    if (item.groupId && !target?.closest('input, textarea, [contenteditable="true"], .cm-editor')) {
+      const group = this.groups.find((candidate) => candidate.id === item.groupId);
+      if (group) {
+        this.onGroupMouseDown(event, group);
+        return;
+      }
+    }
+    if (this.interactionTool === EnumWorkspaceItemType.HAND) {
+      this.onCanvasMouseDown(event);
+      return;
+    }
+    this.clearSelection();
+    this.startItemDrag(event, item);
+  }
 
+  private startItemDrag(event: PointerEvent, item: WorkspaceCanvasItem) {
     this.canvasList.map((canvasItem) => {
       if (canvasItem !== item && canvasItem.zIndex >= item.zIndex) {
         canvasItem.zIndex--;
@@ -475,6 +841,33 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   @HostListener('document:pointermove', ['$event'])
   onDocumentMouseMove(event: PointerEvent) {
+    if (this.updateTouchZoom(event)) return;
+
+    if (this.selectionStart) {
+      this.updateSelection(this.screenToCanvasPoint(event.clientX, event.clientY));
+      return;
+    }
+    if (this.groupDrag) {
+      const point = this.screenToCanvasPoint(event.clientX, event.clientY);
+      for (const position of this.groupDrag.positions) {
+        position.item.x = position.x + point.x - this.groupDrag.start.x;
+        position.item.y = position.y + point.y - this.groupDrag.start.y;
+      }
+      return;
+    }
+    if (this.activeItem) {
+      const canvasPoint = this.screenToCanvasPoint(event.clientX, event.clientY);
+      this.activeItem.x = canvasPoint.x - this.dragOffset.x;
+      this.activeItem.y = canvasPoint.y - this.dragOffset.y;
+      return;
+    }
+    if (this.isPanning) {
+      this.panX = this.panStartOffset.x + (event.clientX - this.panStartScreen.x);
+      this.panY = this.panStartOffset.y + (event.clientY - this.panStartScreen.y);
+    }
+  }
+
+  private updateTouchZoom(event: PointerEvent): boolean {
     if (event.pointerType === 'touch' && this.activeTouchPointers.has(event.pointerId)) {
       this.activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
@@ -483,21 +876,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         const distance = Math.hypot(b.x - a.x, b.y - a.y);
         const factor = this.pinchStartDistance > 0 ? distance / this.pinchStartDistance : 1;
         this.zoomAtPoint(this.pinchStartZoom * factor, (a.x + b.x) / 2, (a.y + b.y) / 2);
-        return;
+        return true;
       }
     }
-
-    if (this.activeItem) {
-      const canvasPoint = this.screenToCanvasPoint(event.clientX, event.clientY);
-      this.activeItem.x = canvasPoint.x - this.dragOffset.x;
-      this.activeItem.y = canvasPoint.y - this.dragOffset.y;
-      return;
-    }
-
-    if (this.isPanning) {
-      this.panX = this.panStartOffset.x + (event.clientX - this.panStartScreen.x);
-      this.panY = this.panStartOffset.y + (event.clientY - this.panStartScreen.y);
-    }
+    return false;
   }
 
   @HostListener('document:pointerup', ['$event'])
@@ -511,6 +893,16 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     }
 
     this.isPanning = false;
+    if (this.selectionStart) {
+      if (event?.type === 'pointercancel') this.clearSelection();
+      this.selectionStart = null;
+      this.selectionBounds = null;
+      return;
+    }
+    if (this.groupDrag) {
+      void this.finishGroupDrag(event?.type === 'pointercancel');
+      return;
+    }
 
     if (this.activeItem) {
       this.activeItem = null;
@@ -523,10 +915,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentKeyDown(event: KeyboardEvent) {
-    if (!this.focusedItem) {
-      return;
-    }
-
     const activeElement = document.activeElement as HTMLElement | null;
     const isTypingTarget =
       activeElement?.tagName === 'INPUT' ||
@@ -536,6 +924,19 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     if (isTypingTarget) {
       return;
     }
+    if (this.isSelectionBusy) return;
+
+    if (event.key === 'Escape') {
+      this.clearSelection();
+      return;
+    }
+    if (this.groupDrag || this.selectionStart) return;
+    if (this.selectedItems.length && (event.key === 'Delete' || event.key === 'Backspace')) {
+      event.preventDefault();
+      void this.deleteSelectedItems();
+      return;
+    }
+    if (!this.focusedItem) return;
 
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
@@ -639,6 +1040,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       this.isPinching = true;
       this.isPanning = false;
       this.activeItem = null;
+      this.clearSelection();
       this.pinchStartDistance = Math.hypot(b.x - a.x, b.y - a.y);
       this.pinchStartZoom = this.zoom;
       return true;
@@ -774,25 +1176,23 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.cancelPendingWhiteboardSave();
   }
 
-  onSaveWhiteboard() {
-    if (this.isReadOnly || !this.focusedItem) {
+  async onSaveWhiteboard(item = this.focusedItem, position?: CanvasPoint) {
+    if (this.isReadOnly || !item) {
       return;
     }
     this.isCanvasLoading = true;
     this.cdr.detectChanges();
-    const itemToSave = this.focusedItem;
-    this.http.post<SaveCanvasItemResponse>(SAVE_CANVAS_ITEM_ENDPOINT, itemToSave).subscribe({
-      next: (res) => {
-        itemToSave.id = res?.data?.id;
-        setTimeout(() => {
-          this.isCanvasLoading = false;
-          this.cdr.detectChanges();
-        }, 500);
-      },
-      error: () => {
-        this.isCanvasLoading = false;
-      },
-    });
+    try {
+      await this.persistItem(item, position);
+    } catch (error) {
+      this.reportActionError(
+        'Failed to save canvas item. Try again before leaving the board.',
+        error,
+      );
+    } finally {
+      this.isCanvasLoading = this.pendingItemSaves.size > 0;
+      this.cdr.markForCheck();
+    }
   }
 
   private scheduleWhiteboardSave() {
@@ -800,9 +1200,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       return;
     }
     this.cancelPendingWhiteboardSave();
+    this.pendingSaveItem = this.focusedItem;
+    const item = this.pendingSaveItem;
+    const position = item ? { x: item.x, y: item.y } : undefined;
     this.saveWhiteboardTimeoutId = setTimeout(() => {
       this.saveWhiteboardTimeoutId = null;
-      this.onSaveWhiteboard();
+      this.pendingSaveItem = null;
+      void this.onSaveWhiteboard(item, position);
     }, SAVE_WHITEBOARD_DELAY_MS);
   }
 
@@ -811,5 +1215,6 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       clearTimeout(this.saveWhiteboardTimeoutId);
       this.saveWhiteboardTimeoutId = null;
     }
+    this.pendingSaveItem = null;
   }
 }

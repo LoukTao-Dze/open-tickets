@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,17 +11,20 @@ import { CanvasService } from './canvas.service';
 describe('CanvasService', () => {
   let service: CanvasService;
   let singleResult: { data: unknown; error: unknown };
+  let rpcResult: { data?: unknown; error: unknown };
   const queryBuilder = {
     upsert: jest.fn(),
     select: jest.fn(),
     single: jest.fn(),
   };
-  const client = { from: jest.fn() };
+  const client = { from: jest.fn(), rpc: jest.fn() };
 
   beforeEach(async () => {
     jest.resetAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     singleResult = { data: { id: '1' }, error: null };
+    rpcResult = { data: null, error: null };
+    client.rpc.mockReturnValue({ returns: () => Promise.resolve(rpcResult) });
     client.from.mockReturnValue(queryBuilder);
     queryBuilder.upsert.mockReturnValue(queryBuilder);
     queryBuilder.select.mockReturnValue(queryBuilder);
@@ -171,6 +175,211 @@ describe('CanvasService', () => {
         service.deleteCanvasItem({ id: '1', type: 'text' }),
       ).resolves.toEqual({ message: 'Canvas item deleted', data: { id: '1' } });
       expect(client.from).toHaveBeenCalledWith('texts');
+    });
+
+    it('creates a project-scoped group and lets the database name blank groups', async () => {
+      const items = [
+        { id: 1, type: 'text' },
+        { id: 1, type: 'image' },
+      ];
+      rpcResult = {
+        data: { id: 7, name: 'Group-7' },
+        error: null,
+      };
+      await expect(
+        service.createGroup({ projectId: 'p1', items, name: '  ' }),
+      ).resolves.toEqual({ data: { id: 7, name: 'Group-7' } });
+      expect(client.rpc).toHaveBeenCalledWith('create_canvas_group', {
+        p_project_id: 'p1',
+        p_items: items,
+        p_name: null,
+      });
+    });
+
+    it('deletes mixed item types in one transaction', async () => {
+      const items = [
+        { id: 1, type: 'text' },
+        { id: 1, type: 'image' },
+      ];
+      rpcResult = { data: 2, error: null };
+      await expect(
+        service.deleteCanvasItems({ projectId: 'p1', items }),
+      ).resolves.toEqual({ deletedCount: 2 });
+      expect(client.rpc).toHaveBeenCalledWith('mutate_canvas_selection', {
+        p_project_id: 'p1',
+        p_items: items,
+        p_delete: true,
+        p_group_id: null,
+      });
+    });
+
+    it('moves a group using a project-scoped delta', async () => {
+      rpcResult = { error: null };
+      await service.moveGroup({ projectId: 'p1', groupId: 7, dx: -25, dy: 50 });
+      expect(client.rpc).toHaveBeenCalledWith('move_canvas_group', {
+        p_project_id: 'p1',
+        p_group_id: 7,
+        p_dx: -25,
+        p_dy: 50,
+      });
+    });
+
+    it('reports stale selections as conflicts rather than success', async () => {
+      rpcResult = { data: null, error: { code: 'P0002' } };
+      await expect(
+        service.deleteCanvasItems({
+          projectId: 'p1',
+          items: [{ id: 1, type: 'text' }],
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('does not expose database errors to clients', async () => {
+      rpcResult = {
+        data: null,
+        error: { code: 'XX000', message: 'private detail' },
+      };
+      await expect(
+        service.createGroup({
+          projectId: 'p1',
+          items: [{ id: 1, type: 'text' }],
+        }),
+      ).rejects.toThrow('Failed to update canvas selection');
+    });
+
+    it('loads group labels only from the requested project', async () => {
+      const builder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        returns: jest.fn().mockResolvedValue({
+          data: [{ id: 7, name: 'Group-7', color: '#123456' }],
+          error: null,
+        }),
+      };
+      client.from.mockReturnValue(builder);
+      await expect(service.getGroups('p1')).resolves.toEqual({
+        data: [{ id: 7, name: 'Group-7', color: '#123456' }],
+      });
+      expect(builder.select).toHaveBeenCalledWith(
+        'id, name, project_id, color',
+      );
+      expect(builder.eq).toHaveBeenCalledWith('project_id', 'p1');
+      await expect(service.getGroups('')).rejects.toThrow(BadRequestException);
+    });
+
+    it('does not let ordinary item saves overwrite group membership', async () => {
+      await service.saveCanvasItem({
+        id: '1',
+        projectId: 'p1',
+        type: 'text',
+        x: 1,
+        y: 2,
+        zIndex: 3,
+        groupId: 99,
+        group_id: 100,
+      });
+      expect(queryBuilder.upsert).toHaveBeenCalledWith(
+        { id: '1', project_id: 'p1', x: 1, y: 2, z_index: 3 },
+        { onConflict: 'id' },
+      );
+    });
+  });
+
+  describe('group management', () => {
+    const groupQuery = {
+      update: jest.fn(),
+      delete: jest.fn(),
+      eq: jest.fn(),
+      select: jest.fn(),
+      single: queryBuilder.single,
+    };
+
+    beforeEach(() => {
+      client.from.mockReturnValue(groupQuery);
+      groupQuery.update.mockReturnValue(groupQuery);
+      groupQuery.delete.mockReturnValue(groupQuery);
+      groupQuery.eq.mockReturnValue(groupQuery);
+      groupQuery.select.mockReturnValue(groupQuery);
+    });
+
+    it('updates a group name and color only within its project', async () => {
+      const group = {
+        id: 7,
+        project_id: 'p1',
+        name: 'Release',
+        color: '#aabbcc',
+      };
+      singleResult = { data: group, error: null };
+      await expect(
+        service.updateGroup({
+          projectId: 'p1',
+          groupId: 7,
+          name: ' Release ',
+          color: '#AABBCC',
+        }),
+      ).resolves.toEqual({ data: group });
+      expect(client.from).toHaveBeenCalledWith('canvas_groups');
+      expect(groupQuery.update).toHaveBeenCalledWith({
+        name: 'Release',
+        color: '#aabbcc',
+      });
+      expect(groupQuery.eq).toHaveBeenCalledWith('project_id', 'p1');
+      expect(groupQuery.eq).toHaveBeenCalledWith('id', 7);
+    });
+
+    it('resets a blank group name to its default', async () => {
+      await service.updateGroup({
+        projectId: 'p1',
+        groupId: 7,
+        name: '  ',
+        color: '#414752',
+      });
+      expect(groupQuery.update).toHaveBeenCalledWith({
+        name: 'Group-7',
+        color: '#414752',
+      });
+    });
+
+    it('ungroups by deleting only the project-scoped group, leaving item detachment to foreign keys', async () => {
+      singleResult = { data: { id: 7 }, error: null };
+      await expect(
+        service.ungroup({ projectId: 'p1', groupId: 7 }),
+      ).resolves.toEqual({ groupId: 7 });
+      expect(client.from).toHaveBeenCalledTimes(1);
+      expect(client.from).toHaveBeenCalledWith('canvas_groups');
+      expect(groupQuery.delete).toHaveBeenCalledTimes(1);
+      expect(groupQuery.eq).toHaveBeenCalledWith('project_id', 'p1');
+      expect(groupQuery.eq).toHaveBeenCalledWith('id', 7);
+    });
+
+    it('rejects stale or cross-project groups without reporting success', async () => {
+      singleResult = { data: null, error: { code: 'PGRST116' } };
+      await expect(
+        service.updateGroup({
+          projectId: 'p2',
+          groupId: 7,
+          name: 'Other',
+          color: '#414752',
+        }),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.ungroup({ projectId: 'p2', groupId: 7 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('surfaces database failures for both editing and ungrouping', async () => {
+      singleResult = { data: null, error: { code: 'XX000' } };
+      await expect(
+        service.updateGroup({
+          projectId: 'p1',
+          groupId: 7,
+          name: 'Release',
+          color: '#414752',
+        }),
+      ).rejects.toThrow(InternalServerErrorException);
+      await expect(
+        service.ungroup({ projectId: 'p1', groupId: 7 }),
+      ).rejects.toThrow(InternalServerErrorException);
     });
   });
 });
