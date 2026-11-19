@@ -1,6 +1,11 @@
 export const SESSION_COOKIE = 'open_ticket_session';
 export const SESSION_PREFIX = 'auth:session:';
 export const SESSION_MAX_SECONDS = 86400;
+export const SECONDS_PER_DAY = 86400;
+export const BYPASS_COMMAND = '-bypass';
+export const BYPASS_SECRET_MIN_BYTES = 32;
+// Browsers cap persistent cookies at 30 days.
+export const BYPASS_MAX_DAYS = 30;
 export const JWT_ISSUER = 'open-ticket';
 export const JWT_AUDIENCE = 'open-ticket-login';
 export const LOGIN_WINDOW_SECONDS = 60;

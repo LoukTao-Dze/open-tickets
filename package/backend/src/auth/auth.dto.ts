@@ -7,17 +7,26 @@ import {
   IsNotEmpty,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
 import {
+  BYPASS_MAX_DAYS,
   MAX_TOKEN_LENGTH,
   ROLE_NAME_MAX_LENGTH,
   ROLE_NAME_MIN_LENGTH,
   ROLE_NAME_PATTERN,
 } from './auth.constants';
+
+export class BypassLifetime {
+  @IsInt()
+  @Min(1)
+  @Max(BYPASS_MAX_DAYS)
+  days!: number;
+}
 
 export enum EnumUserRole {
   ADMIN = 'admin',

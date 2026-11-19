@@ -8,25 +8,34 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtVerifyOptions } from '@nestjs/jwt';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import {
+  BYPASS_COMMAND,
+  BYPASS_SECRET_MIN_BYTES,
   JWT_AUDIENCE,
   JWT_ISSUER,
   LOGIN_ATTEMPT_LIMIT,
+  SECONDS_PER_DAY,
   SESSION_ID_PATTERN,
   SESSION_MAX_SECONDS,
   SESSION_PREFIX,
 } from './auth.constants';
-import { AuthSession, LoginClaims } from './auth.dto';
+import {
+  AuthSession,
+  BypassLifetime,
+  EnumAuthProvider,
+  EnumUserRole,
+  LoginClaims,
+} from './auth.dto';
 import { SessionStore } from './session-store';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly secret: string;
-  private readonly LOGIN_BYPASS = 'bypass';
+  private readonly bypassSecret: string | undefined;
 
   constructor(
     private readonly jwt: JwtService,
@@ -36,6 +45,16 @@ export class AuthService {
     this.secret = config.getOrThrow<string>('JWT_SECRET');
     if (Buffer.byteLength(this.secret) < 32) {
       throw new Error('JWT_SECRET must contain at least 32 bytes');
+    }
+    this.bypassSecret = config.get<string>('OPEN_TICKET_BYPASS_SECRET');
+    if (
+      this.bypassSecret !== undefined &&
+      (Buffer.byteLength(this.bypassSecret) < BYPASS_SECRET_MIN_BYTES ||
+        /\s/.test(this.bypassSecret))
+    ) {
+      throw new Error(
+        'OPEN_TICKET_BYPASS_SECRET must contain at least 32 bytes without whitespace',
+      );
     }
   }
 
@@ -78,19 +97,75 @@ export class AuthService {
     }
   }
 
+  private parseBypassCommand(token: string): LoginClaims {
+    const [, role, third, fourth, ...extra] = token.trim().split(/\s+/);
+    const hasDays = third !== undefined && /^\d+$/.test(third);
+    const lifetime = plainToInstance(BypassLifetime, {
+      days: hasDays ? Number(third) : 1,
+    });
+    const suppliedSecret = hasDays ? fourth : third;
+    const claims = plainToInstance(LoginClaims, {
+      sub: `bypass-${role}`,
+      username: `bypass-${role}`,
+      auth_provider: EnumAuthProvider.BYPASS,
+      role,
+      exp: Math.floor(Date.now() / 1000) + lifetime.days * SECONDS_PER_DAY,
+    });
+    if (
+      extra.length ||
+      (!hasDays && fourth !== undefined) ||
+      validateSync(lifetime).length ||
+      validateSync(claims).length
+    ) {
+      this.logger.warn('Bypass login rejected: invalid command');
+      throw new UnauthorizedException('Invalid or expired access token');
+    }
+    // Only guest access is public; every other role requires a server-held secret.
+    const publicRole: string = EnumUserRole.GUEST;
+    if (role !== publicRole || suppliedSecret !== undefined) {
+      this.verifyBypassSecret(suppliedSecret);
+    }
+    return claims;
+  }
+
+  private verifyBypassSecret(suppliedSecret?: string): void {
+    // Compare fixed-length hashes to avoid exposing secret contents or timing.
+    if (
+      !this.bypassSecret ||
+      !suppliedSecret ||
+      !timingSafeEqual(
+        createHash('sha256').update(this.bypassSecret).digest(),
+        createHash('sha256').update(suppliedSecret).digest(),
+      )
+    ) {
+      this.logger.warn('Bypass login rejected: invalid credentials');
+      throw new UnauthorizedException('Invalid or expired access token');
+    }
+  }
+
   async login(
     token: string,
   ): Promise<{ sessionId: string; session: AuthSession; ttl: number }> {
-    const claims = await this.verifyToken(token);
-    if (claims.auth_provider !== this.LOGIN_BYPASS) {
+    const isBypassCommand = token.trim().split(/\s+/, 1)[0] === BYPASS_COMMAND;
+    const claims = isBypassCommand
+      ? this.parseBypassCommand(token)
+      : await this.verifyToken(token);
+    if (claims.auth_provider !== EnumAuthProvider.BYPASS) {
       throw new UnauthorizedException('Login Failed');
     }
     const ttl = Math.min(
       Math.floor((claims.exp * 1000 - Date.now()) / 1000),
-      SESSION_MAX_SECONDS,
+      isBypassCommand ? Infinity : SESSION_MAX_SECONDS,
     );
     if (ttl <= 0)
       throw new UnauthorizedException('Invalid or expired access token');
+    return this.createSession(claims, ttl);
+  }
+
+  private async createSession(
+    claims: LoginClaims,
+    ttl: number,
+  ): Promise<{ sessionId: string; session: AuthSession; ttl: number }> {
     const sessionId = randomBytes(32).toString('hex');
     const session: AuthSession = {
       user: {

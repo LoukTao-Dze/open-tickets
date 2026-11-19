@@ -198,9 +198,3 @@ and use only scenes in the selected suite (or the awaiting list) as the denomina
 - Failed saves preserve the draft; leaving with unsaved changes requires confirmation.
 - Saving updates Supabase, not Git. Downloads are local `.md` snapshots;
   there is no autosave or revision history.
-
-The current token login accepts signed JWTs with `auth_provider: "bypass"` and
-copies the verified `role` claim into the server-side session. An admin token
-must be issued by trusted administration; editing an unsigned token or sending
-a role in the Docs request body does not grant access. This feature adds no
-token-issuing or role-promotion endpoint.

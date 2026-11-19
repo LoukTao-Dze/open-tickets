@@ -19,8 +19,7 @@ describe('LoginComponent', () => {
     },
     expires_at: '2026-10-30T00:00:00Z',
   };
-  const tokenInput = (value: string) =>
-    Object.assign(document.createElement('input'), { value });
+  const tokenInput = (value: string) => Object.assign(document.createElement('input'), { value });
   const submitEvent = () => new Event('submit', { cancelable: true }) as SubmitEvent;
 
   beforeEach(async () => {
@@ -58,6 +57,20 @@ describe('LoginComponent', () => {
     expect(auth.loginWithToken).not.toHaveBeenCalled();
     expect(component.statusMessage).toContain('Enter an access token');
   });
+
+  it.each(['-bypass guest', '-bypass admin 7 test-secret'])(
+    'submits %s to the backend and navigates only after session verification',
+    async (command) => {
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+      const component = TestBed.createComponent(LoginComponent).componentInstance;
+      const input = tokenInput(` ${command} `);
+      component.submitToken(input, submitEvent());
+      expect(auth.loginWithToken).toHaveBeenCalledWith(command);
+      expect(auth.getSession).toHaveBeenCalledOnce();
+      expect(navigate).toHaveBeenCalledWith('/workspace');
+      expect(input.value).toBe('');
+    },
+  );
 
   it.each([
     [401, 'Invalid or expired'],

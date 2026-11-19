@@ -6,6 +6,7 @@ import request from 'supertest';
 import { createHash } from 'node:crypto';
 import type { Server } from 'node:http';
 import { AuthModule } from './auth.module';
+import { AuthService } from './auth.service';
 import { SessionStore } from './session-store';
 import { SupabaseService } from '../supabase/supabase.service';
 import { configureDocsBodyParser } from '../modules/docs/docs-request.config';
@@ -19,6 +20,7 @@ import {
 
 describe('Token login HTTP flow', () => {
   const secret = 'test-only-signing-secret-with-at-least-32-bytes';
+  const bypassSecret = 'test-only-open-ticket-bypass-secret-32-bytes';
   const records = new Map<string, string>();
   const redis = {
     setSession: jest
@@ -54,7 +56,13 @@ describe('Token login HTTP flow', () => {
       ],
     })
       .overrideProvider(ConfigService)
-      .useValue(new ConfigService({ JWT_SECRET: secret }))
+      .useValue(
+        new ConfigService({
+          JWT_SECRET: secret,
+          OPEN_TICKET_BYPASS_SECRET: bypassSecret,
+          NODE_ENV: 'production',
+        }),
+      )
       .overrideProvider(SupabaseService)
       .useValue({})
       .overrideProvider(SessionStore)
@@ -144,6 +152,132 @@ describe('Token login HTTP flow', () => {
     }
     expect(records.size).toBe(2);
     expect(redis.setSession.mock.calls[0][2]).toBe(86400);
+  });
+
+  it.each([
+    ['-bypass guest', 'guest', 1],
+    ['-bypass guest 7', 'guest', 7],
+    [`-bypass admin 7 ${bypassSecret}`, 'admin', 7],
+    [`-bypass user 7 ${bypassSecret}`, 'user', 7],
+    [`-bypass admin ${bypassSecret}`, 'admin', 1],
+    [`-bypass user ${bypassSecret}`, 'user', 1],
+    [`-bypass reviewer 7 ${bypassSecret}`, 'reviewer', 7],
+    ['-bypass guest 400', 'guest', 400],
+  ])('creates a persistent %s session', async (token, role, days) => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login/token')
+      .send({ token })
+      .expect(200);
+    expect(response.body.user).toEqual({
+      user_id: `bypass-${role}`,
+      username: `bypass-${role}`,
+      auth_provider: 'bypass',
+      role,
+    });
+    const expectedSeconds = days * 86400;
+    const ttl = redis.setSession.mock.calls[0][2];
+    expect(ttl).toBeGreaterThanOrEqual(expectedSeconds - 1);
+    expect(ttl).toBeLessThanOrEqual(expectedSeconds);
+    const cookie = response.headers['set-cookie'][0];
+    expect(cookie).toContain(`Max-Age=${ttl}`);
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('Secure');
+    const session = await request(app.getHttpServer())
+      .get('/api/auth/session')
+      .set('Cookie', cookie.split(';')[0])
+      .expect(200);
+    expect(session.body).toEqual(response.body);
+    expect(redis.setSession.mock.calls[0][1]).not.toContain(bypassSecret);
+  });
+
+  it.each([
+    '-bypass',
+    '-bypass admin',
+    '-bypass user 7',
+    '-bypass reviewer 7',
+    '-bypass admin 7 wrong-secret',
+    '-bypass guest 0',
+    '-bypass guest -1',
+    '-bypass guest 1.5',
+    '-bypass guest 7days',
+    '-bypass guest 401',
+    '-bypass guest 999999999999999999999',
+    '-bypass guest 7 unexpected',
+    `-bypass admin 7 ${bypassSecret} extra`,
+    `prefix -bypass admin 7 ${bypassSecret}`,
+  ])(
+    'rejects invalid bypass command %# without issuing a cookie',
+    async (token) => {
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/login/token')
+        .send({ token })
+        .expect(401);
+      expect(redis.setSession).not.toHaveBeenCalled();
+      expect(response.headers['set-cookie']).toBeUndefined();
+    },
+  );
+
+  it('allows only public guest bypass when the secret is not configured', async () => {
+    const auth = new AuthService(
+      jwt,
+      redis,
+      new ConfigService({ JWT_SECRET: secret }),
+    );
+    await expect(auth.login('-bypass admin 7')).rejects.toThrow(
+      'Invalid or expired access token',
+    );
+    await expect(auth.login(`-bypass user 7 ${bypassSecret}`)).rejects.toThrow(
+      'Invalid or expired access token',
+    );
+    expect(redis.setSession).not.toHaveBeenCalled();
+    await expect(auth.login('-bypass guest')).resolves.toMatchObject({
+      session: { user: { role: 'guest' } },
+    });
+  });
+
+  it.each(['', 'short-secret', `${bypassSecret} whitespace`])(
+    'rejects unsafe bypass secret configuration %#',
+    (unsafeSecret) => {
+      expect(
+        () =>
+          new AuthService(
+            jwt,
+            redis,
+            new ConfigService({
+              JWT_SECRET: secret,
+              OPEN_TICKET_BYPASS_SECRET: unsafeSecret,
+            }),
+          ),
+      ).toThrow('OPEN_TICKET_BYPASS_SECRET');
+    },
+  );
+
+  it('rejects a bypass session after its requested lifetime', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login/token')
+      .send({ token: '-bypass guest 7' })
+      .expect(200);
+    const clock = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(Date.parse(response.body.expires_at as string) + 1);
+    try {
+      await request(app.getHttpServer())
+        .get('/api/auth/session')
+        .set('Cookie', response.headers['set-cookie'][0].split(';')[0])
+        .expect(401);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('rate-limits bypass attempts before issuing a session', async () => {
+    redis.recordAttempt.mockResolvedValueOnce(LOGIN_ATTEMPT_LIMIT + 1);
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login/token')
+      .send({ token: '-bypass guest' })
+      .expect(429);
+    expect(redis.setSession).not.toHaveBeenCalled();
+    expect(response.headers['set-cookie']).toBeUndefined();
   });
 
   it.each([

@@ -33,8 +33,35 @@
 The controller validates input and rate-limits each client IP to 10 attempts per
 minute using Redis. The service verifies **HS256**, issuer `open-ticket`, audience
 `open-ticket-login`, expiry, and non-empty `sub` / `username` claims.
-The mock user always has the `guest` role; submitted role claims are not trusted.
-There is deliberately no public endpoint that issues mock tokens.
+Signed role claims are preserved. Tokens must have `auth_provider: "bypass"`.
+
+The same endpoint also accepts these commands from the login page:
+
+```text
+-bypass guest
+-bypass guest 7
+-bypass admin 7 <secret>
+-bypass user 7 <secret>
+-bypass admin <secret>
+```
+
+Days default to **1** when omitted and must be an integer from **1 to 400**
+(the browser's persistent-cookie limit). Command sessions last the requested
+number of days, rather than the one-day cap for signed JWT sessions. Login
+immediately establishes the normal server-side session and HttpOnly cookie;
+no client-generated JWT or browser storage is used.
+
+Guest commands are public, including in production. Every other role (including
+custom roles) requires the trailing secret, checked only on the backend. Generate
+a **separate** secret with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`
+and save it as `OPEN_TICKET_BYPASS_SECRET` in the backend environment, then
+restart the backend. Do not reuse `JWT_SECRET`, use a sample secret, or put this
+secret in frontend code. It must contain at least 32 bytes with no whitespace.
+Leaving it unset disables non-guest command login; an invalid configured secret
+prevents startup. Use HTTPS in production and never log the submitted command.
+Anyone holding this secret can choose any role, so distribute it as an
+administrator credential. Rotating it does not revoke existing sessions.
 
 Configure these values in `package/backend/.env` (do not commit secrets):
 
@@ -85,7 +112,7 @@ if (!process.env.JWT_SECRET || Buffer.byteLength(process.env.JWT_SECRET) < 32) {
   throw new Error("JWT_SECRET must contain at least 32 bytes");
 }
 console.log(new JwtService().sign(
-  { sub: "mock-user", username: "mock-user" },
+  { sub: "mock-user", username: "mock-user", auth_provider: "bypass", role: "guest" },
   { secret: process.env.JWT_SECRET, algorithm: "HS256",
     issuer: "open-ticket", audience: "open-ticket-login", expiresIn: "1h" }
 ));
@@ -93,7 +120,7 @@ console.log(new JwtService().sign(
 ```
 
 Paste that JWT into the login page's **Access token** field. A successful response
-is `{ user: { user_id, username, auth_provider: "token", role: "guest" }, expires_at }`.
+is `{ user: { user_id, username, auth_provider: "bypass", role: "guest" }, expires_at }`.
 The backend generates a new cryptographically random session ID and sends it in
 the `open_ticket_session` cookie (`HttpOnly`, `Secure` by default, `SameSite=Lax`,
 `Path=/api`). Only a SHA-256 hash of that session ID is used in the Redis key:
