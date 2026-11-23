@@ -1,6 +1,6 @@
 # Open Ticket
 
-Open Ticket is a support/ticketing platform that bridges **Discord** conversations with a **Kanban-style ticket board** and a collaborative **workspace board** (sticky notes, code snippets, links, images, etc.), synced in real time over WebSockets.
+Open Ticket is a support/ticketing platform with a **Kanban-style ticket board** and a collaborative **workspace board** (sticky notes, code snippets, links, images, etc.).
 
 ## Monorepo structure
 
@@ -8,13 +8,13 @@ This project is an npm workspaces monorepo with two apps:
 
 ```
 package/
-  backend/    NestJS API — Discord bot integration, WebSocket gateway, message persistence
-  frontend/   Angular app — dashboard, kanban board, collaborative workspace
+  backend/    NestJS API — Discord bot integration and message persistence
+  frontend/   Angular app — Kanban board, projects, collaborative workspace
 ```
 
 | Package  | Stack                          | Dev port |
 | -------- | ------------------------------ | -------- |
-| backend  | NestJS, discord.js, Socket.IO  | 3000     |
+| backend  | NestJS, discord.js             | 3000     |
 | frontend | Angular, Angular Material, CDK | 4200     |
 
 ## Prerequisites
@@ -76,10 +76,54 @@ npm test        # runs backend and frontend test suites
 docker compose up --build
 ```
 
-This builds and starts:
+This builds and starts the frontend on `http://localhost:4200`. The backend and
+Redis are reachable only by other Compose services; API traffic goes through
+the frontend Nginx container.
 
-- `backend` on [http://localhost:3000](http://localhost:3000)
-- `frontend` on [http://localhost:4200](http://localhost:4200)
+### Production deployment with Nginx
+
+The Compose stack binds the frontend to `127.0.0.1:4200`, so it is not directly
+reachable from the internet. Configure the server's public Nginx to terminate
+HTTPS and proxy requests to `http://127.0.0.1:4200`; forward the `Host`,
+`X-Real-IP`, `X-Forwarded-For`, and `X-Forwarded-Proto` headers. The frontend
+Nginx proxies `/api/` to the backend.
+
+Example public Nginx config (replace the domain and certificate paths after
+obtaining a TLS certificate):
+
+```nginx
+server {
+    listen 80;
+    server_name tickets.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name tickets.example.com;
+    ssl_certificate /etc/letsencrypt/live/tickets.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/tickets.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:4200;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Before deploying, set `CORS_ORIGINS` in `package/backend/.env` to the exact
+public origin (for example, `https://tickets.example.com`) and keep
+`AUTH_COOKIE_SECURE=true`. Replace the example origin in `.env.example` when
+creating the backend environment file. Keep backend and Redis ports private.
+After configuring public Nginx and its TLS certificate, deploy with:
+
+```bash
+docker compose up --build -d
+```
 
 ## Project docs
 

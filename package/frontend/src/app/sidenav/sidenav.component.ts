@@ -27,7 +27,6 @@ export class SidenavComponent {
     { icon: 'monitoring', label: 'Progress', route: '/progress', isActive: true },
     { icon: 'fact_check', label: 'Test scenes', route: '/scenes', isActive: true },
     { icon: 'badge', label: 'Roles', route: '/roles', isActive: true },
-    { icon: 'dashboard', label: 'Dashboard', route: '/overview', isActive: false },
     { icon: 'settings', label: 'Settings', route: '/settings', isActive: false },
   ];
 

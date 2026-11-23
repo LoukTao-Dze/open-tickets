@@ -2,8 +2,6 @@ services:
   backend:
     build: ./package/backend
     container_name: open-ticket-backend
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
     env_file:
       - ./package/backend/.env
     environment:
@@ -25,8 +23,6 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -42,7 +38,7 @@ services:
     build: ./package/frontend
     container_name: open-ticket-frontend
     ports:
-      - "${FRONTEND_PORT:-4200}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
     depends_on:
       backend:
         condition: service_healthy

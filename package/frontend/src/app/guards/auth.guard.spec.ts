@@ -34,7 +34,6 @@ describe('Auth guard routing', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it.each([
-    '/overview',
     '/kanban',
     '/projects',
     '/workspace',

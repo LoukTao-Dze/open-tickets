@@ -14,7 +14,6 @@ import { ScenesModule } from './modules/scenes/scenes.module';
 //TODO: Uncomment these modules when ready to use Discord functionality
 // import { DiscordModule } from './modules/discord/discord.module';
 // import { MessageModule } from './modules/message/message.module';
-// import { GatewayModule } from './modules/gateway/gateway.module';
 
 @Module({
   imports: [
@@ -33,7 +32,6 @@ import { ScenesModule } from './modules/scenes/scenes.module';
     //TODO: Uncomment these modules when ready to use Discord functionality
     // DiscordModule,
     // MessageModule,
-    // GatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Client, GatewayIntentBits, Message } from 'discord.js';
-import { AppGateway } from '../gateway/gateway';
 import { MessageService } from '../message/message.service';
 
 export interface DiscordMessage {
@@ -16,7 +15,6 @@ export class DiscordService implements OnModuleInit {
   client: Client = null as any;
 
   constructor(
-    private gateway: AppGateway,
     private messageService: MessageService,
   ) {}
 
@@ -48,6 +46,5 @@ export class DiscordService implements OnModuleInit {
     };
 
     await this.messageService.save(data);
-    this.gateway.emitMessage(msg.channelId, data);
   }
 }

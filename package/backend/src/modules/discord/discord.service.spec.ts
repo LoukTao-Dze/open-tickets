@@ -1,11 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppGateway } from '../gateway/gateway';
 import { MessageService } from '../message/message.service';
 import { DiscordService } from './discord.service';
 
 describe('DiscordService', () => {
   let service: DiscordService;
-  const gateway = { emitMessage: jest.fn() };
   const messageService = { save: jest.fn() };
 
   beforeEach(async () => {
@@ -13,7 +11,6 @@ describe('DiscordService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DiscordService,
-        { provide: AppGateway, useValue: gateway },
         { provide: MessageService, useValue: messageService },
       ],
     }).compile();
@@ -46,10 +43,9 @@ describe('DiscordService', () => {
       await handleMessage(buildMessage(true));
 
       expect(messageService.save).not.toHaveBeenCalled();
-      expect(gateway.emitMessage).not.toHaveBeenCalled();
     });
 
-    it('should save and emit user messages', async () => {
+    it('should save user messages', async () => {
       const expected = {
         id: 'm1',
         channel_id: 'c1',
@@ -61,7 +57,6 @@ describe('DiscordService', () => {
       await handleMessage(buildMessage(false));
 
       expect(messageService.save).toHaveBeenCalledWith(expected);
-      expect(gateway.emitMessage).toHaveBeenCalledWith('c1', expected);
     });
   });
 });
