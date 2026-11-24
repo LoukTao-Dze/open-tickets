@@ -14,6 +14,11 @@
   }
 
   &.selection-mode {
+    cursor: default;
+  }
+
+  &.is-selecting,
+  &.is-selecting * {
     cursor: crosshair;
   }
 }
@@ -31,6 +36,40 @@
 .canvas-items {
   @apply absolute inset-0;
   transform-origin: 0 0;
+}
+
+.canvas-connections {
+  @apply absolute inset-0 w-full h-full overflow-visible pointer-events-none;
+}
+
+.canvas-connection {
+  fill: none;
+  stroke: #414752;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.canvas-connection.is-selected {
+  filter: drop-shadow(0 0 2px var(--mat-sys-primary, #a2c9ff));
+}
+
+.canvas-connection-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.canvas-connection-hit:focus-visible {
+  outline: none;
+  stroke: var(--mat-sys-primary, #a2c9ff);
+  stroke-opacity: 0.35;
+}
+
+.canvas-connection--preview {
+  stroke-dasharray: 6 4;
+  opacity: 0.65;
 }
 
 .canvas-item {
@@ -55,6 +94,59 @@
   }
 }
 
+.connection-anchor {
+  @apply absolute z-20 flex items-center justify-center rounded-full cursor-crosshair;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  transform: translate(-50%, -50%) scale(var(--item-control-scale, 1));
+
+  &::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--mat-sys-surface, #fff);
+    border-radius: 50%;
+    background: var(--mat-sys-primary, #a2c9ff);
+    transition: transform 120ms ease;
+  }
+
+  &:hover::before,
+  &:focus-visible::before,
+  &.connection-anchor--active::before {
+    transform: scale(1.25);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary, #a2c9ff);
+    outline-offset: 1px;
+  }
+}
+
+.connection-anchor--target {
+  pointer-events: none;
+}
+
+.connection-anchor--top {
+  top: 0;
+  left: 50%;
+}
+
+.connection-anchor--right {
+  top: 50%;
+  left: 100%;
+}
+
+.connection-anchor--bottom {
+  top: 100%;
+  left: 50%;
+}
+
+.connection-anchor--left {
+  top: 50%;
+  left: 0;
+}
+
 .selection-rectangle {
   @apply absolute border border-primary bg-primary/10 pointer-events-none;
   z-index: 2147483647;
@@ -76,7 +168,8 @@
   border-color: var(--group-color);
 }
 
-.selection-actions {
+.selection-actions,
+.connection-actions {
   @apply absolute z-50 flex items-center justify-center flex-wrap gap-2 border border-outline-variant rounded-xl bg-surface-container-high text-on-surface px-3 py-2 shadow-2xl text-sm;
   top: 5rem;
   left: 50%;
@@ -114,6 +207,21 @@
     padding: 2px;
     cursor: pointer;
   }
+}
+
+.connection-actions label {
+  @apply flex items-center gap-2;
+}
+
+.connection-actions input[type='color'] {
+  width: 2.5rem;
+  height: 2rem;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.connection-actions select {
+  @apply bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1;
 }
 
 .group-name-form {

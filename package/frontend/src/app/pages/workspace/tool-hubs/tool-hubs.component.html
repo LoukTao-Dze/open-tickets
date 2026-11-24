@@ -5,9 +5,21 @@
         type="button"
         class="tool-btn"
         [class.tool-btn--active]="interactionTool === tool.id"
-        [attr.aria-label]="tool.id === EnumWorkspaceItemType.SELECT ? 'Selection' : 'Pan board'"
+        [attr.aria-label]="
+          tool.id === EnumWorkspaceItemType.SELECT
+            ? 'Selection'
+            : tool.id === EnumWorkspaceItemType.CONNECT
+              ? 'Connect items'
+              : 'Pan board'
+        "
         [attr.aria-pressed]="interactionTool === tool.id"
-        [title]="tool.id === EnumWorkspaceItemType.SELECT ? 'Selection' : 'Pan board'"
+        [title]="
+          tool.id === EnumWorkspaceItemType.SELECT
+            ? 'Selection'
+            : tool.id === EnumWorkspaceItemType.CONNECT
+              ? 'Connect items'
+              : 'Pan board'
+        "
         (click)="selectTool(tool.id)"
       >
         <span class="material-symbols-outlined">{{ tool.icon }}</span>

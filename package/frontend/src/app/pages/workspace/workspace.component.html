@@ -1,6 +1,7 @@
 <main
   class="workspace-main"
   [class.selection-mode]="interactionTool === EnumWorkspaceItemType.SELECT"
+  [class.is-selecting]="isSelecting"
   [attr.aria-busy]="isSelectionBusy"
   #viewport
   (pointerdown)="onCanvasMouseDown($event)"
@@ -51,6 +52,68 @@
 
   <div class="workspace-viewport">
     <div class="canvas-items" [style.transform]="canvasTransform">
+      <svg class="canvas-connections">
+        <defs>
+          <marker
+            id="connection-arrow"
+            markerWidth="8"
+            markerHeight="8"
+            [attr.refX]="connectionArrowRefX"
+            refY="4"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0,0 L8,4 L0,8 Z" fill="#414752"></path>
+          </marker>
+          @for (connection of connectionPaths; track connection.id) {
+            <marker
+              [attr.id]="'connection-arrow-' + connection.id"
+              [attr.markerWidth]="connection.markerSize"
+              [attr.markerHeight]="connection.markerSize"
+              viewBox="0 0 8 8"
+              [attr.refX]="connectionArrowRefX"
+              refY="4"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path d="M0,0 L8,4 L0,8 Z" [attr.fill]="connection.color"></path>
+            </marker>
+          }
+        </defs>
+        @for (connection of connectionPaths; track connection.id) {
+          <path
+            class="canvas-connection-hit"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Edit connection appearance, ' +
+              connection.color +
+              ', ' +
+              connection.strokeWidth +
+              ' pixels'
+            "
+            [attr.aria-pressed]="connection.selected"
+            [attr.d]="connection.path"
+            (pointerdown)="selectConnection($event, connection.connection)"
+            (keydown)="onConnectionKeyDown($event, connection.connection)"
+          ></path>
+          <path
+            class="canvas-connection"
+            [class.is-selected]="connection.selected"
+            [style.stroke]="connection.color"
+            [style.strokeWidth]="connection.strokeWidth"
+            [attr.marker-end]="'url(#connection-arrow-' + connection.id + ')'"
+            [attr.d]="connection.path"
+          ></path>
+        }
+        @if (connectionPreviewPath) {
+          <path
+            class="canvas-connection canvas-connection--preview"
+            marker-end="url(#connection-arrow)"
+            [attr.d]="connectionPreviewPath"
+          ></path>
+        }
+      </svg>
       @for (frame of groupFrames; track frame.group.id) {
         <div
           class="group-frame"
@@ -98,6 +161,27 @@
             >
               <span class="material-symbols-outlined">delete</span>
             </button>
+            @if (isFocused(item) || connectionTarget?.item === item) {
+              @for (anchor of connectionAnchors; track anchor) {
+                <button
+                  type="button"
+                  class="connection-anchor"
+                  [class.connection-anchor--target]="connectionTarget?.item === item"
+                  [class.connection-anchor--active]="
+                    connectionTarget?.item === item && connectionTarget?.anchor === anchor
+                  "
+                  [class.connection-anchor--top]="anchor === 'top'"
+                  [class.connection-anchor--right]="anchor === 'right'"
+                  [class.connection-anchor--bottom]="anchor === 'bottom'"
+                  [class.connection-anchor--left]="anchor === 'left'"
+                  [attr.aria-label]="'Create connection from ' + anchor"
+                  [disabled]="connectionTarget?.item === item"
+                  [style.--item-control-scale]="1 / zoom"
+                  [style.zIndex]="item.zIndex + 2"
+                  (pointerdown)="onConnectionAnchorMouseDown($event, item, anchor)"
+                ></button>
+              }
+            }
           }
 
           @switch (item.type) {
@@ -149,6 +233,65 @@
     (interactionToolChange)="changeInteractionTool($event)"
     (insertItem)="onInsertItem($event)"
   ></app-tool-hubs>
+
+  @if (selectedConnection) {
+    <div
+      class="connection-actions"
+      role="toolbar"
+      aria-label="Connection appearance"
+      (pointerdown)="$event.stopPropagation()"
+    >
+      <label>
+        <span>Color</span>
+        <input
+          type="color"
+          name="connectionColor"
+          aria-label="Connection color"
+          [(ngModel)]="connectionColorDraft"
+          [disabled]="isReadOnly || isSelectionBusy"
+        />
+      </label>
+      <label>
+        <span>Thickness</span>
+        <select
+          name="connectionStrokeWidth"
+          aria-label="Connection thickness"
+          [(ngModel)]="connectionStrokeWidthDraft"
+          [disabled]="isReadOnly || isSelectionBusy"
+        >
+          <option [ngValue]="1">1 px</option>
+          <option [ngValue]="2">2 px</option>
+          <option [ngValue]="3">3 px</option>
+          <option [ngValue]="4">4 px</option>
+          <option [ngValue]="6">6 px</option>
+          <option [ngValue]="8">8 px</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        (click)="saveConnectionStyle()"
+        [disabled]="isReadOnly || isSelectionBusy"
+      >
+        Save
+      </button>
+      <button
+        type="button"
+        class="selection-delete"
+        (click)="deleteSelectedConnection()"
+        [disabled]="isReadOnly || isSelectionBusy"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>Delete line
+      </button>
+      <button
+        type="button"
+        aria-label="Close connection appearance"
+        (click)="clearSelection()"
+        [disabled]="isSelectionBusy"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+    </div>
+  }
 
   @if (selectedItems.length && !selectionBounds) {
     <div

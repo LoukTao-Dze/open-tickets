@@ -24,6 +24,11 @@ import {
   MoveCanvasGroupDto,
   UpdateCanvasGroupDto,
 } from './dto/canvas-selection.dto';
+import {
+  CanvasConnectionDto,
+  CanvasConnectionIdDto,
+  UpdateCanvasConnectionDto,
+} from './dto/canvas-connection.dto';
 
 const CANVAS_MUTATION_LIMIT = 120;
 
@@ -76,6 +81,53 @@ export class CanvasController {
       ...(await this.canvasService.getGroups(projectId)),
       canEdit: access === 'edit',
     };
+  }
+
+  @Get('connections')
+  @UseGuards(SessionGuard)
+  async getConnections(
+    @CurrentSession() session: AuthSession,
+    @Query('projectId') projectId: string,
+  ) {
+    await this.projectAccess.assertProjectAccess(
+      session.user.role,
+      projectId,
+      'view',
+    );
+    return this.canvasService.getConnections(projectId);
+  }
+
+  @Post('connections')
+  @UseGuards(SessionGuard)
+  async createConnection(
+    @Body() body: CanvasConnectionDto,
+    @CurrentSession() session: AuthSession,
+    @Req() request: Request,
+  ) {
+    await this.authorizeMutation(body.projectId, session, request);
+    return this.canvasService.createConnection(body);
+  }
+
+  @Post('connections/update')
+  @UseGuards(SessionGuard)
+  async updateConnectionStyle(
+    @Body() body: UpdateCanvasConnectionDto,
+    @CurrentSession() session: AuthSession,
+    @Req() request: Request,
+  ) {
+    await this.authorizeMutation(body.projectId, session, request);
+    return this.canvasService.updateConnectionStyle(body);
+  }
+
+  @Post('connections/delete')
+  @UseGuards(SessionGuard)
+  async deleteConnection(
+    @Body() body: CanvasConnectionIdDto,
+    @CurrentSession() session: AuthSession,
+    @Req() request: Request,
+  ) {
+    await this.authorizeMutation(body.projectId, session, request);
+    return this.canvasService.deleteConnection(body);
   }
 
   @Post('groups')

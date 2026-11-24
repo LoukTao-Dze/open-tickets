@@ -64,3 +64,6 @@ Thumbs.db
 # Documentation and GitHub instructions
 /docs/architecture.md
 /.github/copilot-instructions.md
+
+# Structure file
+/structure.md

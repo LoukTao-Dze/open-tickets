@@ -7,6 +7,12 @@ import {
   MoveCanvasGroupDto,
   UpdateCanvasGroupDto,
 } from './dto/canvas-selection.dto';
+import {
+  CanvasConnectionDto,
+  CanvasConnectionIdDto,
+  UpdateCanvasConnectionDto,
+} from './dto/canvas-connection.dto';
+import type { CanvasConnectionAnchor } from './dto/canvas-connection.dto';
 import { ConfigService } from '@nestjs/config';
 import { CreateCanvaDto } from './dto/create-canva.dto';
 import { UpdateCanvaDto } from './dto/update-canva.dto';
@@ -31,6 +37,19 @@ export interface CanvasGroupRecord {
   name: string;
   project_id: string;
   color: string;
+}
+
+export interface CanvasConnectionRecord {
+  id: number;
+  project_id: string;
+  source_item_id: number;
+  source_item_type: string;
+  source_anchor?: CanvasConnectionAnchor | null;
+  target_item_id: number;
+  target_item_type: string;
+  target_anchor?: CanvasConnectionAnchor | null;
+  color: string;
+  stroke_width: number;
 }
 
 const CANVAS_ITEM_TABLE_BY_TYPE: Record<string, string> = {
@@ -155,6 +174,102 @@ export class CanvasService {
       .returns<CanvasGroupRecord[]>();
     if (error) this.throwSelectionError(error);
     return { data };
+  }
+
+  async getConnections(projectId: string) {
+    if (!projectId) {
+      throw new BadRequestException('projectId is required');
+    }
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('canvas_connections')
+      .select('*')
+      .eq('project_id', projectId)
+      .returns<CanvasConnectionRecord[]>();
+    if (error) this.throwSelectionError(error);
+    return {
+      data: (data ?? []).map((connection) =>
+        this.toCanvasConnection(connection),
+      ),
+    };
+  }
+
+  async createConnection(body: CanvasConnectionDto) {
+    if (
+      body.sourceItemId === body.targetItemId &&
+      body.sourceItemType === body.targetItemType
+    ) {
+      throw new BadRequestException('Cannot connect an item to itself');
+    }
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .rpc('create_canvas_connection_with_anchors', {
+        p_project_id: body.projectId,
+        p_source_item_id: body.sourceItemId,
+        p_source_item_type: body.sourceItemType,
+        p_source_anchor: body.sourceAnchor ?? null,
+        p_target_item_id: body.targetItemId,
+        p_target_item_type: body.targetItemType,
+        p_target_anchor: body.targetAnchor ?? null,
+      })
+      .overrideTypes<CanvasConnectionRecord[], { merge: false }>();
+    if (error) this.throwSelectionError(error);
+    const connection = data?.[0];
+    if (!connection)
+      throw new ConflictException(
+        'Canvas items changed. Reload the board and try again.',
+      );
+    return {
+      data: this.toCanvasConnection(connection),
+    };
+  }
+
+  async updateConnectionStyle(body: UpdateCanvasConnectionDto) {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('canvas_connections')
+      .update({
+        color: body.color.toLowerCase(),
+        stroke_width: body.strokeWidth,
+      })
+      .eq('project_id', body.projectId)
+      .eq('id', body.connectionId)
+      .select('*')
+      .single<CanvasConnectionRecord>();
+    if (error) this.throwSelectionError(error);
+    if (!data)
+      throw new ConflictException('Canvas connection no longer exists');
+    return { data: this.toCanvasConnection(data) };
+  }
+
+  async deleteConnection(body: CanvasConnectionIdDto) {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('canvas_connections')
+      .delete()
+      .eq('project_id', body.projectId)
+      .eq('id', body.connectionId)
+      .select('id')
+      .single<{ id: number }>();
+    if (error) this.throwSelectionError(error);
+    if (!data)
+      throw new ConflictException('Canvas connection no longer exists');
+    return { id: data.id };
+  }
+
+  private toCanvasConnection(connection: CanvasConnectionRecord) {
+    return {
+      id: connection.id,
+      projectId: connection.project_id,
+      sourceItemId: connection.source_item_id,
+      sourceItemType: connection.source_item_type,
+      sourceAnchor: connection.source_anchor ?? null,
+      targetItemId: connection.target_item_id,
+      targetItemType: connection.target_item_type,
+      targetAnchor: connection.target_anchor ?? null,
+      color: connection.color,
+      strokeWidth: connection.stroke_width,
+    };
   }
 
   async createGroup(body: CreateCanvasGroupDto) {

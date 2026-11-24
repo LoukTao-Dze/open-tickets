@@ -86,3 +86,18 @@ export interface Whiteboard {
   name: string;
   items: WorkspaceCanvasItem[];
 }
+
+export type CanvasConnectionAnchor = 'top' | 'right' | 'bottom' | 'left';
+
+export interface CanvasConnection {
+  id: number;
+  projectId: string;
+  sourceItemId: number;
+  sourceItemType: CanvasItemType;
+  sourceAnchor: CanvasConnectionAnchor | null;
+  targetItemId: number;
+  targetItemType: CanvasItemType;
+  targetAnchor: CanvasConnectionAnchor | null;
+  color: string;
+  strokeWidth: number;
+}

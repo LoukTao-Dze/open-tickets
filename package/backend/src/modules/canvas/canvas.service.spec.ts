@@ -24,7 +24,10 @@ describe('CanvasService', () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     singleResult = { data: { id: '1' }, error: null };
     rpcResult = { data: null, error: null };
-    client.rpc.mockReturnValue({ returns: () => Promise.resolve(rpcResult) });
+    client.rpc.mockReturnValue({
+      returns: () => Promise.resolve(rpcResult),
+      overrideTypes: () => Promise.resolve(rpcResult),
+    });
     client.from.mockReturnValue(queryBuilder);
     queryBuilder.upsert.mockReturnValue(queryBuilder);
     queryBuilder.select.mockReturnValue(queryBuilder);
@@ -130,6 +133,139 @@ describe('CanvasService', () => {
         projectId: 'p1',
         zIndex: 1,
         type: 'sticky-note',
+      });
+    });
+
+    describe('connections', () => {
+      it('loads project connections using camelCase response fields', async () => {
+        const connection = {
+          id: 8,
+          project_id: 'p1',
+          source_item_id: 1,
+          source_item_type: 'text',
+          source_anchor: null,
+          target_item_id: 2,
+          target_item_type: 'sticky-note',
+          target_anchor: 'bottom',
+          color: '#414752',
+          stroke_width: 2,
+        };
+        const builder = {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          returns: jest
+            .fn()
+            .mockResolvedValue({ data: [connection], error: null }),
+        };
+        client.from.mockReturnValue(builder);
+
+        await expect(service.getConnections('p1')).resolves.toEqual({
+          data: [
+            {
+              id: 8,
+              projectId: 'p1',
+              sourceItemId: 1,
+              sourceItemType: 'text',
+              sourceAnchor: null,
+              targetItemId: 2,
+              targetItemType: 'sticky-note',
+              targetAnchor: 'bottom',
+              color: '#414752',
+              strokeWidth: 2,
+            },
+          ],
+        });
+        expect(client.from).toHaveBeenCalledWith('canvas_connections');
+        expect(builder.eq).toHaveBeenCalledWith('project_id', 'p1');
+        await expect(service.getConnections('')).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('creates a connection through the project-validating database function', async () => {
+        const connection = {
+          id: 8,
+          project_id: 'p1',
+          source_item_id: 1,
+          source_item_type: 'text',
+          source_anchor: 'top',
+          target_item_id: 2,
+          target_item_type: 'sticky-note',
+          target_anchor: 'bottom',
+          color: '#414752',
+          stroke_width: 2,
+        };
+        rpcResult = { data: [connection], error: null };
+        await expect(
+          service.createConnection({
+            projectId: 'p1',
+            sourceItemId: 1,
+            sourceItemType: 'text',
+            sourceAnchor: 'top',
+            targetItemId: 2,
+            targetItemType: 'sticky-note',
+            targetAnchor: 'bottom',
+          }),
+        ).resolves.toEqual({
+          data: {
+            id: 8,
+            projectId: 'p1',
+            sourceItemId: 1,
+            sourceItemType: 'text',
+            sourceAnchor: 'top',
+            targetItemId: 2,
+            targetItemType: 'sticky-note',
+            targetAnchor: 'bottom',
+            color: '#414752',
+            strokeWidth: 2,
+          },
+        });
+        expect(client.rpc).toHaveBeenCalledWith(
+          'create_canvas_connection_with_anchors',
+          {
+            p_project_id: 'p1',
+            p_source_item_id: 1,
+            p_source_item_type: 'text',
+            p_source_anchor: 'top',
+            p_target_item_id: 2,
+            p_target_item_type: 'sticky-note',
+            p_target_anchor: 'bottom',
+          },
+        );
+        rpcResult = {
+          data: [{ ...connection, source_anchor: null, target_anchor: null }],
+          error: null,
+        };
+        await expect(
+          service.createConnection({
+            projectId: 'p1',
+            sourceItemId: 1,
+            sourceItemType: 'text',
+            targetItemId: 2,
+            targetItemType: 'sticky-note',
+          }),
+        ).resolves.toMatchObject({ data: { sourceAnchor: null } });
+        expect(client.rpc).toHaveBeenLastCalledWith(
+          'create_canvas_connection_with_anchors',
+          {
+            p_project_id: 'p1',
+            p_source_item_id: 1,
+            p_source_item_type: 'text',
+            p_source_anchor: null,
+            p_target_item_id: 2,
+            p_target_item_type: 'sticky-note',
+            p_target_anchor: null,
+          },
+        );
+        await expect(
+          service.createConnection({
+            projectId: 'p1',
+            sourceItemId: 1,
+            sourceItemType: 'text',
+            targetItemId: 1,
+            targetItemType: 'text',
+          }),
+        ).rejects.toThrow(BadRequestException);
       });
     });
 
@@ -381,5 +517,72 @@ describe('CanvasService', () => {
         service.ungroup({ projectId: 'p1', groupId: 7 }),
       ).rejects.toThrow(InternalServerErrorException);
     });
+  });
+
+  it('updates connection color and thickness within the project', async () => {
+    const connection = {
+      id: 8,
+      project_id: 'p1',
+      source_item_id: 1,
+      source_item_type: 'text',
+      source_anchor: null,
+      target_item_id: 2,
+      target_item_type: 'sticky-note',
+      target_anchor: null,
+      color: '#ff0000',
+      stroke_width: 4,
+    };
+    const builder = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: connection, error: null }),
+    };
+    client.from.mockReturnValue(builder);
+
+    await expect(
+      service.updateConnectionStyle({
+        projectId: 'p1',
+        connectionId: 8,
+        color: '#FF0000',
+        strokeWidth: 4,
+      }),
+    ).resolves.toEqual({
+      data: {
+        id: 8,
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: 'text',
+        sourceAnchor: null,
+        targetItemId: 2,
+        targetItemType: 'sticky-note',
+        targetAnchor: null,
+        color: '#ff0000',
+        strokeWidth: 4,
+      },
+    });
+    expect(builder.update).toHaveBeenCalledWith({
+      color: '#ff0000',
+      stroke_width: 4,
+    });
+    expect(builder.eq).toHaveBeenCalledWith('project_id', 'p1');
+    expect(builder.eq).toHaveBeenCalledWith('id', 8);
+  });
+
+  it('deletes only the project-scoped connection', async () => {
+    const builder = {
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 8 }, error: null }),
+    };
+    client.from.mockReturnValue(builder);
+
+    await expect(
+      service.deleteConnection({ projectId: 'p1', connectionId: 8 }),
+    ).resolves.toEqual({ id: 8 });
+    expect(client.from).toHaveBeenCalledWith('canvas_connections');
+    expect(builder.eq).toHaveBeenCalledWith('project_id', 'p1');
+    expect(builder.eq).toHaveBeenCalledWith('id', 8);
   });
 });

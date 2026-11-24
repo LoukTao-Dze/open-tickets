@@ -18,6 +18,11 @@ import {
   UpdateCanvasGroupDto,
   CanvasGroupDto,
 } from './dto/canvas-selection.dto';
+import {
+  CanvasConnectionDto,
+  CanvasConnectionIdDto,
+  UpdateCanvasConnectionDto,
+} from './dto/canvas-connection.dto';
 
 describe('CanvasController', () => {
   let controller: CanvasController;
@@ -29,6 +34,10 @@ describe('CanvasController', () => {
     createGroup: jest.fn(),
     moveGroup: jest.fn(),
     getGroups: jest.fn(),
+    getConnections: jest.fn(),
+    createConnection: jest.fn(),
+    updateConnectionStyle: jest.fn(),
+    deleteConnection: jest.fn(),
     updateGroup: jest.fn(),
     ungroup: jest.fn(),
   };
@@ -88,12 +97,97 @@ describe('CanvasController', () => {
     await expect(controller.getCanvasItem(session, 'p1')).resolves.toEqual({
       data: [{ projectId: 'p1' }],
     });
+
     expect(canvasService.getCanvasItem).toHaveBeenCalledWith('p1');
     expect(projectAccess.filterByProject).toHaveBeenCalledWith(
       EnumUserRole.GUEST,
       items,
       expect.any(Function),
     );
+  });
+
+  it('authorizes connection reads and creation against the project', async () => {
+    const body = {
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: 'text',
+      targetItemId: 2,
+      targetItemType: 'sticky-note',
+    };
+    canvasService.getConnections.mockResolvedValue({ data: [] });
+    canvasService.createConnection.mockResolvedValue({ data: { id: 9 } });
+    await expect(controller.getConnections(session, 'p1')).resolves.toEqual({
+      data: [],
+    });
+    await expect(
+      controller.createConnection(body, session, request),
+    ).resolves.toEqual({ data: { id: 9 } });
+    expect(projectAccess.assertProjectAccess).toHaveBeenNthCalledWith(
+      1,
+      EnumUserRole.GUEST,
+      'p1',
+      'view',
+    );
+    expect(projectAccess.assertProjectAccess).toHaveBeenNthCalledWith(
+      2,
+      EnumUserRole.GUEST,
+      'p1',
+      'edit',
+    );
+    expect(canvasService.createConnection).toHaveBeenCalledWith(body);
+  });
+
+  it('denies connection creation without edit access', async () => {
+    projectAccess.assertProjectAccess.mockRejectedValue(
+      new ForbiddenException(),
+    );
+    await expect(
+      controller.createConnection(
+        {
+          projectId: 'p1',
+          sourceItemId: 1,
+          sourceItemType: 'text',
+          targetItemId: 2,
+          targetItemType: 'text',
+        },
+        session,
+        request,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(canvasService.createConnection).not.toHaveBeenCalled();
+  });
+
+  it('authorizes connection style updates and deletion', async () => {
+    const style = {
+      projectId: 'p1',
+      connectionId: 8,
+      color: '#ff0000',
+      strokeWidth: 4,
+    };
+    const deletion = { projectId: 'p1', connectionId: 8 };
+    canvasService.updateConnectionStyle.mockResolvedValue({ data: style });
+    canvasService.deleteConnection.mockResolvedValue({ id: 8 });
+
+    await expect(
+      controller.updateConnectionStyle(style, session, request),
+    ).resolves.toEqual({ data: style });
+    await expect(
+      controller.deleteConnection(deletion, session, request),
+    ).resolves.toEqual({ id: 8 });
+    expect(projectAccess.assertProjectAccess).toHaveBeenNthCalledWith(
+      1,
+      EnumUserRole.GUEST,
+      'p1',
+      'edit',
+    );
+    expect(projectAccess.assertProjectAccess).toHaveBeenNthCalledWith(
+      2,
+      EnumUserRole.GUEST,
+      'p1',
+      'edit',
+    );
+    expect(canvasService.updateConnectionStyle).toHaveBeenCalledWith(style);
+    expect(canvasService.deleteConnection).toHaveBeenCalledWith(deletion);
   });
 
   it('should delegate deleteCanvasItem to the service', () => {
@@ -261,6 +355,97 @@ describe('CanvasController', () => {
         pipe.transform(
           { projectId: 'p1', groupId: 1, dx: Infinity, dy: 0 },
           { type: 'body', metatype: MoveCanvasGroupDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('validates connection endpoint IDs and item types', async () => {
+      const body = {
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: 'text',
+        targetItemId: 2,
+        targetItemType: 'sticky-note',
+      };
+      await expect(
+        pipe.transform(body, {
+          type: 'body',
+          metatype: CanvasConnectionDto,
+        }),
+      ).resolves.toMatchObject(body);
+      await expect(
+        pipe.transform(
+          { ...body, sourceAnchor: 'top' },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).resolves.toMatchObject({ ...body, sourceAnchor: 'top' });
+      await expect(
+        pipe.transform(
+          { ...body, targetAnchor: 'bottom' },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).resolves.toMatchObject({ ...body, targetAnchor: 'bottom' });
+      await expect(
+        pipe.transform(
+          { ...body, targetAnchor: 'center' },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        pipe.transform(
+          { ...body, sourceAnchor: null },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).resolves.toMatchObject({ ...body, sourceAnchor: null });
+      await expect(
+        pipe.transform(
+          { ...body, sourceAnchor: 'center' },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        pipe.transform(
+          { ...body, targetItemId: 0 },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        pipe.transform(
+          { ...body, targetItemType: 'connect' },
+          { type: 'body', metatype: CanvasConnectionDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('validates connection IDs, colors, and thickness boundaries', async () => {
+      const body = {
+        projectId: 'p1',
+        connectionId: 8,
+        color: '#AABBCC',
+        strokeWidth: 4,
+      };
+      await expect(
+        pipe.transform(body, {
+          type: 'body',
+          metatype: UpdateCanvasConnectionDto,
+        }),
+      ).resolves.toMatchObject(body);
+      await expect(
+        pipe.transform(
+          { ...body, strokeWidth: 0 },
+          { type: 'body', metatype: UpdateCanvasConnectionDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        pipe.transform(
+          { ...body, strokeWidth: 9 },
+          { type: 'body', metatype: UpdateCanvasConnectionDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        pipe.transform(
+          { projectId: 'p1', connectionId: 0 },
+          { type: 'body', metatype: CanvasConnectionIdDto },
         ),
       ).rejects.toThrow(BadRequestException);
     });

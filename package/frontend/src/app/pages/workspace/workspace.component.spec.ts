@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { STICKY_NOTE_COLOR_OPTIONS } from '../../shared/sticky-note-colors';
 import { WorkspaceComponent } from './workspace.component';
+import { routeCanvasConnection } from './connection-routing.util';
 
 const CANVAS_URL = `${environment.apiBaseUrl}/api/canvas`;
 const GROUP = { id: 7, name: 'Group-7', project_id: 'p1', color: '#414752' };
@@ -62,6 +63,7 @@ describe('Workspace selection', () => {
     });
     http.expectOne(`${CANVAS_URL}/get-canvas-item?projectId=p1`).flush({ data: [] });
     http.expectOne(`${CANVAS_URL}/groups?projectId=p1`).flush({ data: [], canEdit: true });
+    http.expectOne(`${CANVAS_URL}/connections?projectId=p1`).flush({ data: [] });
     vi.spyOn(component.viewportRef.nativeElement, 'getBoundingClientRect').mockReturnValue(
       new DOMRect(40, 60, 800, 600),
     );
@@ -95,42 +97,245 @@ describe('Workspace selection', () => {
     [EnumWorkspaceItemType.MARKDOWN, '.markdown-source', 'content'],
     [EnumWorkspaceItemType.CODE_SNIPPET, '.code-snippet-filename-input', 'fileName'],
     [EnumWorkspaceItemType.CODE_SNIPPET, '.cm-content', 'code'],
-  ] as const)('saves %s %s immediately on focusout without pointer interaction', async (type, selector, field) => {
-    vi.useFakeTimers();
-    component.onInsertItem({ type, color: STICKY_NOTE_COLOR_OPTIONS[0] });
-    vi.advanceTimersByTime(500);
-    http.expectOne(`${CANVAS_URL}/save-canvas-item`).flush({ data: { id: 1 } });
-    await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
-    fixture.detectChanges();
-    const item = component.canvasList[0];
-    if (type === EnumWorkspaceItemType.LINK || type === EnumWorkspaceItemType.MARKDOWN) {
-      const preview: HTMLElement = fixture.nativeElement.querySelector(
-        type === EnumWorkspaceItemType.LINK ? '.link-card' : '.markdown-preview',
-      );
-      preview.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  ] as const)(
+    'saves %s %s immediately on focusout without pointer interaction',
+    async (type, selector, field) => {
+      vi.useFakeTimers();
+      component.onInsertItem({ type, color: STICKY_NOTE_COLOR_OPTIONS[0] });
+      vi.advanceTimersByTime(500);
+      http.expectOne(`${CANVAS_URL}/save-canvas-item`).flush({ data: { id: 1 } });
+      await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
       fixture.detectChanges();
-      await Promise.resolve();
-    }
-    const editor: HTMLElement = fixture.nativeElement.querySelector(selector);
-    const value = 'Updated value';
-    if (selector === '.cm-content') {
-      const view = EditorView.findFromDOM(editor)!;
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
-    } else {
-      if (editor instanceof HTMLInputElement || editor instanceof HTMLTextAreaElement) {
-        editor.value = value;
-      } else {
-        editor.textContent = value;
+      const item = component.canvasList[0];
+      if (type === EnumWorkspaceItemType.LINK || type === EnumWorkspaceItemType.MARKDOWN) {
+        const preview: HTMLElement = fixture.nativeElement.querySelector(
+          type === EnumWorkspaceItemType.LINK ? '.link-card' : '.markdown-preview',
+        );
+        preview.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        fixture.detectChanges();
+        await Promise.resolve();
       }
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      const editor: HTMLElement = fixture.nativeElement.querySelector(selector);
+      const value = 'Updated value';
+      if (selector === '.cm-content') {
+        const view = EditorView.findFromDOM(editor)!;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+      } else {
+        if (editor instanceof HTMLInputElement || editor instanceof HTMLTextAreaElement) {
+          editor.value = value;
+        } else {
+          editor.textContent = value;
+        }
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      http.expectNone(`${CANVAS_URL}/save-canvas-item`);
+      editor.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      const request = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
+      expect(request.request.body).toMatchObject({ id: 1, type, [field]: value });
+      request.flush({ data: { id: 1 } });
+      await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
+      expect(component.canvasList[0]).toBe(item);
+    },
+  );
+
+  it('keeps both anchors fixed and routes around the items as the source moves', () => {
+    const source = textItem(1, 100, 200);
+    const target = textItem(2, 300, 200);
+    component.activeWhiteboard.items = [source, target];
+    component.connections = [
+      {
+        id: 21,
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: EnumWorkspaceItemType.TEXT,
+        sourceAnchor: 'right',
+        targetItemId: 2,
+        targetItemType: EnumWorkspaceItemType.TEXT,
+        targetAnchor: 'left',
+        color: '#414752',
+        strokeWidth: 2,
+      },
+    ];
+
+    for (const [x, y] of [
+      [100, 200],
+      [400, 200],
+      [300, 100],
+      [300, 300],
+    ]) {
+      source.x = x;
+      source.y = y;
+      const path = component.connectionPaths[0].path;
+      expect(path).not.toContain('L');
+      const tokens = path.split(' ');
+      const points = [{ x: Number(tokens[1]), y: Number(tokens[2]) }];
+      for (let index = 3; index < tokens.length; index += 2) {
+        const previous = points[points.length - 1];
+        points.push(
+          tokens[index] === 'H'
+            ? { x: Number(tokens[index + 1]), y: previous.y }
+            : { x: previous.x, y: Number(tokens[index + 1]) },
+        );
+      }
+      expect(points[0]).toEqual({ x: source.x + source.width, y: source.y + source.height / 2 });
+      expect(points[1].x).toBeGreaterThan(points[0].x);
+      expect(points[points.length - 1]).toEqual({ x: target.x, y: target.y + target.height / 2 });
+      expect(points[points.length - 2].x).toBeLessThan(target.x);
+      for (let index = 1; index < points.length; index++) {
+        const start = points[index - 1];
+        const end = points[index];
+        for (const item of [source, target]) {
+          const crosses =
+            start.x === end.x
+              ? start.x > item.x &&
+                start.x < item.x + item.width &&
+                Math.max(start.y, end.y) > item.y &&
+                Math.min(start.y, end.y) < item.y + item.height
+              : start.y > item.y &&
+                start.y < item.y + item.height &&
+                Math.max(start.x, end.x) > item.x &&
+                Math.min(start.x, end.x) < item.x + item.width;
+          expect(crosses).toBe(false);
+        }
+      }
     }
-    http.expectNone(`${CANVAS_URL}/save-canvas-item`);
-    editor.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
-    const request = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
-    expect(request.request.body).toMatchObject({ id: 1, type, [field]: value });
-    request.flush({ data: { id: 1 } });
-    await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
-    expect(component.canvasList[0]).toBe(item);
+  });
+
+  it('finds an unobstructed route for every anchor pair when items do not overlap', () => {
+    const source = textItem(1, 100, 100);
+    const anchors = ['top', 'right', 'bottom', 'left'] as const;
+    for (const [x, y] of [
+      [300, 100],
+      [0, 100],
+      [100, 300],
+      [100, 0],
+      [300, 300],
+      [0, 0],
+      [151, 100],
+      [100, 151],
+    ]) {
+      const target = textItem(2, x, y);
+      for (const sourceAnchor of anchors) {
+        for (const targetAnchor of anchors) {
+          expect(
+            routeCanvasConnection(source, target, sourceAnchor, targetAnchor),
+            `target ${x},${y}: ${sourceAnchor} to ${targetAnchor}`,
+          ).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  it.each(['top', 'right', 'bottom', 'left'] as const)(
+    'keeps the final segment behind the arrow on the %s side as the line gets thicker',
+    (targetAnchor) => {
+      component.activeWhiteboard.items = [textItem(1, 400, 100), textItem(2, 100, 100)];
+      const connection = {
+        id: 21,
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: EnumWorkspaceItemType.TEXT,
+        sourceAnchor: 'right' as const,
+        targetItemId: 2,
+        targetItemType: EnumWorkspaceItemType.TEXT,
+        targetAnchor,
+        color: '#414752',
+        strokeWidth: 2,
+      };
+      component.connections = [connection];
+
+      for (const strokeWidth of [2, 8]) {
+        connection.strokeWidth = strokeWidth;
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        const path: SVGPathElement = fixture.nativeElement.querySelector('.canvas-connection');
+        const marker: SVGMarkerElement =
+          fixture.nativeElement.querySelector('#connection-arrow-21');
+        const tokens = path.getAttribute('d')!.split(' ');
+        const points = [{ x: Number(tokens[1]), y: Number(tokens[2]) }];
+        for (let index = 3; index < tokens.length; index += 2) {
+          const previous = points[points.length - 1];
+          points.push(
+            tokens[index] === 'H'
+              ? { x: Number(tokens[index + 1]), y: previous.y }
+              : { x: previous.x, y: Number(tokens[index + 1]) },
+          );
+        }
+        const end = points[points.length - 1];
+        const beforeEnd = points[points.length - 2];
+        const finalSegment = Math.abs(end.x - beforeEnd.x) + Math.abs(end.y - beforeEnd.y);
+        const targetPoints = {
+          top: { x: 125, y: 100 },
+          right: { x: 150, y: 125 },
+          bottom: { x: 125, y: 150 },
+          left: { x: 100, y: 125 },
+        };
+        expect(end).toEqual(targetPoints[targetAnchor]);
+        expect(marker.querySelector('path')?.getAttribute('d')).toContain(
+          `L${marker.getAttribute('refX')},4`,
+        );
+        expect(finalSegment).toBeGreaterThan(Number(marker.getAttribute('refX')) * strokeWidth);
+      }
+    },
+  );
+
+  it('scales the arrow down when there is not enough room between items', () => {
+    component.activeWhiteboard.items = [textItem(1, 100, 100), textItem(2, 151, 100)];
+    component.connections = [
+      {
+        id: 21,
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: EnumWorkspaceItemType.TEXT,
+        sourceAnchor: 'right',
+        targetItemId: 2,
+        targetItemType: EnumWorkspaceItemType.TEXT,
+        targetAnchor: 'left',
+        color: '#414752',
+        strokeWidth: 8,
+      },
+    ];
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+
+    const path: SVGPathElement = fixture.nativeElement.querySelector('.canvas-connection');
+    const marker: SVGMarkerElement = fixture.nativeElement.querySelector('#connection-arrow-21');
+    expect(path.getAttribute('d')).toBe('M 150 125 H 151');
+    expect(Number(marker.getAttribute('markerWidth'))).toBeLessThan(8);
+    expect(Number(marker.getAttribute('markerWidth')) * 8).toBeLessThan(1);
+  });
+
+  it.each([null, 'right'] as const)(
+    'fits the arrow on a legacy connection without a target anchor (source: %s)',
+    (sourceAnchor) => {
+      component.activeWhiteboard.items = [textItem(1, 100, 100), textItem(2, 151, 100)];
+      component.connections = [
+        {
+          id: 21,
+          projectId: 'p1',
+          sourceItemId: 1,
+          sourceItemType: EnumWorkspaceItemType.TEXT,
+          sourceAnchor,
+          targetItemId: 2,
+          targetItemType: EnumWorkspaceItemType.TEXT,
+          targetAnchor: null,
+          color: '#414752',
+          strokeWidth: 8,
+        },
+      ];
+      fixture.changeDetectorRef.markForCheck();
+      fixture.detectChanges();
+
+      const marker: SVGMarkerElement = fixture.nativeElement.querySelector('#connection-arrow-21');
+      expect(Number(marker.getAttribute('markerWidth')) * 8).toBeLessThan(0.5);
+    },
+  );
+
+  it('aligns the preview arrow tip with its endpoint', () => {
+    const marker: SVGMarkerElement = fixture.nativeElement.querySelector('#connection-arrow');
+    expect(marker.querySelector('path')?.getAttribute('d')).toContain(
+      `L${marker.getAttribute('refX')},4`,
+    );
   });
 
   it('saves the blurred item rather than the newly selected item and cancels its delayed save', async () => {
@@ -208,6 +413,499 @@ describe('Workspace selection', () => {
     selectTool();
     expect(component.interactionTool).toBe(EnumWorkspaceItemType.SELECT);
   });
+
+  it('creates a routed connection by dragging from one saved item to another', async () => {
+    const source = textItem(1, 100, 100);
+    const target = textItem(2, 300, 200);
+    component.activeWhiteboard.items = [source, target];
+    component.zoom = 1;
+    component.panX = 0;
+    component.panY = 0;
+    component.changeInteractionTool(EnumWorkspaceItemType.CONNECT);
+
+    component.onItemMouseDown(pointer('pointerdown', 165, 185), source);
+    component.onDocumentMouseMove(pointer('pointermove', 365, 285));
+    expect(component.connectionPreviewPath).toContain('H');
+    component.onDocumentMouseUp(pointer('pointerup', 365, 285));
+    expect(component.isSelectionBusy).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const request = http.expectOne(`${CANVAS_URL}/connections`);
+    expect(request.request.body).toEqual({
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: EnumWorkspaceItemType.TEXT,
+      sourceAnchor: 'right',
+      targetItemId: 2,
+      targetItemType: EnumWorkspaceItemType.TEXT,
+      targetAnchor: 'top',
+    });
+    request.flush({
+      data: {
+        id: 8,
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: EnumWorkspaceItemType.TEXT,
+        sourceAnchor: 'right',
+        targetItemId: 2,
+        targetItemType: EnumWorkspaceItemType.TEXT,
+        targetAnchor: 'top',
+        color: '#414752',
+        strokeWidth: 2,
+      },
+    });
+    await vi.waitFor(() => expect(component.connections).toHaveLength(1));
+
+    expect(component.connectionPaths).toEqual([
+      {
+        id: 8,
+        path: 'M 150 125 H 325 V 200',
+        connection: {
+          id: 8,
+          projectId: 'p1',
+          sourceItemId: 1,
+          sourceItemType: EnumWorkspaceItemType.TEXT,
+          sourceAnchor: 'right',
+          targetItemId: 2,
+          targetItemType: EnumWorkspaceItemType.TEXT,
+          targetAnchor: 'top',
+          color: '#414752',
+          strokeWidth: 2,
+        },
+        color: '#414752',
+        strokeWidth: 2,
+        markerSize: 8,
+        selected: false,
+      },
+    ]);
+  });
+
+  it('starts a connection from the focused item anchor that was clicked', async () => {
+    const source = textItem(1, 100, 100);
+    const target = textItem(2, 300, 200);
+    component.activeWhiteboard.items = [source, target];
+    component.focusedItem = source;
+    component.zoom = 1;
+    component.panX = 0;
+    component.panY = 0;
+    fixture.changeDetectorRef.detectChanges();
+
+    const anchors = fixture.nativeElement.querySelectorAll('.connection-anchor');
+    expect(anchors).toHaveLength(4);
+    const topAnchor: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Create connection from top"]',
+    );
+    const expectedStarts = [
+      ['top', 'M 125 100'],
+      ['right', 'M 150 125'],
+      ['bottom', 'M 125 150'],
+      ['left', 'M 100 125'],
+    ] as const;
+    for (const [anchor, expectedStart] of expectedStarts) {
+      fixture.nativeElement
+        .querySelector(`[aria-label="Create connection from ${anchor}"]`)
+        .dispatchEvent(pointer('pointerdown', 165, 160));
+      expect(component.connectionPreviewPath).toContain(expectedStart);
+      component.onDocumentMouseUp(pointer('pointercancel', 165, 160));
+    }
+
+    topAnchor.dispatchEvent(pointer('pointerdown', 165, 160));
+    expect(component.connectionPreviewPath).toBe('M 125 100 V 100 H 125 V 100');
+
+    component.onDocumentMouseMove(pointer('pointermove', 365, 285));
+    expect(component.connectionPreviewPath).toBe('M 125 100 V 80 H 325 V 200');
+    component.onDocumentMouseUp(pointer('pointerup', 365, 285));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const request = http.expectOne(`${CANVAS_URL}/connections`);
+    expect(request.request.body).toEqual({
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: EnumWorkspaceItemType.TEXT,
+      sourceAnchor: 'top',
+      targetItemId: 2,
+      targetItemType: EnumWorkspaceItemType.TEXT,
+      targetAnchor: 'top',
+    });
+    request.flush({
+      data: {
+        id: 21,
+        projectId: 'p1',
+        sourceItemId: 1,
+        sourceItemType: EnumWorkspaceItemType.TEXT,
+        sourceAnchor: 'top',
+        targetItemId: 2,
+        targetItemType: EnumWorkspaceItemType.TEXT,
+        targetAnchor: 'top',
+        color: '#414752',
+        strokeWidth: 2,
+      },
+    });
+    await vi.waitFor(() => expect(component.connections).toHaveLength(1));
+    expect(component.connectionPaths[0].path).toBe('M 125 100 V 80 H 325 V 200');
+  });
+
+  it.each([
+    ['right', 'top', 'M 150 125 H 325 V 200'],
+    ['right', 'left', 'M 150 125 H 225 V 225 H 300'],
+    ['bottom', 'left', 'M 125 150 V 225 H 300'],
+    ['bottom', 'top', 'M 125 150 V 175 H 325 V 200'],
+    ['right', 'right', 'M 150 125 H 370 V 225 H 350'],
+    ['top', 'top', 'M 125 100 V 80 H 325 V 200'],
+  ] as const)(
+    'uses the necessary right-angle bends from %s to %s',
+    (sourceAnchor, targetAnchor, expectedPath) => {
+      component.activeWhiteboard.items = [textItem(1, 100, 100), textItem(2, 300, 200)];
+      component.connections = [
+        {
+          id: 21,
+          projectId: 'p1',
+          sourceItemId: 1,
+          sourceItemType: EnumWorkspaceItemType.TEXT,
+          sourceAnchor,
+          targetItemId: 2,
+          targetItemType: EnumWorkspaceItemType.TEXT,
+          targetAnchor,
+          color: '#414752',
+          strokeWidth: 2,
+        },
+      ];
+
+      expect(component.connectionPaths[0].path).toBe(expectedPath);
+    },
+  );
+
+  it('shows target anchors and snaps to the selected side while dragging', async () => {
+    const source = textItem(1, 100, 100);
+    const target = textItem(2, 300, 200);
+    component.activeWhiteboard.items = [source, target];
+    component.focusedItem = source;
+    component.zoom = 1;
+    component.panX = 0;
+    component.panY = 0;
+    fixture.changeDetectorRef.detectChanges();
+
+    fixture.nativeElement
+      .querySelector('[aria-label="Create connection from right"]')
+      .dispatchEvent(pointer('pointerdown', 190, 185));
+    const targetSides = [
+      ['top', 365, 260, 'V 200'],
+      ['right', 390, 285, 'H 350'],
+      ['bottom', 365, 310, 'V 250'],
+      ['left', 340, 285, 'H 300'],
+    ] as const;
+    for (const [anchor, x, y, endpoint] of targetSides) {
+      component.onDocumentMouseMove(pointer('pointermove', x, y));
+      fixture.changeDetectorRef.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.connection-anchor--target')).toHaveLength(4);
+      expect(
+        fixture.nativeElement
+          .querySelector('.connection-anchor--target.connection-anchor--active')
+          .getAttribute('aria-label'),
+      ).toBe(`Create connection from ${anchor}`);
+      expect(component.connectionPreviewPath?.endsWith(endpoint)).toBe(true);
+    }
+
+    component.onDocumentMouseMove(pointer('pointermove', 500, 500));
+    fixture.changeDetectorRef.detectChanges();
+    expect(component.connectionTarget).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.connection-anchor--target')).toHaveLength(0);
+    component.onDocumentMouseMove(pointer('pointermove', 365, 315));
+    expect(component.connectionTarget?.anchor).toBe('bottom');
+    component.onDocumentMouseUp(pointer('pointerup', 365, 315));
+    fixture.changeDetectorRef.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const request = http.expectOne(`${CANVAS_URL}/connections`);
+    expect(request.request.body).toMatchObject({ sourceAnchor: 'right', targetAnchor: 'bottom' });
+    const savedConnection = {
+      id: 22,
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: EnumWorkspaceItemType.TEXT,
+      sourceAnchor: 'right' as const,
+      targetItemId: 2,
+      targetItemType: EnumWorkspaceItemType.TEXT,
+      targetAnchor: 'bottom' as const,
+      color: '#414752',
+      strokeWidth: 2,
+    };
+    request.flush({ data: savedConnection });
+    await vi.waitFor(() => expect(component.connections).toHaveLength(1));
+    expect(component.connectionPaths[0].path.endsWith('V 250')).toBe(true);
+    target.y = 400;
+    component.connections = [{ ...savedConnection }];
+    expect(component.connectionPaths[0].path.endsWith('V 450')).toBe(true);
+  });
+
+  it('snaps near an anchor at a zoom offset and cancels without saving', () => {
+    const source = textItem(1, 100, 100);
+    const target = textItem(2, 300, 200);
+    component.activeWhiteboard.items = [source, target];
+    component.onConnectionAnchorMouseDown(pointer('pointerdown', 135, 112.5), source, 'right');
+
+    component.onDocumentMouseMove(pointer('pointermove', 222.5, 180));
+    expect(component.connectionTarget).toEqual({ item: target, anchor: 'bottom' });
+    component.onDocumentMouseUp(pointer('pointercancel', 222.5, 180));
+    expect(component.connectionTarget).toBeNull();
+    expect(component.connectionPreviewPath).toBeNull();
+    http.expectNone(`${CANVAS_URL}/connections`);
+  });
+
+  it('opens the connection toolbar, saves its style, and deletes the line', async () => {
+    const source = textItem(1, 100, 100);
+    const target = textItem(2, 300, 200);
+    const connection = {
+      id: 20,
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: EnumWorkspaceItemType.TEXT,
+      sourceAnchor: null,
+      targetItemId: 2,
+      targetItemType: EnumWorkspaceItemType.TEXT,
+      targetAnchor: null,
+      color: '#414752',
+      strokeWidth: 2,
+    };
+    component.activeWhiteboard.items = [source, target];
+    component.connections = [connection];
+    expect(component.connectionPaths).toHaveLength(1);
+    fixture.changeDetectorRef.detectChanges();
+
+    fixture.nativeElement
+      .querySelector('.canvas-connection-hit')
+      .dispatchEvent(pointer('pointerdown', 215, 185));
+    fixture.detectChanges();
+    expect(component.selectedConnectionId).toBe(connection.id);
+    expect(
+      fixture.nativeElement.querySelector('[aria-label="Connection appearance"]'),
+    ).toBeTruthy();
+
+    const colorInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[aria-label="Connection color"]',
+    );
+    colorInput.value = '#ff0000';
+    colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+    const widthSelect: HTMLSelectElement = fixture.nativeElement.querySelector(
+      '[aria-label="Connection thickness"]',
+    );
+    widthSelect.selectedIndex = 3;
+    widthSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    fixture.detectChanges();
+
+    const line: SVGPathElement = fixture.nativeElement.querySelector('.canvas-connection');
+    expect(line.style.stroke).toBe('rgb(255, 0, 0)');
+    expect(line.style.strokeWidth).toBe('4');
+    expect(
+      fixture.nativeElement.querySelector('#connection-arrow-20 path').getAttribute('fill'),
+    ).toBe('#ff0000');
+    expect(component.connections[0]).toMatchObject({ color: '#414752', strokeWidth: 2 });
+    http.expectNone(`${CANVAS_URL}/connections/update`);
+
+    const saving = component.saveConnectionStyle();
+    await vi.waitFor(() => {
+      const request = http.expectOne(`${CANVAS_URL}/connections/update`);
+      expect(request.request.body).toEqual({
+        projectId: 'p1',
+        connectionId: 20,
+        color: '#ff0000',
+        strokeWidth: 4,
+      });
+      request.flush({
+        data: { ...connection, color: '#ff0000', strokeWidth: 4 },
+      });
+    });
+    await saving;
+    fixture.detectChanges();
+    expect(component.connections[0]).toMatchObject({
+      color: '#ff0000',
+      strokeWidth: 4,
+    });
+    expect(
+      fixture.nativeElement.querySelector('#connection-arrow-20 path').getAttribute('fill'),
+    ).toBe('#ff0000');
+
+    fixture.nativeElement.querySelector('[aria-label="Close connection appearance"]').click();
+    fixture.detectChanges();
+    expect(line.style.stroke).toBe('rgb(255, 0, 0)');
+    expect(line.style.strokeWidth).toBe('4');
+    fixture.nativeElement
+      .querySelector('.canvas-connection-hit')
+      .dispatchEvent(pointer('pointerdown', 215, 185));
+    fixture.detectChanges();
+
+    const deleting = component.deleteSelectedConnection();
+    await vi.waitFor(() => {
+      const request = http.expectOne(`${CANVAS_URL}/connections/delete`);
+      expect(request.request.body).toEqual({ projectId: 'p1', connectionId: 20 });
+      request.flush({ id: 20 });
+    });
+    await deleting;
+    expect(component.connections).toEqual([]);
+    expect(component.selectedConnectionId).toBeNull();
+  });
+
+  it('discards unsaved appearance changes when switching or closing connections', () => {
+    component.activeWhiteboard.items = [
+      textItem(1, 100, 100),
+      textItem(2, 300, 100),
+      textItem(3, 500, 200),
+    ];
+    const connection = {
+      id: 20,
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: EnumWorkspaceItemType.TEXT,
+      sourceAnchor: 'top' as const,
+      targetItemId: 2,
+      targetItemType: EnumWorkspaceItemType.TEXT,
+      targetAnchor: 'top' as const,
+      color: '#414752',
+      strokeWidth: 2,
+    };
+    const second = { ...connection, id: 21, targetItemId: 3, color: '#123456', strokeWidth: 4 };
+    component.connections = [connection, second];
+    const originalPath = component.connectionPaths[0].path;
+    component.selectConnection(new Event('pointerdown'), connection);
+    component.connectionColorDraft = '#ff0000';
+    component.connectionStrokeWidthDraft = 8;
+    expect(component.connectionPaths[0]).toMatchObject({ color: '#ff0000', strokeWidth: 8 });
+    expect(component.connectionPaths[0].path).not.toBe(originalPath);
+
+    component.selectConnection(new Event('pointerdown'), second);
+    expect(component.connectionPaths[0]).toMatchObject({ color: '#414752', strokeWidth: 2 });
+    expect(component.connectionPaths[0].path).toBe(originalPath);
+    expect(component.connectionPaths[1]).toMatchObject({ color: '#123456', strokeWidth: 4 });
+    component.connectionColorDraft = '#00ff00';
+    component.connectionStrokeWidthDraft = 6;
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[aria-label="Close connection appearance"]').click();
+    fixture.detectChanges();
+    expect(component.connectionPaths[1]).toMatchObject({ color: '#123456', strokeWidth: 4 });
+    expect(component.connections).toEqual([connection, second]);
+    http.expectNone(`${CANVAS_URL}/connections/update`);
+  });
+
+  it('keeps unsaved changes retryable after a failed save and discards them on close', async () => {
+    component.activeWhiteboard.items = [textItem(1, 100, 100), textItem(2, 300, 200)];
+    const connection = {
+      id: 20,
+      projectId: 'p1',
+      sourceItemId: 1,
+      sourceItemType: EnumWorkspaceItemType.TEXT,
+      sourceAnchor: 'right' as const,
+      targetItemId: 2,
+      targetItemType: EnumWorkspaceItemType.TEXT,
+      targetAnchor: 'top' as const,
+      color: '#414752',
+      strokeWidth: 2,
+    };
+    component.connections = [connection];
+    component.selectConnection(new Event('pointerdown'), connection);
+    component.connectionColorDraft = '#ff0000';
+    const saving = component.saveConnectionStyle();
+    http
+      .expectOne(`${CANVAS_URL}/connections/update`)
+      .flush({}, { status: 500, statusText: 'Server Error' });
+    await saving;
+
+    expect(component.actionError).toContain('Failed to update connection style');
+    expect(component.connectionPaths[0].color).toBe('#ff0000');
+    expect(component.connections[0].color).toBe('#414752');
+    component.clearSelection();
+    expect(component.connectionPaths[0].color).toBe('#414752');
+  });
+
+  it('does not create self-connections or allow read-only users to connect items', () => {
+    const item = textItem(1, 100, 100);
+    component.activeWhiteboard.items = [item];
+    component.zoom = 1;
+    component.panX = 0;
+    component.panY = 0;
+    component.changeInteractionTool(EnumWorkspaceItemType.CONNECT);
+
+    component.onItemMouseDown(pointer('pointerdown', 165, 185), item);
+    component.onDocumentMouseUp(pointer('pointerup', 165, 185));
+    component.isReadOnly = true;
+    component.onItemMouseDown(pointer('pointerdown', 165, 185), item);
+    component.onDocumentMouseUp(pointer('pointerup', 165, 185));
+
+    expect(component.connections).toEqual([]);
+    http.expectNone(`${CANVAS_URL}/connections`);
+  });
+
+  it('saves new endpoint items before persisting their connection', async () => {
+    const source = textItem(0, 100, 100);
+    const target = textItem(0, 300, 200);
+    delete source.id;
+    delete target.id;
+    component.activeWhiteboard.items = [source, target];
+    component.zoom = 1;
+    component.panX = 0;
+    component.panY = 0;
+    component.changeInteractionTool(EnumWorkspaceItemType.CONNECT);
+
+    component.onItemMouseDown(pointer('pointerdown', 165, 185), source);
+    component.onDocumentMouseUp(pointer('pointerup', 365, 285));
+
+    let saves = http.match(`${CANVAS_URL}/save-canvas-item`);
+    await vi.waitFor(() => {
+      saves = http.match(`${CANVAS_URL}/save-canvas-item`);
+      expect(saves).toHaveLength(2);
+    });
+    saves[0].flush({ data: { id: 11 } });
+    saves[1].flush({ data: { id: 12 } });
+    await vi.waitFor(() => {
+      const request = http.expectOne(`${CANVAS_URL}/connections`);
+      expect(request.request.body).toMatchObject({
+        sourceItemId: 11,
+        sourceAnchor: 'right',
+        targetItemId: 12,
+        targetAnchor: 'top',
+      });
+      request.flush({
+        data: {
+          id: 13,
+          projectId: 'p1',
+          sourceItemId: 11,
+          sourceItemType: EnumWorkspaceItemType.TEXT,
+          sourceAnchor: 'right',
+          targetItemId: 12,
+          targetItemType: EnumWorkspaceItemType.TEXT,
+          targetAnchor: 'top',
+          color: '#414752',
+          strokeWidth: 2,
+        },
+      });
+    });
+    expect(component.connections).toHaveLength(1);
+  });
+
+  it.each(['pointerup', 'pointercancel'])(
+    'uses the selection cursor only after dragging and resets on %s',
+    (endEvent) => {
+      selectTool();
+      const viewport: HTMLElement = component.viewportRef.nativeElement;
+      expect(viewport.classList.contains('is-selecting')).toBe(false);
+
+      document.dispatchEvent(pointer('pointermove', 80, 90));
+      fixture.detectChanges();
+      expect(viewport.classList.contains('is-selecting')).toBe(false);
+
+      viewport.dispatchEvent(pointer('pointerdown', 60, 50));
+      document.dispatchEvent(pointer('pointermove', 60, 50));
+      fixture.detectChanges();
+      expect(viewport.classList.contains('is-selecting')).toBe(false);
+
+      document.dispatchEvent(pointer('pointermove', 80, 50));
+      fixture.detectChanges();
+      expect(viewport.classList.contains('is-selecting')).toBe(true);
+
+      document.dispatchEvent(pointer(endEvent, 80, 50));
+      fixture.detectChanges();
+      expect(viewport.classList.contains('is-selecting')).toBe(false);
+      expect(viewport.classList.contains('selection-mode')).toBe(true);
+    },
+  );
 
   it('selects only fully enclosed items when dragging backwards at a zoom and pan offset', () => {
     const enclosed = textItem(1, 10, 20);
@@ -313,9 +1011,7 @@ describe('Workspace selection', () => {
     fixture.changeDetectorRef.markForCheck();
     fixture.detectChanges();
 
-    fixture.nativeElement
-      .querySelector(selector)
-      .dispatchEvent(pointer('pointerdown', 60, 50));
+    fixture.nativeElement.querySelector(selector).dispatchEvent(pointer('pointerdown', 60, 50));
     document.dispatchEvent(pointer('pointermove', 80, 80));
     document.dispatchEvent(pointer('pointerup', 80, 80));
 
@@ -337,9 +1033,7 @@ describe('Workspace selection', () => {
     selectTool();
 
     for (const selector of ['.text-item', '.item-delete-btn']) {
-      fixture.nativeElement
-        .querySelector(selector)
-        .dispatchEvent(pointer('pointerdown', 60, 50));
+      fixture.nativeElement.querySelector(selector).dispatchEvent(pointer('pointerdown', 60, 50));
       component.onDocumentMouseMove(pointer('pointermove', 60, 50));
       component.onDocumentMouseUp();
       expect(component.selectedItems).toEqual([]);
@@ -569,14 +1263,18 @@ describe('Workspace selection', () => {
       fixture.detectChanges();
 
       for (const [index, item] of [first, second].entries()) {
-        fixture.nativeElement.querySelectorAll('.canvas-item')[index]
-          .dispatchEvent(pointer('pointerdown', 60, 50));
+        fixture.nativeElement
+          .querySelectorAll('.canvas-item')
+          [index].dispatchEvent(pointer('pointerdown', 60, 50));
         document.dispatchEvent(pointer('pointermove', 80, 80));
         document.dispatchEvent(pointer('pointerup', 80, 80));
         vi.advanceTimersByTime(500);
         const request = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
         expect(request.request.body).toMatchObject({
-          id: item.id, x: item.x, y: item.y, groupId: null,
+          id: item.id,
+          x: item.x,
+          y: item.y,
+          groupId: null,
         });
         request.flush({ data: { id: item.id } });
         await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));

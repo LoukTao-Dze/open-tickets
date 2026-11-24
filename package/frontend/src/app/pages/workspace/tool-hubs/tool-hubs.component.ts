@@ -54,6 +54,7 @@ export class ToolHubsComponent {
   readonly primaryTools: ToolHubsButton[] = [
     { id: EnumWorkspaceItemType.SELECT, icon: 'near_me', isActive: true, openTool: true },
     { id: EnumWorkspaceItemType.HAND, icon: 'pan_tool', isActive: true, openTool: true },
+    { id: EnumWorkspaceItemType.CONNECT, icon: 'arrow_forward', isActive: true, openTool: true },
   ];
 
   readonly insertTools: ToolHubsButton[] = [

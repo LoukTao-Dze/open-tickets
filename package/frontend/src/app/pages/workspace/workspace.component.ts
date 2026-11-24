@@ -20,6 +20,8 @@ import { MarkdownComponent } from './markdown/markdown.component';
 import { ToolHubsComponent, InsertToolEvent } from './tool-hubs/tool-hubs.component';
 import { EnumWorkspaceItemType } from '../../enum/workspace.enum';
 import {
+  CanvasConnectionAnchor,
+  CanvasConnection,
   Whiteboard,
   WorkspaceCanvasItem,
   WorkspaceGroup,
@@ -30,6 +32,15 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
 import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
+import {
+  CONNECTION_ARROW_REF_X,
+  connectionAnchorOffset,
+  connectionAnchorPoint,
+  connectionArrowClearance,
+  connectionArrowMarkerSize,
+  connectionArrowSizeForDistance,
+  routeCanvasConnection,
+} from './connection-routing.util';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
@@ -56,6 +67,9 @@ const DEFAULT_CODE_SNIPPET_LANGUAGE = 'typescript';
 const SAVE_WHITEBOARD_DELAY_MS = 500;
 const SAVE_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/save-canvas-item`;
 const GET_CANVAS_ITEM_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/get-canvas-item`;
+const CANVAS_CONNECTIONS_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/connections`;
+const UPDATE_CANVAS_CONNECTION_ENDPOINT = `${CANVAS_CONNECTIONS_ENDPOINT}/update`;
+const DELETE_CANVAS_CONNECTION_ENDPOINT = `${CANVAS_CONNECTIONS_ENDPOINT}/delete`;
 const DELETE_CANVAS_ITEMS_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/delete-canvas-items`;
 const CANVAS_GROUPS_ENDPOINT = `${environment.apiBaseUrl}/api/canvas/groups`;
 const GROUP_PADDING = 24;
@@ -64,6 +78,8 @@ const GET_ALL_PROJECTS_ENDPOINT = `${environment.apiBaseUrl}/api/projects`;
 const DEFAULT_MARKDOWN_WIDTH = 360;
 const DEFAULT_MARKDOWN_HEIGHT = 280;
 const DEFAULT_MARKDOWN_CONTENT = '# Untitled\n\nWrite **Markdown** here.';
+const CONNECTION_ANCHORS: CanvasConnectionAnchor[] = ['top', 'right', 'bottom', 'left'];
+const CONNECTION_ANCHOR_HIT_RADIUS = 12;
 
 interface SaveCanvasItemResponse {
   data: {
@@ -88,6 +104,16 @@ interface CanvasBounds extends CanvasPoint {
   height: number;
 }
 
+interface ConnectionPath {
+  id: number | 'preview';
+  path: string;
+  connection: CanvasConnection;
+  color: string;
+  strokeWidth: number;
+  markerSize: number;
+  selected: boolean;
+}
+
 @Component({
   selector: 'app-workspace',
   standalone: true,
@@ -107,6 +133,7 @@ interface CanvasBounds extends CanvasPoint {
   styleUrls: ['./workspace.component.scss'],
 })
 export class WorkspaceComponent implements OnDestroy, OnInit {
+  readonly connectionArrowRefX = CONNECTION_ARROW_REF_X;
   @ViewChild('viewport', { static: true }) viewportRef!: ElementRef<HTMLDivElement>;
   @ViewChild('miniMap', { static: true }) miniMapRef!: ElementRef<HTMLDivElement>;
 
@@ -132,7 +159,13 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   isCanvasLoading = false;
   canvasItemResponse: WorkspaceCanvasItem[] = [];
   interactionTool = EnumWorkspaceItemType.HAND;
+  readonly connectionAnchors = CONNECTION_ANCHORS;
   groups: WorkspaceGroup[] = [];
+  connections: CanvasConnection[] = [];
+  selectedConnectionId: number | null = null;
+  connectionColorDraft = '#414752';
+  connectionStrokeWidthDraft = 2;
+  connectionTarget: { item: WorkspaceCanvasItem; anchor: CanvasConnectionAnchor } | null = null;
   selectedItems: WorkspaceCanvasItem[] = [];
   selectionBounds: CanvasBounds | null = null;
   isNamingGroup = false;
@@ -161,6 +194,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   private pinchStartZoom = 1;
 
   private activeItem: WorkspaceCanvasItem | null = null;
+  private connectionDrag: {
+    source: WorkspaceCanvasItem;
+    sourceAnchor: CanvasConnectionAnchor | null;
+    point: CanvasPoint;
+  } | null = null;
   private dragOffset = { x: 0, y: 0 };
   private zIndexCounter = 100;
   private currentViewportState: ViewportState[] = [];
@@ -178,6 +216,92 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
 
   get canvasList(): WorkspaceCanvasItem[] {
     return this.activeWhiteboard.items;
+  }
+
+  get isSelecting(): boolean {
+    return (
+      !!this.selectionBounds &&
+      (this.selectionBounds.width > 0 || this.selectionBounds.height > 0)
+    );
+  }
+
+  get connectionPaths(): ConnectionPath[] {
+    return this.connections.flatMap((connection) => {
+      const source = this.canvasList.find(
+        (item) => item.id === connection.sourceItemId && item.type === connection.sourceItemType,
+      );
+      const target = this.canvasList.find(
+        (item) => item.id === connection.targetItemId && item.type === connection.targetItemType,
+      );
+      const selected = connection.id === this.selectedConnectionId;
+      const color = selected ? this.connectionColorDraft : connection.color;
+      const strokeWidth = selected ? this.connectionStrokeWidthDraft : connection.strokeWidth;
+      return source && target
+        ? [
+            {
+              id: connection.id,
+              path: this.connectionPath(
+                source,
+                target,
+                connection.sourceAnchor,
+                connection.targetAnchor,
+                strokeWidth,
+              ),
+              connection,
+              color,
+              strokeWidth,
+              markerSize: connection.targetAnchor
+                ? connectionArrowMarkerSize(source, target, connection.targetAnchor, strokeWidth)
+                : this.legacyConnectionMarkerSize(source, target, connection, strokeWidth),
+              selected,
+            },
+          ]
+        : [];
+    });
+  }
+
+  get selectedConnection(): CanvasConnection | null {
+    return (
+      this.connections.find((connection) => connection.id === this.selectedConnectionId) ?? null
+    );
+  }
+
+  get connectionPreviewPath(): string | null {
+    const target = this.connectionTarget;
+    return this.connectionDrag
+      ? this.connectionPath(
+          this.connectionDrag.source,
+          target?.item ?? this.connectionDrag.point,
+          this.connectionDrag.sourceAnchor,
+          target?.anchor,
+        )
+      : null;
+  }
+
+  private findConnectionTarget(): {
+    item: WorkspaceCanvasItem;
+    anchor: CanvasConnectionAnchor;
+  } | null {
+    if (!this.connectionDrag) return null;
+    const { point, source } = this.connectionDrag;
+    const hitRadius = CONNECTION_ANCHOR_HIT_RADIUS / this.zoom;
+    for (const item of [...this.canvasList].sort((left, right) => right.zIndex - left.zIndex)) {
+      if (item === source) continue;
+      const anchor = CONNECTION_ANCHORS.reduce((closest, candidate) =>
+        this.anchorDistance(item, candidate, point) < this.anchorDistance(item, closest, point)
+          ? candidate
+          : closest,
+      );
+      const inside =
+        point.x >= item.x &&
+        point.x <= item.x + item.width &&
+        point.y >= item.y &&
+        point.y <= item.y + item.height;
+      if (inside || this.anchorDistance(item, anchor, point) <= hitRadius) {
+        return { item, anchor };
+      }
+    }
+    return null;
   }
   /**
    * Uniform scale + offset that fits the board's content bounds (all canvas items
@@ -308,6 +432,9 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             items: this.http.get<{ data: WorkspaceCanvasItem[] }>(GET_CANVAS_ITEM_ENDPOINT, {
               params,
             }),
+            connections: this.http.get<{ data: CanvasConnection[] }>(CANVAS_CONNECTIONS_ENDPOINT, {
+              params,
+            }),
             groups: this.http.get<{ data: WorkspaceGroup[]; canEdit: boolean }>(
               CANVAS_GROUPS_ENDPOINT,
               { params },
@@ -319,6 +446,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         next: (res) => {
           const items = res.items.data;
           this.groups = res.groups.data;
+          this.connections = res.connections.data;
           this.isReadOnly = !res.groups.canEdit;
           this.canvasItemResponse = items;
           const itemsByProject = new Map<string, typeof items>();
@@ -362,7 +490,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   onWhiteboardChange(id: string) {
     if (this.isSelectionBusy) return;
     this.clearSelection();
+    this.connectionDrag = null;
+    this.connectionTarget = null;
     this.groups = [];
+    this.connections = [];
+    this.selectedConnectionId = null;
     this.selectedWhiteboardId = id;
     localStorage.setItem('selectedWhiteboardId', this.selectedWhiteboardId);
     this.activeItem = null;
@@ -421,6 +553,18 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       );
       if (response.deletedCount !== items.length) throw new Error('Unexpected deleted item count');
       board.items = board.items.filter((item) => !items.includes(item));
+      this.connections = this.connections.filter(
+        (connection) =>
+          !items.some(
+            (item) =>
+              item.id === connection.sourceItemId && item.type === connection.sourceItemType,
+          ) &&
+          !items.some(
+            (item) =>
+              item.id === connection.targetItemId && item.type === connection.targetItemType,
+          ),
+      );
+      if (!this.selectedConnection) this.selectedConnectionId = null;
       if (this.focusedItem && items.includes(this.focusedItem)) this.focusedItem = null;
       this.clearSelection();
     } catch (error) {
@@ -458,6 +602,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   changeInteractionTool(tool: EnumWorkspaceItemType) {
     if (this.isSelectionBusy) return;
     this.interactionTool = tool;
+    this.connectionDrag = null;
+    this.connectionTarget = null;
     this.clearSelection();
     this.focusedItem = null;
   }
@@ -468,6 +614,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       this.groupDrag = null;
     }
     this.selectedItems = [];
+    this.selectedConnectionId = null;
     this.selectionStart = null;
     this.selectionBounds = null;
     this.cancelGroupEditor();
@@ -804,6 +951,21 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     if (target?.closest('button, select, a, .resize-handle, .item-delete-btn')) {
       return;
     }
+    this.selectedConnectionId = null;
+    if (this.interactionTool === EnumWorkspaceItemType.CONNECT) {
+      if (this.isReadOnly) return;
+      this.blurItemEditor();
+      this.clearSelection();
+      this.focusedItem = null;
+      event.preventDefault();
+      this.connectionDrag = {
+        source: item,
+        sourceAnchor: null,
+        point: this.screenToCanvasPoint(event.clientX, event.clientY),
+      };
+      this.connectionTarget = this.findConnectionTarget();
+      return;
+    }
     if (item.groupId && !target?.closest('input, textarea, [contenteditable="true"], .cm-editor')) {
       const group = this.groups.find((candidate) => candidate.id === item.groupId);
       if (group) {
@@ -817,6 +979,27 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     }
     this.clearSelection();
     this.startItemDrag(event, item);
+  }
+
+  onConnectionAnchorMouseDown(
+    event: PointerEvent,
+    item: WorkspaceCanvasItem,
+    sourceAnchor: CanvasConnectionAnchor,
+  ) {
+    event.stopPropagation();
+    if (this.isReadOnly || this.isSelectionBusy || event.button !== 0) return;
+    if (event.pointerType === 'touch' && this.trackTouchPointer(event)) return;
+    this.blurItemEditor();
+    this.clearSelection();
+    this.focusedItem = item;
+    this.selectedConnectionId = null;
+    event.preventDefault();
+    this.connectionDrag = {
+      source: item,
+      sourceAnchor,
+      point: connectionAnchorPoint(item, sourceAnchor),
+    };
+    this.connectionTarget = this.findConnectionTarget();
   }
 
   private startItemDrag(event: PointerEvent, item: WorkspaceCanvasItem) {
@@ -843,6 +1026,11 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   onDocumentMouseMove(event: PointerEvent) {
     if (this.updateTouchZoom(event)) return;
 
+    if (this.connectionDrag) {
+      this.connectionDrag.point = this.screenToCanvasPoint(event.clientX, event.clientY);
+      this.connectionTarget = this.findConnectionTarget();
+      return;
+    }
     if (this.selectionStart) {
       this.updateSelection(this.screenToCanvasPoint(event.clientX, event.clientY));
       return;
@@ -893,6 +1081,17 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     }
 
     this.isPanning = false;
+    if (this.connectionDrag) {
+      const drag = this.connectionDrag;
+      if (event) drag.point = this.screenToCanvasPoint(event.clientX, event.clientY);
+      const target = this.findConnectionTarget();
+      this.connectionDrag = null;
+      this.connectionTarget = null;
+      if (event && event.type !== 'pointercancel' && target) {
+        void this.createConnection(drag.source, target.item, drag.sourceAnchor, target.anchor);
+      }
+      return;
+    }
     if (this.selectionStart) {
       if (event?.type === 'pointercancel') this.clearSelection();
       this.selectionStart = null;
@@ -934,6 +1133,14 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     if (this.selectedItems.length && (event.key === 'Delete' || event.key === 'Backspace')) {
       event.preventDefault();
       void this.deleteSelectedItems();
+      return;
+    }
+    if (
+      this.selectedConnectionId !== null &&
+      (event.key === 'Delete' || event.key === 'Backspace')
+    ) {
+      event.preventDefault();
+      void this.deleteSelectedConnection();
       return;
     }
     if (!this.focusedItem) return;
@@ -1040,6 +1247,8 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       this.isPinching = true;
       this.isPanning = false;
       this.activeItem = null;
+      this.connectionDrag = null;
+      this.connectionTarget = null;
       this.clearSelection();
       this.pinchStartDistance = Math.hypot(b.x - a.x, b.y - a.y);
       this.pinchStartZoom = this.zoom;
@@ -1057,6 +1266,225 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       x: (screenX - this.panX) / this.zoom,
       y: (screenY - this.panY) / this.zoom,
     };
+  }
+
+  private anchorDistance(
+    item: WorkspaceCanvasItem,
+    anchor: CanvasConnectionAnchor,
+    point: CanvasPoint,
+  ) {
+    const anchorPoint = connectionAnchorPoint(item, anchor);
+    return Math.hypot(anchorPoint.x - point.x, anchorPoint.y - point.y);
+  }
+
+  private legacyConnectionMarkerSize(
+    source: WorkspaceCanvasItem,
+    target: WorkspaceCanvasItem,
+    connection: CanvasConnection,
+    strokeWidth: number,
+  ): number {
+    const targetCenterX = target.x + target.width / 2;
+    const targetCenterY = target.y + target.height / 2;
+    const sourceAnchor =
+      connection.sourceAnchor ?? (targetCenterX >= source.x + source.width / 2 ? 'right' : 'left');
+    const start = connectionAnchorPoint(source, sourceAnchor);
+    const vertical = sourceAnchor === 'top' || sourceAnchor === 'bottom';
+    const end = vertical
+      ? start.y <= targetCenterY
+        ? target.y
+        : target.y + target.height
+      : (connection.sourceAnchor ? start.x <= targetCenterX : sourceAnchor === 'right')
+        ? target.x
+        : target.x + target.width;
+    const distance = Math.abs((vertical ? start.y : start.x) - end) / 2;
+    return connectionArrowSizeForDistance(distance, strokeWidth);
+  }
+
+  private connectionPath(
+    source: WorkspaceCanvasItem,
+    target: WorkspaceCanvasItem | CanvasPoint,
+    sourceAnchor: CanvasConnectionAnchor | null = null,
+    targetAnchor: CanvasConnectionAnchor | null = null,
+    strokeWidth = 2,
+  ) {
+    if (targetAnchor && 'width' in target) {
+      const startAnchor =
+        sourceAnchor ??
+        (target.x + target.width / 2 >= source.x + source.width / 2 ? 'right' : 'left');
+      const start = connectionAnchorPoint(source, startAnchor);
+      const end = connectionAnchorPoint(target, targetAnchor);
+      const path = routeCanvasConnection(source, target, startAnchor, targetAnchor, strokeWidth);
+      if (path) return path;
+      const startOffset = connectionAnchorOffset(start, startAnchor);
+      const endOffset = connectionAnchorOffset(
+        end,
+        targetAnchor,
+        connectionArrowClearance(strokeWidth),
+      );
+      const vertical = startAnchor === 'top' || startAnchor === 'bottom';
+      const middle = vertical
+        ? `V ${(startOffset.y + endOffset.y) / 2} H ${endOffset.x} V ${endOffset.y}`
+        : `H ${(startOffset.x + endOffset.x) / 2} V ${endOffset.y} H ${endOffset.x}`;
+      return `M ${start.x} ${start.y} L ${startOffset.x} ${startOffset.y} ${middle} L ${end.x} ${end.y}`;
+    }
+
+    if (sourceAnchor) {
+      const start = connectionAnchorPoint(source, sourceAnchor);
+      const targetIsItem = 'width' in target;
+      const targetCenterX = targetIsItem ? target.x + target.width / 2 : target.x;
+      const targetCenterY = targetIsItem ? target.y + target.height / 2 : target.y;
+      const verticalRoute = sourceAnchor === 'top' || sourceAnchor === 'bottom';
+      const end = targetIsItem
+        ? verticalRoute
+          ? {
+              x: targetCenterX,
+              y: start.y <= targetCenterY ? target.y : target.y + target.height,
+            }
+          : {
+              x: start.x <= targetCenterX ? target.x : target.x + target.width,
+              y: targetCenterY,
+            }
+        : target;
+
+      if (verticalRoute) {
+        const middleY = (start.y + end.y) / 2;
+        return `M ${start.x} ${start.y} V ${middleY} H ${end.x} V ${end.y}`;
+      }
+      const middleX = (start.x + end.x) / 2;
+      return `M ${start.x} ${start.y} H ${middleX} V ${end.y} H ${end.x}`;
+    }
+
+    const sourceCenterX = source.x + source.width / 2;
+    const targetCenterX = 'width' in target ? target.x + target.width / 2 : target.x;
+    const sourceRight = targetCenterX >= sourceCenterX;
+    const startX = sourceRight ? source.x + source.width : source.x;
+    const startY = source.y + source.height / 2;
+    const endX = 'width' in target ? (sourceRight ? target.x : target.x + target.width) : target.x;
+    const endY = 'height' in target ? target.y + target.height / 2 : target.y;
+    const middleX = (startX + endX) / 2;
+    return `M ${startX} ${startY} H ${middleX} V ${endY} H ${endX}`;
+  }
+
+  selectConnection(event: Event, connection: CanvasConnection) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.isSelectionBusy) return;
+    this.clearSelection();
+    this.focusedItem = null;
+    this.selectedConnectionId = connection.id;
+    this.connectionColorDraft = connection.color;
+    this.connectionStrokeWidthDraft = connection.strokeWidth;
+  }
+
+  onConnectionKeyDown(event: KeyboardEvent, connection: CanvasConnection) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      this.selectConnection(event, connection);
+    }
+  }
+
+  async saveConnectionStyle() {
+    const connection = this.selectedConnection;
+    if (this.isReadOnly || this.isSelectionBusy || !connection) return;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      const { data } = await firstValueFrom(
+        this.http.post<{ data: CanvasConnection }>(UPDATE_CANVAS_CONNECTION_ENDPOINT, {
+          projectId: this.activeWhiteboard.id,
+          connectionId: connection.id,
+          color: this.connectionColorDraft,
+          strokeWidth: this.connectionStrokeWidthDraft,
+        }),
+      );
+      if (data.id !== connection.id) {
+        throw new Error('Unexpected updated canvas connection id');
+      }
+      this.connections = this.connections.map((item) => (item.id === data.id ? data : item));
+      this.connectionColorDraft = data.color;
+      this.connectionStrokeWidthDraft = data.strokeWidth;
+    } catch (error) {
+      this.reportActionError('Failed to update connection style. Try again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  async deleteSelectedConnection() {
+    const connection = this.selectedConnection;
+    if (this.isReadOnly || this.isSelectionBusy || !connection) return;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      const confirmed = await firstValueFrom(
+        this.confirmDialogService.confirm({
+          title: 'Delete connection',
+          message: 'Delete this connection? This cannot be undone.',
+          cancelText: 'Cancel',
+          confirmText: 'Delete',
+          config: { disableClose: false, confirmColor: 'error', cancelColor: 'neutral' },
+        }),
+      );
+      if (!confirmed) return;
+      const response = await firstValueFrom(
+        this.http.post<{ id: number }>(DELETE_CANVAS_CONNECTION_ENDPOINT, {
+          projectId: this.activeWhiteboard.id,
+          connectionId: connection.id,
+        }),
+      );
+      if (response.id !== connection.id) {
+        throw new Error('Unexpected deleted canvas connection id');
+      }
+      this.connections = this.connections.filter((item) => item.id !== connection.id);
+      this.selectedConnectionId = null;
+    } catch (error) {
+      this.reportActionError('Failed to delete connection. Reload the board and try again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private async createConnection(
+    source: WorkspaceCanvasItem,
+    target: WorkspaceCanvasItem,
+    sourceAnchor: CanvasConnectionAnchor | null,
+    targetAnchor: CanvasConnectionAnchor,
+  ) {
+    if (this.isReadOnly || this.isSelectionBusy) return;
+    if (source === target) return;
+    const resolvedSourceAnchor =
+      sourceAnchor ??
+      (target.x + target.width / 2 >= source.x + source.width / 2 ? 'right' : 'left');
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      await this.prepareSelection([source, target]);
+      if (!source.id || !target.id) throw new Error('Canvas items must be saved before linking');
+      const { data } = await firstValueFrom(
+        this.http.post<{ data: CanvasConnection }>(CANVAS_CONNECTIONS_ENDPOINT, {
+          projectId: this.activeWhiteboard.id,
+          sourceItemId: source.id,
+          sourceItemType: source.type,
+          sourceAnchor: resolvedSourceAnchor,
+          targetItemId: target.id,
+          targetItemType: target.type,
+          targetAnchor,
+        }),
+      );
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        throw new Error('Invalid saved canvas connection id');
+      }
+      this.connections = [
+        ...this.connections.filter((connection) => connection.id !== data.id),
+        data,
+      ];
+    } catch (error) {
+      this.reportActionError('Failed to connect items. Reload the board and try again.', error);
+    } finally {
+      this.isSelectionBusy = false;
+      this.cdr.markForCheck();
+    }
   }
 
   private viewportCenterCanvasPoint() {

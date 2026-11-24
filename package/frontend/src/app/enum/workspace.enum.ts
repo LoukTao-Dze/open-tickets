@@ -8,6 +8,7 @@ export enum EnumWorkspaceItemType {
   SHAPES = 'shapes',
   SELECT = 'select',
   HAND = 'hand',
+  CONNECT = 'connect',
   PEN = 'pen',
   UNDO = 'undo',
   REDO = 'redo',
