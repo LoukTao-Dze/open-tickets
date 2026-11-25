@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { finalize, Observable, of, shareReplay, tap } from 'rxjs';
 
 export interface AuthSession {
@@ -20,6 +20,7 @@ export class AuthService {
 
   private sessionCache: AuthSession | null = null;
   private pendingSession: Observable<AuthSession> | null = null;
+  readonly sessionVersion = signal(0);
 
   // Expired or missing sessions must not grant UI permissions; this getter never requests data.
   get cachedSession(): AuthSession | null {
@@ -46,7 +47,10 @@ export class AuthService {
     this.pendingSession ??= this.http
       .get<AuthSession>(`${this.baseUrl}/session`, { withCredentials: true })
       .pipe(
-        tap((session) => (this.sessionCache = session)),
+        tap((session) => {
+          this.sessionCache = session;
+          this.sessionVersion.update((version) => version + 1);
+        }),
         finalize(() => (this.pendingSession = null)),
         shareReplay(1),
       );
@@ -61,5 +65,6 @@ export class AuthService {
   private clearSession(): void {
     this.sessionCache = null;
     this.pendingSession = null;
+    this.sessionVersion.update((version) => version + 1);
   }
 }

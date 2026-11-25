@@ -144,7 +144,8 @@ These original migrations preserve the data conversion and upgrade steps.
 Back up the database before upgrading.
 
 The backend `.gitignore` excludes SQL files by default. The Kanban lane
-migrations below have explicit exceptions so they are included in Git.
+migrations below and the legacy canvas trigger fix have explicit exceptions so
+they are included in Git.
 
 ### Kanban lanes
 
@@ -221,6 +222,18 @@ Then run
 [`026_workspace_group_colors.sql`](package/backend/src/supabase/migrations/026_workspace_group_colors.sql)
 once to add group colors. Existing groups retain their previous border color.
 If migration 025 has already been applied, run only 026; do not rerun 025.
+
+After the canvas connection migrations through 031, run
+[`032_fix_legacy_canvas_connection_trigger.sql`](package/backend/src/supabase/migrations/032_fix_legacy_canvas_connection_trigger.sql)
+to update older connection cleanup triggers that still refer to obsolete column
+names. This preserves project-scoped cleanup and does not delete existing data.
+
+After migration 032, run
+[`033_menu_permissions.sql`](package/backend/src/supabase/migrations/033_menu_permissions.sql)
+once for both new and existing databases. Existing roles retain all six active
+main menus; new roles start without main-menu access. Admins can manage menu
+visibility on Roles and access. Menu restrictions apply to navigation only,
+not direct API requests; existing server-side permissions remain in effect.
 
 - `GET /api/canvas/groups?projectId=...` returns `{ data, canEdit }`.
 - `POST /api/canvas/groups` accepts `{ projectId, items: [{ id, type }], name? }`.

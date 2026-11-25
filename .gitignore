@@ -61,9 +61,6 @@ Thumbs.db
 # .agents/skills/ponytail
 # My Skills: end
 
-# Documentation and GitHub instructions
+# Documentation
 /docs/architecture.md
-/.github/copilot-instructions.md
-
-# Structure file
-/structure.md
+/.github/*.md

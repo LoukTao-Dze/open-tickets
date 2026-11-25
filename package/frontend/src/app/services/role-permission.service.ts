@@ -3,6 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { MAIN_MENUS, MenuKey } from '../shared/menu-access';
 
 export type ManagedRole = string;
 export type ProjectAccess = 'none' | 'view' | 'edit';
@@ -12,6 +13,7 @@ export interface RolePermission {
   // Projects missing from this map fall back to defaultAccess.
   projectAccess: Record<string, ProjectAccess>;
   defaultAccess: ProjectAccess;
+  menuAccess: MenuKey[];
 }
 
 export type RolePermissionMap = Record<ManagedRole, RolePermission>;
@@ -43,10 +45,16 @@ interface CreatedRoleResponse {
   data: RolePermissionRecord;
 }
 
-const toPermission = ({ canEdit, defaultAccess, projectAccess }: RolePermissionRecord) => ({
+const toPermission = ({
   canEdit,
   defaultAccess,
   projectAccess,
+  menuAccess,
+}: RolePermissionRecord) => ({
+  canEdit,
+  defaultAccess,
+  projectAccess,
+  menuAccess,
 });
 
 const toCustomRole = (record: RolePermissionRecord): CustomRole => ({
@@ -56,9 +64,24 @@ const toCustomRole = (record: RolePermissionRecord): CustomRole => ({
 });
 
 const INITIAL_PERMISSIONS: RolePermissionMap = {
-  admin: { canEdit: true, projectAccess: {}, defaultAccess: 'edit' },
-  user: { canEdit: true, projectAccess: {}, defaultAccess: 'edit' },
-  guest: { canEdit: false, projectAccess: {}, defaultAccess: 'view' },
+  admin: {
+    canEdit: true,
+    projectAccess: {},
+    defaultAccess: 'edit',
+    menuAccess: MAIN_MENUS.map((menu) => menu.key),
+  },
+  user: {
+    canEdit: true,
+    projectAccess: {},
+    defaultAccess: 'edit',
+    menuAccess: MAIN_MENUS.map((menu) => menu.key),
+  },
+  guest: {
+    canEdit: false,
+    projectAccess: {},
+    defaultAccess: 'view',
+    menuAccess: MAIN_MENUS.map((menu) => menu.key),
+  },
 };
 
 const INITIAL_ROLE_NAMES: readonly ManagedRole[] = Object.keys(INITIAL_PERMISSIONS);
@@ -136,7 +159,7 @@ export class RolePermissionService {
   }
 
   private applySaved(records: RolePermissionRecord[]): void {
-    const next = { ...this.state() };
+    const next = { ...INITIAL_PERMISSIONS };
     for (const record of records) {
       if (this.isLocked(record.role)) continue;
       if (!record.isSystem || Object.hasOwn(next, record.role))
@@ -166,6 +189,7 @@ export class RolePermissionService {
       return {
         ...current,
         [role]: {
+          ...permission,
           canEdit,
           defaultAccess: downgrade(permission.defaultAccess),
           projectAccess: Object.fromEntries(
@@ -187,6 +211,19 @@ export class RolePermissionService {
       [role]: {
         ...current[role],
         projectAccess: { ...current[role].projectAccess, [projectId]: access },
+      },
+    }));
+  }
+
+  setMenuAccess(role: ManagedRole, key: MenuKey, allowed: boolean): void {
+    if (this.isLocked(role)) return;
+    this.state.update((current) => ({
+      ...current,
+      [role]: {
+        ...current[role],
+        menuAccess: MAIN_MENUS.filter((menu) =>
+          menu.key === key ? allowed : current[role].menuAccess.includes(menu.key),
+        ).map((menu) => menu.key),
       },
     }));
   }

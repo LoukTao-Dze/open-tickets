@@ -5,7 +5,7 @@
 <section class="roles-page">
   <header class="page-heading">
     <h1>Roles and access</h1>
-    <p>Choose what each role can change and which projects it can open.</p>
+    <p>Choose what each role can change and which projects and menus it can open.</p>
   </header>
 
   @if (!isAdmin()) {
@@ -13,6 +13,12 @@
       <span class="material-symbols-outlined" aria-hidden="true">lock</span>
       Only admins can change permissions. You are viewing the current setup.
     </p>
+  }
+  @if (permissionsLoadFailed()) {
+    <div class="notice" role="alert">
+      Permissions could not be loaded.
+      <button type="button" class="retry-button" (click)="loadPermissions()">Retry</button>
+    </div>
   }
 
   <div class="roles-layout">
@@ -33,6 +39,7 @@
         <button
           type="button"
           class="role-tab add-role-tab"
+          [disabled]="!permissionsLoaded()"
           [class.is-selected]="isAddingRole()"
           [attr.aria-pressed]="isAddingRole()"
           (click)="openAddRole()"
@@ -50,7 +57,7 @@
       <form class="role-detail" (submit)="createRole($event)" novalidate>
         <div class="detail-head">
           <h2>Add role</h2>
-          <p>Name the role and choose what it can do. You can set access per project afterwards.</p>
+          <p>Name the role and choose what it can do. Set project and menu access afterwards.</p>
         </div>
 
         <div class="field">
@@ -152,7 +159,7 @@
             <h2>{{ selectedRole().label }}</h2>
             <p>{{ selectedRole().description }}</p>
           </div>
-          @if (isAdmin() && isCustomRole()) {
+          @if (isEditable() && isCustomRole()) {
             <div class="delete-role">
               <button
                 type="button"
@@ -192,53 +199,94 @@
           </button>
         </div>
 
-        <div class="access-head">
-          <h3>Project access</h3>
-          <p>
-            {{ summaryFor(selectedRoleId()) }}
-          </p>
-        </div>
-
-        @if (isLoading()) {
-          <p class="empty" role="status">Loading projects…</p>
-        } @else if (loadFailed()) {
-          <div class="empty" role="alert">
-            <p>Projects could not be loaded. Check your connection and try again.</p>
-            <button type="button" class="retry-button" (click)="loadProjects()">Retry</button>
-          </div>
-        } @else if (!projects().length) {
-          <p class="empty">No projects yet. Create one on the Projects page to set access.</p>
-        } @else {
-          <ul class="project-rows">
-            @for (project of projects(); track project.id) {
-              <li class="project-row">
-                <span class="project-name" [id]="'project-' + project.id">{{
-                  project.project_name
-                }}</span>
-                <div
-                  class="access-control"
-                  role="radiogroup"
-                  [attr.aria-labelledby]="'project-' + project.id"
+        @if (isAdmin() && permissionsLoaded()) {
+          <section class="access-card" aria-labelledby="menu-access-heading">
+            <details class="access-section">
+              <summary class="card-header">
+                <span class="access-title" id="menu-access-heading">Menu access</span>
+                <span class="material-symbols-outlined access-chevron" aria-hidden="true"
+                  >expand_more</span
                 >
-                  @for (option of accessOptions; track option.value) {
-                    <button
-                      type="button"
-                      role="radio"
-                      class="access-option"
-                      [attr.data-access]="option.value"
-                      [attr.aria-checked]="accessFor(project.id) === option.value"
-                      [class.is-active]="accessFor(project.id) === option.value"
-                      [disabled]="isOptionDisabled(option)"
-                      (click)="setAccess(project.id, option.value)"
-                    >
-                      {{ option.label }}
-                    </button>
+              </summary>
+              <div class="card-content">
+                <ul class="project-rows">
+                  @for (menu of menus; track menu.key) {
+                    <li class="project-row">
+                      <span class="project-name" [id]="'menu-' + menu.key">{{ menu.label }}</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        class="switch"
+                        [attr.aria-labelledby]="'menu-' + menu.key"
+                        [attr.aria-checked]="selectedPermission().menuAccess.includes(menu.key)"
+                        [disabled]="!isEditable()"
+                        (click)="toggleMenuAccess(menu.key)"
+                      >
+                        <span class="switch-thumb"></span>
+                      </button>
+                    </li>
                   }
-                </div>
-              </li>
-            }
-          </ul>
+                </ul>
+              </div>
+            </details>
+            <footer class="card-footer">Controls navigation, not direct API access.</footer>
+          </section>
         }
+
+        <section class="access-card" aria-labelledby="project-access-heading">
+          <details class="access-section">
+            <summary class="card-header">
+              <span class="access-title" id="project-access-heading">Project access</span>
+              <span class="material-symbols-outlined access-chevron" aria-hidden="true"
+                >expand_more</span
+              >
+            </summary>
+
+            <div class="card-content">
+              @if (isLoading()) {
+                <p class="empty" role="status">Loading projects…</p>
+              } @else if (loadFailed()) {
+                <div class="empty" role="alert">
+                  <p>Projects could not be loaded. Check your connection and try again.</p>
+                  <button type="button" class="retry-button" (click)="loadProjects()">Retry</button>
+                </div>
+              } @else if (!projects().length) {
+                <p class="empty">No projects yet. Create one on the Projects page to set access.</p>
+              } @else {
+                <ul class="project-rows">
+                  @for (project of projects(); track project.id) {
+                    <li class="project-row">
+                      <span class="project-name" [id]="'project-' + project.id">{{
+                        project.project_name
+                      }}</span>
+                      <div
+                        class="access-control"
+                        role="radiogroup"
+                        [attr.aria-labelledby]="'project-' + project.id"
+                      >
+                        @for (option of accessOptions; track option.value) {
+                          <button
+                            type="button"
+                            role="radio"
+                            class="access-option"
+                            [attr.data-access]="option.value"
+                            [attr.aria-checked]="accessFor(project.id) === option.value"
+                            [class.is-active]="accessFor(project.id) === option.value"
+                            [disabled]="isOptionDisabled(option)"
+                            (click)="setAccess(project.id, option.value)"
+                          >
+                            {{ option.label }}
+                          </button>
+                        }
+                      </div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </details>
+          <footer class="card-footer">{{ summaryFor(selectedRoleId()) }}</footer>
+        </section>
 
         @if (isAdmin()) {
           <div class="save-bar">

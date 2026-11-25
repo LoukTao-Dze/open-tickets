@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module';
 import { SupabaseModule } from '../../supabase/supabase.module';
 import { ProjectAccessService } from './project-access.service';
+import { MenuAccessController } from './menu-access.controller';
 import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
 
 @Module({
   imports: [AuthModule, SupabaseModule],
-  controllers: [RolesController],
+  controllers: [RolesController, MenuAccessController],
   providers: [RolesService, ProjectAccessService],
   exports: [ProjectAccessService],
 })

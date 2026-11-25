@@ -12,6 +12,8 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import {
   MAX_ROLES,
+  MENU_KEYS,
+  MenuKey,
   PROJECT_ACCESS_LEVELS,
   ProjectAccess,
   RolePermissionDto,
@@ -21,7 +23,7 @@ import {
 
 const UNIQUE_VIOLATION_CODE = '23505';
 const ROLE_COLUMNS =
-  'role, description, can_edit, default_access, project_access';
+  'role, description, can_edit, default_access, project_access, menu_access';
 
 interface RolePermissionRow {
   role: string;
@@ -29,6 +31,7 @@ interface RolePermissionRow {
   can_edit: boolean;
   default_access: string;
   project_access: Record<string, string> | null;
+  menu_access: MenuKey[];
 }
 
 @Injectable()
@@ -36,6 +39,30 @@ export class RolesService {
   private readonly logger = new Logger(RolesService.name);
 
   constructor(private readonly supabaseService: SupabaseService) {}
+
+  async getMenuAccess(role: string): Promise<MenuKey[]> {
+    if (role === 'admin') return [...MENU_KEYS];
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('role_permissions')
+      .select('menu_access')
+      .eq('role', role)
+      .maybeSingle();
+    if (error) throw this.persistenceError('load', error);
+    if (!data) {
+      this.logger.warn('No menu permissions found for the session role');
+      return [];
+    }
+    if (
+      !Array.isArray(data.menu_access) ||
+      data.menu_access.some(
+        (key: unknown) => !MENU_KEYS.includes(key as MenuKey),
+      )
+    ) {
+      throw this.persistenceError('load', { message: 'Invalid menu access' });
+    }
+    return data.menu_access as MenuKey[];
+  }
 
   async getPermissions() {
     const { data, error } = await this.supabaseService
@@ -75,6 +102,7 @@ export class RolesService {
         can_edit: dto.canEdit,
         default_access: downgrade(dto.defaultAccess),
         project_access: {},
+        menu_access: [],
       })
       .select(ROLE_COLUMNS)
       .single();
@@ -143,6 +171,7 @@ export class RolesService {
         can_edit: true,
         default_access: 'edit',
         project_access: {},
+        menu_access: [...MENU_KEYS],
         updated_at: new Date().toISOString(),
       };
     }
@@ -164,6 +193,7 @@ export class RolesService {
       can_edit: permission.canEdit,
       default_access: downgrade(permission.defaultAccess),
       project_access: projectAccess,
+      menu_access: permission.menuAccess,
       updated_at: new Date().toISOString(),
     };
   }
@@ -176,6 +206,7 @@ export class RolesService {
       canEdit: row.can_edit,
       defaultAccess: row.default_access,
       projectAccess: row.project_access ?? {},
+      menuAccess: row.role === 'admin' ? [...MENU_KEYS] : row.menu_access,
     };
   }
 

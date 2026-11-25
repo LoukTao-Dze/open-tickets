@@ -12,7 +12,7 @@
     </div>
 
     <div class="nav-links">
-      <ng-container *ngFor="let link of navLinks">
+      <ng-container *ngFor="let link of navLinks()">
         <a
           *ngIf="link.isActive"
           [routerLink]="link.route"

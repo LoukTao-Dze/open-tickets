@@ -17,6 +17,7 @@ import {
   RolePermissionService,
 } from '../../services/role-permission.service';
 import { LoadingOverlayComponent } from '../../shared/loading-overlay/loading-overlay.component';
+import { MAIN_MENUS, MenuKey } from '../../shared/menu-access';
 
 interface RoleDefinition {
   id: ManagedRole;
@@ -78,6 +79,7 @@ export class RolesComponent implements OnInit {
     ...this.permissionService.customRoles(),
   ]);
   readonly accessOptions = ACCESS_OPTIONS;
+  readonly menus = MAIN_MENUS;
   readonly roleNameMinLength = ROLE_NAME_MIN_LENGTH;
   readonly roleNameMaxLength = ROLE_NAME_MAX_LENGTH;
   readonly roleDescriptionMaxLength = ROLE_DESCRIPTION_MAX_LENGTH;
@@ -85,6 +87,8 @@ export class RolesComponent implements OnInit {
   readonly projects = signal<KanbanProject[]>([]);
   readonly isLoading = signal(true);
   readonly loadFailed = signal(false);
+  readonly permissionsLoaded = signal(false);
+  readonly permissionsLoadFailed = signal(false);
   // Deny by default: only a server-confirmed admin can change permissions.
   readonly isAdmin = signal(false);
   readonly selectedRoleId = signal<ManagedRole>('guest');
@@ -110,7 +114,8 @@ export class RolesComponent implements OnInit {
     return nameLength >= ROLE_NAME_MIN_LENGTH && nameLength <= ROLE_NAME_MAX_LENGTH;
   });
   readonly canCreateRole = computed(
-    () => this.isAdmin() && this.isNewRoleNameValid() && !this.isCreating(),
+    () =>
+      this.isAdmin() && this.permissionsLoaded() && this.isNewRoleNameValid() && !this.isCreating(),
   );
   readonly selectedPermission = computed(
     () => this.permissionService.permissions()[this.selectedRoleId()],
@@ -119,9 +124,15 @@ export class RolesComponent implements OnInit {
     this.permissionService.customRoles().some((role) => role.id === this.selectedRoleId()),
   );
   readonly isLocked = computed(() => this.permissionService.isLocked(this.selectedRoleId()));
-  readonly isEditable = computed(() => this.isAdmin() && !this.isLocked());
+  readonly isEditable = computed(
+    () => this.isAdmin() && this.permissionsLoaded() && !this.isLocked(),
+  );
   readonly canSave = computed(
-    () => this.isAdmin() && this.permissionService.hasUnsavedChanges() && !this.isSaving(),
+    () =>
+      this.isAdmin() &&
+      this.permissionsLoaded() &&
+      this.permissionService.hasUnsavedChanges() &&
+      !this.isSaving(),
   );
 
   ngOnInit(): void {
@@ -153,8 +164,14 @@ export class RolesComponent implements OnInit {
   }
 
   loadPermissions(): void {
+    this.permissionsLoaded.set(false);
+    this.permissionsLoadFailed.set(false);
     this.permissionService.load().subscribe({
-      error: (error) => console.error('Failed to load role permissions', error),
+      next: () => this.permissionsLoaded.set(true),
+      error: (error) => {
+        console.error('Failed to load role permissions', error);
+        this.permissionsLoadFailed.set(true);
+      },
     });
   }
 
@@ -222,7 +239,7 @@ export class RolesComponent implements OnInit {
       .subscribe({
         next: (roleId) => {
           this.resetNewRoleForm();
-          this.roleNotice.set(`Role ${name} created. Set its project access below.`);
+          this.roleNotice.set(`Role ${name} created. Set its project and menu access below.`);
           this.selectedRoleId.set(roleId);
           this.isAddingRole.set(false);
           this.isCreating.set(false);
@@ -240,7 +257,7 @@ export class RolesComponent implements OnInit {
   }
 
   deleteSelectedRole(): void {
-    if (!this.isAdmin() || !this.isCustomRole() || this.isDeleting()) return;
+    if (!this.isEditable() || !this.isCustomRole() || this.isDeleting()) return;
     const { id, label } = this.selectedRole();
     this.confirmDialog
       .confirm({
@@ -300,6 +317,16 @@ export class RolesComponent implements OnInit {
     if (!this.isEditable()) return;
     this.saveStatus.set('idle');
     this.permissionService.setProjectAccess(this.selectedRoleId(), projectId, access);
+  }
+
+  toggleMenuAccess(key: MenuKey): void {
+    if (!this.isEditable()) return;
+    this.saveStatus.set('idle');
+    this.permissionService.setMenuAccess(
+      this.selectedRoleId(),
+      key,
+      !this.selectedPermission().menuAccess.includes(key),
+    );
   }
 
   isOptionDisabled(option: AccessOption): boolean {

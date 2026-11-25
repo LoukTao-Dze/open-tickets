@@ -15,6 +15,8 @@ import { LayoutService } from './services/layout.service';
 import { AuthService } from './services/auth.service';
 import { LoadingService } from './services/loading.service';
 import { LoadingComponent } from './shared/loading/loading.component';
+import { MenuAccessService } from './services/menu-access.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -28,9 +30,19 @@ export class App {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly loading = inject(LoadingService);
+  readonly menuAccess = inject(MenuAccessService);
 
   isLoginRoute(): boolean {
     return this.router.url.startsWith('/login');
+  }
+
+  async retryMenuAccess(): Promise<void> {
+    try {
+      const session = await firstValueFrom(this.auth.getSession());
+      await this.menuAccess.refresh(session);
+    } catch {
+      console.error('Unable to reload menu access.');
+    }
   }
 
   constructor() {

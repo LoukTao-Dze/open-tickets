@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { RolePermissionService } from './role-permission.service';
+import { MAIN_MENUS } from '../shared/menu-access';
 
 describe('RolePermissionService', () => {
   let service: RolePermissionService;
@@ -64,6 +65,7 @@ describe('RolePermissionService', () => {
           canEdit: true,
           defaultAccess: 'edit',
           projectAccess: { 'project-1': 'none' },
+          menuAccess: MAIN_MENUS.map((menu) => menu.key),
         },
         {
           role: 'guest',
@@ -71,6 +73,7 @@ describe('RolePermissionService', () => {
           canEdit: false,
           defaultAccess: 'view',
           projectAccess: {},
+          menuAccess: MAIN_MENUS.map((menu) => menu.key),
         },
       ],
     });
@@ -105,6 +108,7 @@ describe('RolePermissionService', () => {
         canEdit: false,
         defaultAccess: 'view',
         projectAccess: {},
+        menuAccess: [],
       },
     });
 
@@ -138,6 +142,7 @@ describe('RolePermissionService', () => {
           canEdit: true,
           defaultAccess: 'view',
           projectAccess: {},
+          menuAccess: [],
         },
       });
     };
@@ -172,6 +177,15 @@ describe('RolePermissionService', () => {
       service.deleteRole('guest').subscribe({ error: () => undefined });
       http.expectNone('/api/roles/guest');
       expect(service.permissions()['guest']).toBeDefined();
+    });
+
+    it('preserves menu changes when project edit permissions are changed', () => {
+      service.setMenuAccess('user', 'workspace', false);
+      service.setCanEdit('user', false);
+      expect(service.permissions()['user'].menuAccess).not.toContain('workspace');
+      expect(service.hasUnsavedChanges()).toBe(true);
+      service.setMenuAccess('admin', 'workspace', false);
+      expect(service.permissions()['admin'].menuAccess).toContain('workspace');
     });
   });
 });

@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { LayoutService } from '../services/layout.service';
+import { MenuAccessService } from '../services/menu-access.service';
+import { MAIN_MENUS } from '../shared/menu-access';
 
 export interface SidenavLink {
   icon: string;
@@ -19,16 +21,15 @@ export interface SidenavLink {
 })
 export class SidenavComponent {
   layout = inject(LayoutService);
-  navLinks: SidenavLink[] = [
-    { icon: 'view_kanban', label: 'Kanban', route: '/kanban', isActive: true },
-    { icon: 'account_tree', label: 'Workspace', route: '/workspace', isActive: true },
-    { icon: 'archive', label: 'Files Storage', route: '/files', isActive: false },
-    { icon: 'folder_open', label: 'Projects', route: '/projects', isActive: true },
-    { icon: 'monitoring', label: 'Progress', route: '/progress', isActive: true },
-    { icon: 'fact_check', label: 'Test scenes', route: '/scenes', isActive: true },
-    { icon: 'badge', label: 'Roles', route: '/roles', isActive: true },
-    { icon: 'settings', label: 'Settings', route: '/settings', isActive: false },
-  ];
+  private readonly menuAccess = inject(MenuAccessService);
+  readonly navLinks = computed<SidenavLink[]>(() =>
+    MAIN_MENUS.filter((menu) => this.menuAccess.menus().includes(menu.key)).map((menu) => ({
+      icon: menu.icon,
+      label: menu.label,
+      route: `/${menu.key}`,
+      isActive: true,
+    })),
+  );
 
   bottomNavLinks: SidenavLink[] = [
     { icon: 'help', label: 'Support', route: '/support', isActive: true },

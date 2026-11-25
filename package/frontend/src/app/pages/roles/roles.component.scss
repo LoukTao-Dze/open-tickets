@@ -117,16 +117,41 @@
   @apply translate-x-5;
 }
 
-.access-head {
-  @apply flex items-baseline justify-between gap-md;
+.access-card {
+  @apply rounded-xl border border-outline-variant bg-surface-container-lowest;
 }
 
-.access-head h3 {
+.card-header {
+  @apply flex items-center justify-between gap-md px-md py-sm cursor-pointer rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary;
+  list-style: none;
+}
+
+.card-header::-webkit-details-marker {
+  display: none;
+}
+
+.access-section[open] .card-header {
+  @apply border-b border-outline-variant;
+}
+
+.card-content {
+  @apply px-md;
+}
+
+.card-footer {
+  @apply border-t border-outline-variant px-md py-sm text-xs text-on-surface-variant;
+}
+
+.access-title {
   @apply text-body-lg font-bold;
 }
 
-.access-head p {
-  @apply text-xs text-on-surface-variant;
+.access-chevron {
+  transform: rotate(-90deg);
+}
+
+.access-section[open] .access-chevron {
+  transform: none;
 }
 
 .project-rows {

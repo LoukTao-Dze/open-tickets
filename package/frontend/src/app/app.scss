@@ -11,3 +11,11 @@
 .login-content {
   min-height: 100vh;
 }
+
+.menu-error {
+  @apply flex items-center gap-md px-lg py-sm text-body-sm bg-error/10 text-error;
+}
+
+.menu-error button {
+  @apply px-md py-xs rounded-lg border border-error/40 font-bold focus-visible:ring-2 focus-visible:ring-error;
+}
