@@ -1,4 +1,4 @@
-import { Component, HostListener, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, Input, inject } from '@angular/core';
 import { StickyNoteItem } from '../../../interface/workspace.interface';
 import {
   STICKY_NOTE_COLOR_OPTIONS,
@@ -42,11 +42,10 @@ interface ContentSelection {
   templateUrl: './sticky-note.component.html',
   styleUrls: ['./sticky-note.component.scss'],
 })
-export class StickyNoteComponent implements OnChanges {
+export class StickyNoteComponent {
   @Input({ required: true }) note!: StickyNoteItem;
   @Input() isDragging = false;
   @Input() zoom = 1;
-  @Input() isFocused: boolean = false;
 
   readonly fontSizeOptions = FONT_SIZE_OPTIONS;
   readonly stickyNoteColorOptions = STICKY_NOTE_COLOR_OPTIONS;
@@ -58,6 +57,7 @@ export class StickyNoteComponent implements OnChanges {
   isUnderlineActive = false;
   isBack = false;
 
+  private readonly cdr = inject(ChangeDetectorRef);
   private isResizing = false;
   private activeCorner: ResizeCorner | null = null;
   private resizeStart: ResizeStart = { x: 0, y: 0, width: 0, height: 0, itemX: 0, itemY: 0 };
@@ -97,12 +97,6 @@ export class StickyNoteComponent implements OnChanges {
     }
 
     return low;
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['isFocused']) {
-      this.isContentEditing = changes['isFocused']?.currentValue || false;
-    }
   }
 
   private estimatedTextHeight(lines: string[], availableWidth: number, fontSize: number): number {
@@ -288,6 +282,7 @@ export class StickyNoteComponent implements OnChanges {
 
   startEditing(contentEl: HTMLElement) {
     this.isContentEditing = true;
+    this.cdr.detectChanges();
     queueMicrotask(() => {
       contentEl.focus();
       this.updateActiveFormats();

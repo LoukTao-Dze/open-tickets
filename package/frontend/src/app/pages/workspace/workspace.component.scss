@@ -315,6 +315,7 @@
 /* Bottom right controls */
 .bottom-right-controls {
   @apply absolute bottom-md right-md flex flex-col gap-sm z-50;
+  align-items: flex-end;
 }
 
 .presence-row {

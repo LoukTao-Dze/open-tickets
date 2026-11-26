@@ -1,4 +1,12 @@
-import { Component, ElementRef, HostListener, Input, ViewChild } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  HostListener,
+  Input,
+  ViewChild,
+  inject,
+} from '@angular/core';
 import { LinkItem } from '../../../interface/workspace.interface';
 import {
   computeResizedRect,
@@ -25,12 +33,14 @@ export class LinkComponent {
 
   isEditing = false;
 
+  private readonly cdr = inject(ChangeDetectorRef);
   private isResizing = false;
   private activeCorner: ResizeCorner | null = null;
   private resizeStart: ResizeStart = { x: 0, y: 0, width: 0, height: 0, itemX: 0, itemY: 0 };
 
   startEditing() {
     this.isEditing = true;
+    this.cdr.detectChanges();
     queueMicrotask(() => this.titleInputRef?.nativeElement.focus());
   }
 

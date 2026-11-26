@@ -188,16 +188,20 @@ Item fields save immediately when they lose focus, including when tabbing betwee
 fields. Changes are saved for the item being edited, not the next selected item.
 Read-only users do not persist edits. Failed saves show an error on the board;
 keep the board open and leave the field again to retry.
+Use **Refresh workspace** above the zoom controls to reload the current board
+without changing its view. Pending edits are saved first; if saving fails, the
+board remains unchanged.
 
 Use **Selection** in the tool hub to drag a rectangle around items. Only fully
 enclosed items are selected; selecting a grouped item includes its whole group.
-Use **Pan board** (the hand) to move the viewport. Trackpad pan and pinch zoom
-continue to work in either mode.
+Use **Pan board** (the hand) to move the viewport by dragging empty space. Drag
+an item directly in either mode; double-click its content to edit it. Trackpad
+pan and pinch zoom continue to work in either mode.
 
 The selection toolbar can **Group** or **Delete** the selected items. Group names
 are optional (maximum 80 characters); blank names become `Group-<group ID>`.
 IDs increase across all boards and may have gaps. Drag the group label, border,
-empty space inside its frame, or a non-editable part of a grouped item to move all
+empty space inside its frame, or a grouped item outside editing mode to move all
 its members in either Selection or Pan board mode. Drag outside groups to pan in
 Pan board mode. Groups and positions
 persist across refreshes. Deletion requires confirmation and cannot be undone.

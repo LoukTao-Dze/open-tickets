@@ -47,6 +47,43 @@ describe('StickyNoteComponent', () => {
     expect(bubbled).toBe(false);
   });
 
+  it('only enables the double-clicked field for editing', async () => {
+    const component = fixture.componentInstance;
+    component.isContentEditing = false;
+    vi.spyOn(component, 'updateActiveFormats').mockImplementation(() => {});
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    const label: HTMLInputElement = fixture.nativeElement.querySelector('.sticky-note-label');
+    const content: HTMLElement = fixture.nativeElement.querySelector('.sticky-note-content');
+
+    label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    fixture.detectChanges();
+    expect(label.readOnly).toBe(false);
+    expect(content.getAttribute('contenteditable')).toBe('false');
+
+    await Promise.resolve();
+    component.stopEditingLabel();
+    content.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    fixture.detectChanges();
+    await Promise.resolve();
+    expect(label.readOnly).toBe(true);
+    expect(content.getAttribute('contenteditable')).toBe('true');
+  });
+
+  it('focuses the content when editing starts before the next change detection', async () => {
+    const component = fixture.componentInstance;
+    component.isContentEditing = false;
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    vi.spyOn(component, 'updateActiveFormats').mockImplementation(() => {});
+    const content: HTMLElement = fixture.nativeElement.querySelector('.sticky-note-content');
+
+    content.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(content);
+  });
+
   it.each([1, 2])(
     'preserves the caret after Enter creates %i empty lines',
     async (emptyLineCount) => {

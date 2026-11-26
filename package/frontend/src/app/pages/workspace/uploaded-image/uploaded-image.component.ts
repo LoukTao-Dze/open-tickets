@@ -39,10 +39,6 @@ export class UploadedImageComponent {
     fileInput.click();
   }
 
-  onUploadMouseDown(event: PointerEvent) {
-    event.stopPropagation();
-  }
-
   onResizeMouseDown(event: PointerEvent, corner: ResizeCorner) {
     event.stopPropagation();
     event.preventDefault();

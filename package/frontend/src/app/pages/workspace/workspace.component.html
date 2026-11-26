@@ -190,7 +190,6 @@
                 [note]="item"
                 [isDragging]="isDragging(item)"
                 [zoom]="zoom"
-                [isFocused]="isFocused(item)"
               ></app-sticky-note>
             }
             @case (EnumWorkspaceItemType.IMAGE) {
@@ -387,6 +386,19 @@
       <div class="presence-avatar presence-avatar--more">+4</div>
     </div> -->
 
+    <div class="zoom-controls">
+      <button
+        class="zoom-btn"
+        type="button"
+        aria-label="Refresh workspace"
+        title="Refresh workspace"
+        [disabled]="isLoading || isSelectionBusy"
+        (pointerdown)="$event.preventDefault(); $event.stopPropagation()"
+        (click)="refreshWorkspace()"
+      >
+        <span class="material-symbols-outlined">refresh</span>
+      </button>
+    </div>
     <div class="zoom-controls">
       <button class="zoom-btn" type="button" (click)="zoomOut()" aria-label="Zoom out">
         <span class="material-symbols-outlined">remove</span>

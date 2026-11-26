@@ -27,7 +27,7 @@ import {
   WorkspaceGroup,
 } from '../../interface/workspace.interface';
 import { environment } from '../../../environments/environment';
-import { firstValueFrom, forkJoin, switchMap } from 'rxjs';
+import { finalize, firstValueFrom, forkJoin, map, switchMap } from 'rxjs';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { isReadOnlyRole } from '../../shared/editor-roles';
@@ -182,6 +182,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
   } | null = null;
   private pendingSaveItem: WorkspaceCanvasItem | null = null;
   private readonly pendingItemSaves = new Map<WorkspaceCanvasItem, Promise<void>>();
+  private readonly failedItemSaves = new Set<WorkspaceCanvasItem>();
 
   private isPanning = false;
   private panStartScreen = { x: 0, y: 0 };
@@ -394,7 +395,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.applyViewportState(this.selectedWhiteboardId);
   }
 
-  getCanvasItem() {
+  getCanvasItem(preserveViewport = false) {
     if (!this.isOnInit) {
       this.isLoading = true;
     }
@@ -410,7 +411,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             updated_at: string;
             default: boolean;
           }[];
-          this.whiteboards = projects
+          const whiteboards = projects
             .map((project) => ({
               id: project.id,
               name: project.name,
@@ -418,7 +419,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
               default: project.default,
             }))
             .sort((a, b) => Number(b.default) - Number(a.default));
-          this.selectedWhiteboardId =
+          const selectedWhiteboardId =
             projects.find((project) =>
               this.selectedWhiteboardId
                 ? project.id === this.selectedWhiteboardId
@@ -426,8 +427,7 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
             )?.id ??
             projects[0]?.id ??
             '';
-          this.applyViewportState(this.selectedWhiteboardId);
-          const params = { projectId: this.selectedWhiteboardId };
+          const params = { projectId: selectedWhiteboardId };
           return forkJoin({
             items: this.http.get<{ data: WorkspaceCanvasItem[] }>(GET_CANVAS_ITEM_ENDPOINT, {
               params,
@@ -439,12 +439,26 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
               CANVAS_GROUPS_ENDPOINT,
               { params },
             ),
-          });
+          }).pipe(map((response) => ({ ...response, whiteboards, selectedWhiteboardId })));
+        }),
+        finalize(() => {
+          if (preserveViewport) {
+            this.isSelectionBusy = false;
+            this.cdr.markForCheck();
+          }
         }),
       )
       .subscribe({
         next: (res) => {
           const items = res.items.data;
+          if (!preserveViewport || this.selectedWhiteboardId !== res.selectedWhiteboardId) {
+            this.applyViewportState(res.selectedWhiteboardId);
+          }
+          this.whiteboards = res.whiteboards;
+          this.selectedWhiteboardId = res.selectedWhiteboardId;
+          this.clearSelection();
+          this.focusedItem = null;
+          this.selectedConnectionId = null;
           this.groups = res.groups.data;
           this.connections = res.connections.data;
           this.isReadOnly = !res.groups.canEdit;
@@ -470,9 +484,29 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
         },
         error: (err) => {
           this.isLoading = false;
+          this.isOnInit = false;
           this.reportActionError('Failed to load workspace. Reload the page to try again.', err);
         },
       });
+  }
+
+  async refreshWorkspace() {
+    if (this.isLoading || this.isSelectionBusy) return;
+    this.isSelectionBusy = true;
+    this.actionError = '';
+    try {
+      this.blurItemEditor();
+      await this.flushItemSaves();
+      for (const item of this.failedItemSaves) {
+        if (this.canvasList.includes(item)) await this.persistItem(item);
+      }
+      this.getCanvasItem(true);
+    } catch (error) {
+      this.isSelectionBusy = false;
+      this.reportActionError('Failed to save items before refreshing. Try again.', error);
+    } finally {
+      this.cdr.markForCheck();
+    }
   }
 
   isDragging(item: WorkspaceCanvasItem): boolean {
@@ -867,6 +901,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     this.pendingItemSaves.set(item, request);
     try {
       await request;
+      this.failedItemSaves.delete(item);
+    } catch (error) {
+      this.failedItemSaves.add(item);
+      throw error;
     } finally {
       if (this.pendingItemSaves.get(item) === request) this.pendingItemSaves.delete(item);
     }
@@ -948,7 +986,10 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
     }
 
     const target = event.target as HTMLElement | null;
-    if (target?.closest('button, select, a, .resize-handle, .item-delete-btn')) {
+    if (
+      target?.closest('button, select, a, .resize-handle, .item-delete-btn') &&
+      !target.closest('.image-upload-placeholder')
+    ) {
       return;
     }
     this.selectedConnectionId = null;
@@ -966,17 +1007,15 @@ export class WorkspaceComponent implements OnDestroy, OnInit {
       this.connectionTarget = this.findConnectionTarget();
       return;
     }
-    if (item.groupId && !target?.closest('input, textarea, [contenteditable="true"], .cm-editor')) {
+    if (item.groupId) {
       const group = this.groups.find((candidate) => candidate.id === item.groupId);
       if (group) {
         this.onGroupMouseDown(event, group);
         return;
       }
     }
-    if (this.interactionTool === EnumWorkspaceItemType.HAND) {
-      this.onCanvasMouseDown(event);
-      return;
-    }
+    this.blurItemEditor();
+    event.preventDefault();
     this.clearSelection();
     this.startItemDrag(event, item);
   }

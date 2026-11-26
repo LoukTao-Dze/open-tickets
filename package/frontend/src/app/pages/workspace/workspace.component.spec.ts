@@ -11,6 +11,7 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog
 import { STICKY_NOTE_COLOR_OPTIONS } from '../../shared/sticky-note-colors';
 import { WorkspaceComponent } from './workspace.component';
 import { routeCanvasConnection } from './connection-routing.util';
+import { StickyNoteComponent } from './sticky-note/sticky-note.component';
 
 const CANVAS_URL = `${environment.apiBaseUrl}/api/canvas`;
 const GROUP = { id: 7, name: 'Group-7', project_id: 'p1', color: '#414752' };
@@ -88,6 +89,113 @@ describe('Workspace selection', () => {
     fixture.detectChanges();
   }
 
+  it('saves pending changes before refreshing the board without resetting the viewport', async () => {
+    vi.useFakeTimers();
+    component.onInsertItem({ type: EnumWorkspaceItemType.TEXT });
+    const item = component.canvasList[0];
+    component.selectedItems = [item];
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Refresh workspace"]',
+    );
+    button.click();
+    await Promise.resolve();
+    const save = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
+    expect(save.request.body).toMatchObject({ type: EnumWorkspaceItemType.TEXT });
+    http.expectNone(`${environment.apiBaseUrl}/api/projects`);
+    save.flush({ data: { id: 1 } });
+    await vi.waitFor(() => {
+      http.expectOne(`${environment.apiBaseUrl}/api/projects`).flush({
+        data: [{ id: 'p1', name: 'Updated board', default: true }],
+      });
+    });
+    expect(component.isSelectionBusy).toBe(true);
+    http.expectOne(`${CANVAS_URL}/get-canvas-item?projectId=p1`).flush({
+      data: [{ ...item, content: 'From server' }],
+    });
+    http.expectOne(`${CANVAS_URL}/groups?projectId=p1`).flush({ data: [], canEdit: true });
+    http.expectOne(`${CANVAS_URL}/connections?projectId=p1`).flush({ data: [] });
+    expect(component.canvasList[0]).toMatchObject({ id: 1, content: 'From server' });
+    expect(component.activeWhiteboard.name).toBe('Updated board');
+    expect([component.zoom, component.panX, component.panY]).toEqual([0.5, 20, -10]);
+    expect(component.selectedItems).toEqual([]);
+    expect(component.isLoading).toBe(false);
+    expect(component.isSelectionBusy).toBe(false);
+  });
+
+  it('keeps unsaved changes after a failed save and retries them before refreshing', async () => {
+    const item = { ...textItem(1, 10, 20), content: 'Unsaved edit' };
+    component.activeWhiteboard.items = [item];
+    const initialSave = component.onSaveWhiteboard(item);
+    http.expectOne(`${CANVAS_URL}/save-canvas-item`).flush(
+      {},
+      { status: 500, statusText: 'Server error' },
+    );
+    await initialSave;
+
+    const retry = component.refreshWorkspace();
+    const save = await vi.waitFor(() => http.expectOne(`${CANVAS_URL}/save-canvas-item`));
+    expect(save.request.body).toMatchObject({ id: 1, content: 'Unsaved edit' });
+    save.flush({}, { status: 500, statusText: 'Server error' });
+    await retry;
+    expect(component.canvasList[0]).toBe(item);
+    expect(component.actionError).toContain('Failed to save items before refreshing');
+    http.expectNone(`${environment.apiBaseUrl}/api/projects`);
+
+    const secondRetry = component.refreshWorkspace();
+    const secondSave = await vi.waitFor(() => http.expectOne(`${CANVAS_URL}/save-canvas-item`));
+    secondSave.flush({ data: { id: 1 } });
+    await secondRetry;
+    http.expectOne(`${environment.apiBaseUrl}/api/projects`).flush({
+      data: [{ id: 'p1', name: 'Board', default: true }],
+    });
+    http.expectOne(`${CANVAS_URL}/get-canvas-item?projectId=p1`).flush({ data: [item] });
+    http.expectOne(`${CANVAS_URL}/groups?projectId=p1`).flush({ data: [], canEdit: true });
+    http.expectOne(`${CANVAS_URL}/connections?projectId=p1`).flush({ data: [] });
+    expect(component.canvasList[0]).toMatchObject({ content: 'Unsaved edit' });
+  });
+
+  it('saves an active editor before refreshing and retains it if the save fails', async () => {
+    const item = textItem(1, 10, 20);
+    component.activeWhiteboard.items = [item];
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    const editor: HTMLTextAreaElement = fixture.nativeElement.querySelector('.text-item');
+    editor.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    fixture.detectChanges();
+    await Promise.resolve();
+    editor.value = 'Active edit';
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+    fixture.nativeElement.querySelector('[aria-label="Refresh workspace"]').click();
+    const save = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
+    expect(save.request.body).toMatchObject({ content: 'Active edit' });
+    save.flush({}, { status: 500, statusText: 'Server error' });
+    await vi.waitFor(() => expect(component.isSelectionBusy).toBe(false));
+    expect(component.canvasList[0]).toBe(item);
+    expect(component.actionError).toContain('Failed to save');
+    http.expectNone(`${environment.apiBaseUrl}/api/projects`);
+  });
+
+  it('retains the current board when refreshing fails after loading projects', async () => {
+    const item = textItem(1, 10, 20);
+    component.activeWhiteboard.items = [item];
+    component.selectedItems = [item];
+    await component.refreshWorkspace();
+    http.expectOne(`${environment.apiBaseUrl}/api/projects`).flush({
+      data: [{ id: 'p1', name: 'Updated board', default: true }],
+    });
+    const itemsRequest = http.expectOne(`${CANVAS_URL}/get-canvas-item?projectId=p1`);
+    http.expectOne(`${CANVAS_URL}/groups?projectId=p1`);
+    http.expectOne(`${CANVAS_URL}/connections?projectId=p1`);
+    itemsRequest.flush({}, { status: 500, statusText: 'Server error' });
+
+    expect(component.canvasList[0]).toBe(item);
+    expect(component.activeWhiteboard.name).toBe('Board');
+    expect(component.selectedItems).toEqual([item]);
+    expect([component.zoom, component.panX, component.panY]).toEqual([0.5, 20, -10]);
+    expect(component.actionError).toContain('Failed to load workspace');
+  });
+
   it.each([
     [EnumWorkspaceItemType.STICKY_NOTE, '.sticky-note-label', 'label'],
     [EnumWorkspaceItemType.STICKY_NOTE, '.sticky-note-content', 'content'],
@@ -107,14 +215,17 @@ describe('Workspace selection', () => {
       await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
       fixture.detectChanges();
       const item = component.canvasList[0];
-      if (type === EnumWorkspaceItemType.LINK || type === EnumWorkspaceItemType.MARKDOWN) {
-        const preview: HTMLElement = fixture.nativeElement.querySelector(
-          type === EnumWorkspaceItemType.LINK ? '.link-card' : '.markdown-preview',
-        );
-        preview.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-        fixture.detectChanges();
-        await Promise.resolve();
-      }
+      vi.spyOn(StickyNoteComponent.prototype, 'updateActiveFormats').mockImplementation(() => {});
+      const editTarget: HTMLElement = fixture.nativeElement.querySelector(
+        type === EnumWorkspaceItemType.LINK
+          ? '.link-card'
+          : type === EnumWorkspaceItemType.MARKDOWN
+            ? '.markdown-preview'
+            : selector,
+      );
+      editTarget.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      fixture.detectChanges();
+      await Promise.resolve();
       const editor: HTMLElement = fixture.nativeElement.querySelector(selector);
       const value = 'Updated value';
       if (selector === '.cm-content') {
@@ -129,7 +240,11 @@ describe('Workspace selection', () => {
         editor.dispatchEvent(new Event('input', { bubbles: true }));
       }
       http.expectNone(`${CANVAS_URL}/save-canvas-item`);
-      editor.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      if (document.activeElement === editor) {
+        editor.blur();
+      } else {
+        editor.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      }
       const request = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
       expect(request.request.body).toMatchObject({ id: 1, type, [field]: value });
       request.flush({ data: { id: 1 } });
@@ -137,6 +252,75 @@ describe('Workspace selection', () => {
       expect(component.canvasList[0]).toBe(item);
     },
   );
+
+  it('focuses the link title when double-clicked before the next change detection', async () => {
+    component.activeWhiteboard.items = [
+      {
+        ...textItem(1, 10, 20),
+        type: EnumWorkspaceItemType.LINK,
+        title: 'Link',
+        url: 'https://example.com',
+      },
+    ];
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    fixture.nativeElement
+      .querySelector('.link-card')
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.link-input'));
+  });
+
+  it.each([
+    [EnumWorkspaceItemType.STICKY_NOTE, '.sticky-note-content'],
+    [EnumWorkspaceItemType.STICKY_NOTE, '.sticky-note-label'],
+    [EnumWorkspaceItemType.TEXT, '.text-item'],
+    [EnumWorkspaceItemType.LINK, '.link-card'],
+    [EnumWorkspaceItemType.MARKDOWN, '.markdown-preview'],
+    [EnumWorkspaceItemType.CODE_SNIPPET, '.code-snippet-filename-input'],
+    [EnumWorkspaceItemType.CODE_SNIPPET, '.cm-content'],
+    [EnumWorkspaceItemType.IMAGE, '.image-upload-placeholder'],
+  ] as const)('drags %s from %s immediately in pan mode', async (type, selector) => {
+    vi.useFakeTimers();
+    component.onInsertItem({ type, color: STICKY_NOTE_COLOR_OPTIONS[0] });
+    vi.advanceTimersByTime(500);
+    http.expectOne(`${CANVAS_URL}/save-canvas-item`).flush({ data: { id: 1 } });
+    await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
+    component.changeInteractionTool(EnumWorkspaceItemType.HAND);
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    const item = component.canvasList[0];
+    const initialX = item.x;
+    const initialY = item.y;
+    const target: HTMLElement = fixture.nativeElement.querySelector(selector);
+    const uploadInput: HTMLInputElement | null = fixture.nativeElement.querySelector(
+      'input[type="file"]',
+    );
+    const uploadClick = uploadInput && vi.spyOn(uploadInput, 'click');
+    target.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 60, clientY: 50 }),
+    );
+    document.dispatchEvent(pointer('pointermove', 80, 80));
+    document.dispatchEvent(pointer('pointerup', 80, 80));
+    expect([item.x, item.y]).toEqual([initialX + 40, initialY + 60]);
+    expect([component.panX, component.panY]).toEqual([20, -10]);
+    if (type === EnumWorkspaceItemType.STICKY_NOTE) {
+      expect(
+        fixture.nativeElement.querySelector('.sticky-note-content').getAttribute('contenteditable'),
+      ).toBe('false');
+    }
+    if (uploadClick) {
+      expect(uploadClick).not.toHaveBeenCalled();
+      target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      expect(uploadClick).toHaveBeenCalledOnce();
+    }
+    vi.advanceTimersByTime(500);
+    const save = http.expectOne(`${CANVAS_URL}/save-canvas-item`);
+    expect(save.request.body).toMatchObject({ x: item.x, y: item.y });
+    save.flush({ data: { id: 1 } });
+    await vi.waitFor(() => expect(component.isCanvasLoading).toBe(false));
+  });
 
   it('keeps both anchors fixed and routes around the items as the source moves', () => {
     const source = textItem(1, 100, 200);
@@ -1026,14 +1210,19 @@ describe('Workspace selection', () => {
     http.expectNone(`${CANVAS_URL}/save-canvas-item`);
   });
 
-  it('keeps grouped editors and controls out of group dragging', () => {
+  it('keeps active grouped editors and controls out of group dragging', () => {
     const item = { ...textItem(1, 10, 20), groupId: GROUP.id };
     component.activeWhiteboard.items = [item];
     component.groups = [GROUP];
     selectTool();
+    const editor: HTMLElement = fixture.nativeElement.querySelector('.text-item');
+    editor.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    fixture.detectChanges();
 
     for (const selector of ['.text-item', '.item-delete-btn']) {
-      fixture.nativeElement.querySelector(selector).dispatchEvent(pointer('pointerdown', 60, 50));
+      fixture.nativeElement
+        .querySelector(selector)
+        .dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 60, clientY: 50 }));
       component.onDocumentMouseMove(pointer('pointermove', 60, 50));
       component.onDocumentMouseUp();
       expect(component.selectedItems).toEqual([]);
@@ -1042,9 +1231,27 @@ describe('Workspace selection', () => {
     http.expectNone(`${CANVAS_URL}/groups/move`);
   });
 
+  it('moves a group when dragging a non-editing item field', async () => {
+    const first = { ...textItem(1, 10, 20), groupId: GROUP.id };
+    const second = { ...textItem(2, 100, 120), groupId: GROUP.id };
+    component.activeWhiteboard.items = [first, second];
+    component.groups = [GROUP];
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.text-item').dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 60, clientY: 50 }),
+    );
+    document.dispatchEvent(pointer('pointermove', 80, 80));
+    document.dispatchEvent(pointer('pointerup', 80, 80));
+    await vi.waitFor(() => http.expectOne(`${CANVAS_URL}/groups/move`).flush({}));
+    await vi.waitFor(() => expect(component.isSelectionBusy).toBe(false));
+    expect([first.x, first.y, second.x, second.y]).toEqual([50, 80, 140, 180]);
+  });
+
   it('does not save transient group-drag positions when a pending item save fires', async () => {
     vi.useFakeTimers();
-    const item = { ...textItem(1, 10, 20), groupId: GROUP.id };
+    const item = textItem(1, 10, 20);
     component.activeWhiteboard.items = [item];
     component.groups = [GROUP];
     selectTool();
@@ -1054,6 +1261,7 @@ describe('Workspace selection', () => {
     );
     editor.dispatchEvent(pointer('pointerdown', 60, 50));
     component.onDocumentMouseUp();
+    item.groupId = GROUP.id;
     component.onGroupMouseDown(pointer('pointerdown', 60, 50), GROUP);
     component.onDocumentMouseMove(pointer('pointermove', 80, 80));
     vi.advanceTimersByTime(500);

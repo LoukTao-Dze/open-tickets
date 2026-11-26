@@ -22,6 +22,7 @@
 .markdown-preview {
   @apply overflow-auto text-on-surface font-body-lg;
   outline: none;
+  touch-action: none;
 
   &:focus-visible {
     @apply ring-2 ring-primary ring-inset;

@@ -118,7 +118,7 @@
     class="sticky-note-content"
     [class.on-focus]="isContentEditing"
     [class.is-empty]="!note.content"
-    [attr.contenteditable]="isEditing"
+    [attr.contenteditable]="isContentEditing"
     [style.fontSize.px]="contentFontSize"
     [style.color]="note.textColor"
     [innerHTML]="note.content"
