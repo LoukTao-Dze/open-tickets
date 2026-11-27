@@ -169,8 +169,8 @@ describe('Token login HTTP flow', () => {
       .send({ token })
       .expect(200);
     expect(response.body.user).toEqual({
-      user_id: `bypass-${role}`,
-      username: `bypass-${role}`,
+      user_id: `role-${role}`,
+      username: `role-${role}`,
       auth_provider: 'bypass',
       role,
     });
@@ -214,7 +214,12 @@ describe('Token login HTTP flow', () => {
           audience: JWT_AUDIENCE,
         },
       );
-      expect(claims).toMatchObject({ sub: 'bypass-guest', role: 'guest' });
+      expect(claims).toMatchObject({
+        sub: 'role-guest',
+        username: 'role-guest',
+        auth_provider: 'bypass',
+        role: 'guest',
+      });
       expect(claims.exp).toBeGreaterThanOrEqual(now + days * 86400);
       expect(claims.exp).toBeLessThanOrEqual(
         Math.floor(Date.now() / 1000) + days * 86400,
@@ -223,7 +228,12 @@ describe('Token login HTTP flow', () => {
         .post('/api/auth/login/token')
         .send({ token: response.body.token })
         .expect(200);
-      expect(login.body.user.role).toBe('guest');
+      expect(login.body.user).toEqual({
+        user_id: 'role-guest',
+        username: 'role-guest',
+        auth_provider: 'bypass',
+        role: 'guest',
+      });
       expect(login.headers['set-cookie']).toBeDefined();
     },
   );
