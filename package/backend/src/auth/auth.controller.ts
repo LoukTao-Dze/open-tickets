@@ -43,9 +43,14 @@ export class AuthController {
     // Reject cross-origin login CSRF even when browsers can send cross-site cookies.
     validateRequestOrigin(request);
     await this.auth.checkRateLimit(request.ip ?? 'unknown');
-    const { sessionId, session, ttl } = await this.auth.login(body.token);
-    response.cookie(SESSION_COOKIE, sessionId, this.cookieOptions(ttl));
-    return session;
+    const login = await this.auth.login(body.token);
+    if ('token' in login) return login;
+    response.cookie(
+      SESSION_COOKIE,
+      login.sessionId,
+      this.cookieOptions(login.ttl),
+    );
+    return login.session;
   }
 
   @Get('session')

@@ -22,6 +22,7 @@
 
 .modal-message {
   @apply text-body-lg text-on-surface-variant leading-relaxed whitespace-pre-line;
+  overflow-wrap: anywhere;
 }
 
 .modal-actions {

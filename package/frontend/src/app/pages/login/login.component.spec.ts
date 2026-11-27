@@ -58,7 +58,7 @@ describe('LoginComponent', () => {
     expect(component.statusMessage).toContain('Enter an access token');
   });
 
-  it.each(['-bypass guest', '-bypass admin 7 test-secret'])(
+  it.each(['-bypass guest 7 test-secret', '-bypass admin 7 test-secret'])(
     'submits %s to the backend and navigates only after session verification',
     async (command) => {
       const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -71,6 +71,25 @@ describe('LoginComponent', () => {
       expect(input.value).toBe('');
     },
   );
+
+  it('displays the issued token without checking a session or navigating', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl');
+    auth.loginWithToken.mockReturnValue(of({ token: 'signed-guest-jwt' }));
+    const component = TestBed.createComponent(LoginComponent).componentInstance;
+    const input = tokenInput('-bypass guest 7');
+    component.submitToken(input, submitEvent());
+    expect(auth.loginWithToken).toHaveBeenCalledWith('-bypass guest 7');
+    expect(auth.getSession).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Access token created',
+        message: expect.stringContaining('signed-guest-jwt'),
+      }),
+    );
+    expect(input.value).toBe('');
+    expect(component.isSubmitting).toBe(false);
+  });
 
   it.each([
     [401, 'Invalid or expired'],

@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { switchMap } from 'rxjs';
+import { of, switchMap } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog/confirm-dialog.service';
 import { LoadingService } from '../../services/loading.service';
@@ -40,6 +40,7 @@ export class LoginComponent {
     }
     this.showSignInFailed('Sign-in failed', 'Google sign-in is not implemented.', 'OK');
   }
+
   submitToken(inputToken: HTMLInputElement, event: SubmitEvent): void {
     event.preventDefault();
     if (this.isSubmitting) return;
@@ -54,10 +55,24 @@ export class LoginComponent {
     this.loading.open();
     this.auth
       .loginWithToken(trimmedToken)
-      .pipe(switchMap(() => this.auth.getSession()))
+      .pipe(switchMap((response) => ('token' in response ? of(response) : this.auth.getSession())))
       .subscribe({
-        next: () => {
+        next: (response) => {
           inputToken.value = '';
+          if ('token' in response) {
+            this.loading.close();
+            this.isSubmitting = false;
+            this.confirmDialog
+              .confirm({
+                title: 'Access token created',
+                message: `Keep this token private. Paste it into the access token field to sign in.\n\n${response.token}`,
+                confirmText: 'Close',
+                config: { disableClose: true },
+              })
+              .subscribe();
+            this.cdr.detectChanges();
+            return;
+          }
           this.router.navigateByUrl('/workspace');
           this.loading.close();
         },

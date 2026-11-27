@@ -155,14 +155,14 @@ describe('Token login HTTP flow', () => {
   });
 
   it.each([
-    ['-bypass guest', 'guest', 1],
-    ['-bypass guest 7', 'guest', 7],
+    [`-bypass guest ${bypassSecret}`, 'guest', 1],
+    [`-bypass guest 7 ${bypassSecret}`, 'guest', 7],
     [`-bypass admin 7 ${bypassSecret}`, 'admin', 7],
     [`-bypass user 7 ${bypassSecret}`, 'user', 7],
     [`-bypass admin ${bypassSecret}`, 'admin', 1],
     [`-bypass user ${bypassSecret}`, 'user', 1],
     [`-bypass reviewer 7 ${bypassSecret}`, 'reviewer', 7],
-    ['-bypass guest 400', 'guest', 400],
+    [`-bypass guest 400 ${bypassSecret}`, 'guest', 400],
   ])('creates a persistent %s session', async (token, role, days) => {
     const response = await request(app.getHttpServer())
       .post('/api/auth/login/token')
@@ -189,6 +189,44 @@ describe('Token login HTTP flow', () => {
     expect(session.body).toEqual(response.body);
     expect(redis.setSession.mock.calls[0][1]).not.toContain(bypassSecret);
   });
+
+  it.each([
+    ['-bypass guest', 1],
+    ['-bypass guest 7', 7],
+    ['-bypass guest 400', 400],
+  ])(
+    'issues a guest JWT for %s without creating a session',
+    async (command, days) => {
+      const now = Math.floor(Date.now() / 1000);
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/login/token')
+        .send({ token: command })
+        .expect(200);
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.headers['set-cookie']).toBeUndefined();
+      expect(redis.setSession).not.toHaveBeenCalled();
+      const claims = jwt.verify<{ sub: string; role: string; exp: number }>(
+        response.body.token as string,
+        {
+          secret,
+          algorithms: ['HS256'],
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+        },
+      );
+      expect(claims).toMatchObject({ sub: 'bypass-guest', role: 'guest' });
+      expect(claims.exp).toBeGreaterThanOrEqual(now + days * 86400);
+      expect(claims.exp).toBeLessThanOrEqual(
+        Math.floor(Date.now() / 1000) + days * 86400,
+      );
+      const login = await request(app.getHttpServer())
+        .post('/api/auth/login/token')
+        .send({ token: response.body.token })
+        .expect(200);
+      expect(login.body.user.role).toBe('guest');
+      expect(login.headers['set-cookie']).toBeDefined();
+    },
+  );
 
   it.each([
     '-bypass',
@@ -230,8 +268,8 @@ describe('Token login HTTP flow', () => {
       'Invalid or expired access token',
     );
     expect(redis.setSession).not.toHaveBeenCalled();
-    await expect(auth.login('-bypass guest')).resolves.toMatchObject({
-      session: { user: { role: 'guest' } },
+    await expect(auth.login('-bypass guest')).resolves.toEqual({
+      token: expect.any(String) as string,
     });
   });
 
@@ -255,7 +293,7 @@ describe('Token login HTTP flow', () => {
   it('rejects a bypass session after its requested lifetime', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/auth/login/token')
-      .send({ token: '-bypass guest 7' })
+      .send({ token: `-bypass guest 7 ${bypassSecret}` })
       .expect(200);
     const clock = jest
       .spyOn(Date, 'now')

@@ -21,8 +21,10 @@ sessions redirect to `/login`.
 
 Token login sends `{ token }` to `POST /api/auth/login/token`, verifies that the
 browser accepted the server's cookie by reading the session endpoint, then
-navigates to `/workspace`. JavaScript does not write or read authentication
-cookies or store JWTs. The old `byPass` token is no longer accepted.
+navigates to `/workspace`. A guest bypass command without a secret instead shows
+a signed JWT in a modal without logging in; paste that JWT into the token field
+to sign in. JavaScript does not write or read authentication cookies or store JWTs.
+The old `byPass` token is no longer accepted.
 
 See the [backend setup](../backend/README.md#token-login-development-mock) for
 Redis, `JWT_SECRET`, and the command to generate a signed mock JWT. Google

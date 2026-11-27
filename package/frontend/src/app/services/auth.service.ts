@@ -29,9 +29,9 @@ export class AuthService {
       : null;
   }
 
-  loginWithToken(token: string): Observable<AuthSession> {
+  loginWithToken(token: string): Observable<AuthSession | { token: string }> {
     this.clearSession();
-    return this.http.post<AuthSession>(
+    return this.http.post<AuthSession | { token: string }>(
       `${this.baseUrl}/login/token`,
       { token },
       { withCredentials: true },

@@ -97,7 +97,10 @@ export class AuthService {
     }
   }
 
-  private parseBypassCommand(token: string): LoginClaims {
+  private parseBypassCommand(token: string): {
+    claims: LoginClaims;
+    hasSecret: boolean;
+  } {
     const [, role, third, fourth, ...extra] = token.trim().split(/\s+/);
     const hasDays = third !== undefined && /^\d+$/.test(third);
     const lifetime = plainToInstance(BypassLifetime, {
@@ -105,8 +108,8 @@ export class AuthService {
     });
     const suppliedSecret = hasDays ? fourth : third;
     const claims = plainToInstance(LoginClaims, {
-      sub: `bypass-${role}`,
-      username: `bypass-${role}`,
+      sub: `role-${role}`,
+      username: `role-${role}`,
       auth_provider: EnumAuthProvider.BYPASS,
       role,
       exp: Math.floor(Date.now() / 1000) + lifetime.days * SECONDS_PER_DAY,
@@ -125,7 +128,7 @@ export class AuthService {
     if (role !== publicRole || suppliedSecret !== undefined) {
       this.verifyBypassSecret(suppliedSecret);
     }
-    return claims;
+    return { claims, hasSecret: suppliedSecret !== undefined };
   }
 
   private verifyBypassSecret(suppliedSecret?: string): void {
@@ -145,11 +148,26 @@ export class AuthService {
 
   async login(
     token: string,
-  ): Promise<{ sessionId: string; session: AuthSession; ttl: number }> {
+  ): Promise<
+    { sessionId: string; session: AuthSession; ttl: number } | { token: string }
+  > {
     const isBypassCommand = token.trim().split(/\s+/, 1)[0] === BYPASS_COMMAND;
-    const claims = isBypassCommand
-      ? this.parseBypassCommand(token)
-      : await this.verifyToken(token);
+    const bypass = isBypassCommand ? this.parseBypassCommand(token) : undefined;
+    if (bypass && !bypass.hasSecret) {
+      // Only a validated public guest command can issue a JWT without credentials.
+      return {
+        token: await this.jwt.signAsync(
+          { ...bypass.claims },
+          {
+            secret: this.secret,
+            algorithm: 'HS256',
+            issuer: JWT_ISSUER,
+            audience: JWT_AUDIENCE,
+          },
+        ),
+      };
+    }
+    const claims = bypass ? bypass.claims : await this.verifyToken(token);
     if (claims.auth_provider !== EnumAuthProvider.BYPASS) {
       throw new UnauthorizedException('Login Failed');
     }

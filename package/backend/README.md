@@ -45,11 +45,17 @@ The same endpoint also accepts these commands from the login page:
 -bypass admin <secret>
 ```
 
-Days default to **1** when omitted and must be an integer from **1 to 400**
-(the browser's persistent-cookie limit). Command sessions last the requested
-number of days, rather than the one-day cap for signed JWT sessions. Login
-immediately establishes the normal server-side session and HttpOnly cookie;
-no client-generated JWT or browser storage is used.
+Days default to **1** when omitted and must be an integer from **1 to 400**.
+Guest commands without a secret return `{ "token": "<signed JWT>" }` instead of
+creating a session or setting a cookie. The login page displays this token; paste
+it back into the access token field to sign in. The JWT expires after the requested
+number of days, but each session created with it is capped at one day. JWTs are
+signed, not encrypted; anyone holding one can use it until it expires. Keep it
+private and use HTTPS.
+
+Commands with a valid secret immediately establish the normal server-side session
+and HttpOnly cookie for the requested number of days (the browser's persistent-cookie
+limit is 400 days). No client-generated JWT or browser storage is used.
 
 Guest commands are public, including in production. Every other role (including
 custom roles) requires the trailing secret, checked only on the backend. Generate
